@@ -426,10 +426,193 @@ function cleanD(D, IDS) {
   return { skip, split };
 }
 
+// ===== 資料快取（.cache/，由 GitHub Actions cache 保存）=====
+// 每天用交易所的「全部股票當日行情」更新（上市 + 上櫃各 1 次請求）；
+// 新加入的股票或有缺漏的，才用 FinMind 一檔一檔補（每次有上限，避免超過免費額度）。
+const UNIVERSE_SIZE = +process.env.UNIVERSE_SIZE || 500;
+const KEEP_DAYS = 760;            // 保留約兩年（研究回測用）
+const FINMIND_BUDGET = +process.env.FINMIND_BUDGET || 260;
+const CACHE = path.join(process.cwd(), '.cache');
+const readJSON = (f, d) => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { return d; } };
+const num = s => { const v = parseFloat(String(s).replace(/,/g, '')); return isFinite(v) ? v : NaN; };
+const isCommon = id => /^[1-9]\d{3}$/.test(id);
+const rocDate = s => { s = String(s).replace(/\D/g, ''); return `${+s.slice(0, s.length - 4) + 1911}-${s.slice(-4, -2)}-${s.slice(-2)}`; };
+async function getJSON(url) {
+  for (let t = 0; t < 3; t++) {
+    try {
+      const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/json' }, signal: AbortSignal.timeout(60000) });
+      if (r.ok) return await r.json();
+    } catch (e) {}
+    await sleep(3000);
+  }
+  return null;
+}
+// 上市：最新一天全部股票
+async function twseLatest() {
+  const j = await getJSON('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL');
+  if (!Array.isArray(j) || !j.length) return null;
+  const rows = {};
+  for (const x of j) {
+    if (!isCommon(x.Code)) continue;
+    const o = num(x.OpeningPrice), h = num(x.HighestPrice), l = num(x.LowestPrice), c = num(x.ClosingPrice), v = num(x.TradeVolume);
+    if (o > 0 && h > 0 && l > 0 && c > 0 && v > 0) rows[x.Code] = { o, h, l, c, v: Math.round(v / 1000), val: num(x.TradeValue), name: x.Name.trim() };
+  }
+  return { date: rocDate(j[0].Date), rows, mkt: 'twse' };
+}
+// 上市：指定日期全部股票（補缺漏用）
+async function twseDay(iso) {
+  const j = await getJSON(`https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?date=${iso.replace(/-/g, '')}&type=ALLBUT0999&response=json`);
+  if (!j || j.stat !== 'OK' || !Array.isArray(j.tables)) return null;
+  const t = j.tables.find(t => t.fields && t.fields.includes('證券代號') && t.fields.includes('收盤價'));
+  if (!t || !t.data || !t.data.length) return null;
+  const F = n => t.fields.indexOf(n), iI = F('證券代號'), iN = F('證券名稱'), iV = F('成交股數'), iVal = F('成交金額'), iO = F('開盤價'), iH = F('最高價'), iL = F('最低價'), iC = F('收盤價');
+  const rows = {};
+  for (const r of t.data) {
+    const id = String(r[iI]).trim(); if (!isCommon(id)) continue;
+    const o = num(r[iO]), h = num(r[iH]), l = num(r[iL]), c = num(r[iC]), v = num(r[iV]);
+    if (o > 0 && h > 0 && l > 0 && c > 0 && v > 0) rows[id] = { o, h, l, c, v: Math.round(v / 1000), val: num(r[iVal]), name: String(r[iN]).trim() };
+  }
+  return { date: iso, rows, mkt: 'twse' };
+}
+// 上櫃：最新一天全部股票
+async function tpexLatest() {
+  const j = await getJSON('https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes');
+  if (!Array.isArray(j) || !j.length) return null;
+  const rows = {};
+  for (const x of j) {
+    const id = String(x.SecuritiesCompanyCode).trim(); if (!isCommon(id)) continue;
+    const o = num(x.Open), h = num(x.High), l = num(x.Low), c = num(x.Close), v = num(x.TradingShares);
+    if (o > 0 && h > 0 && l > 0 && c > 0 && v > 0) rows[id] = { o, h, l, c, v: Math.round(v / 1000), val: num(x.TransactionAmount), name: String(x.CompanyName).trim() };
+  }
+  return { date: rocDate(j[0].Date), rows, mkt: 'tpex' };
+}
+// FinMind 一檔補資料：回傳 'ok' | 'quota' | 'fail'
+async function finmindInto(store, id, start, token) {
+  let r = null;
+  for (let t = 0; t < 2 && !r; t++) {
+    try { r = await fetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${id}&start_date=${start}${token ? '&token=' + token : ''}`, { signal: AbortSignal.timeout(60000) }).then(x => x.json()); } catch (e) { await sleep(2000); }
+  }
+  if (!r) return 'fail';
+  if (r.status === 402) return 'quota';
+  if (r.status !== 200 || !Array.isArray(r.data)) return 'fail';
+  const m = new Map((store[id] || []).map(b => [b[0], b]));
+  for (const x of r.data) if (x.stock_id === id && x.open > 0 && x.Trading_Volume > 0) m.set(x.date, [x.date, x.open, x.max, x.min, x.close, Math.round(x.Trading_Volume / 1000)]);
+  store[id] = [...m.values()].sort((a, b) => a[0] < b[0] ? -1 : 1);
+  return 'ok';
+}
+function putDay(store, day, ids) {
+  let n = 0;
+  for (const id of ids) {
+    const x = day.rows[id]; if (!x) continue;
+    const arr = store[id] = store[id] || [];
+    const bar = [day.date, x.o, x.h, x.l, x.c, x.v];
+    const k = arr.findIndex(b => b[0] === day.date);
+    if (k >= 0) arr[k] = bar; else if (!arr.length || arr[arr.length - 1][0] < day.date) arr.push(bar); else { arr.push(bar); arr.sort((a, b) => a[0] < b[0] ? -1 : 1); }
+    n++;
+  }
+  return n;
+}
+// 主流程：回傳 { D, names, info }
+async function loadData() {
+  fs.mkdirSync(CACHE, { recursive: true });
+  const store = readJSON(path.join(CACHE, 'bars.json'), {});
+  const meta = readJSON(path.join(CACHE, 'meta.json'), {});
+  const today = tw().toISOString().slice(0, 10);
+  const info = { daily: [], finmind: 0, quota: false, pending: [] };
+
+  // 1. 交易所最新行情
+  const days = [];
+  const [tw1, tp1] = await Promise.all([twseLatest(), tpexLatest()]);
+  if (tw1) days.push(tw1);
+  if (tp1) days.push(tp1);
+  // 上市的 openapi 有時候晚上才更新：上櫃已經是今天、上市還是前一天時，改抓當天 MI_INDEX
+  const newest = days.reduce((m, d) => d.date > m ? d.date : m, '');
+  if (newest && (!tw1 || tw1.date < newest)) { const d = await twseDay(newest); if (d) days.push(d); }
+
+  // 2. 股票池：核心清單 + 依成交金額補到 UNIVERSE_SIZE 檔（每 7 天重排一次，平常沿用）
+  let uni = meta.universe || null;
+  const age = meta.uniDate ? (Date.parse(today) - Date.parse(meta.uniDate)) / 864e5 : 999;
+  if ((!uni || age >= 7) && days.length >= 2) {
+    const all = {};
+    for (const d of days) for (const [id, x] of Object.entries(d.rows)) if (!all[id] || d.date >= all[id].date) all[id] = { ...x, date: d.date };
+    const picked = {};
+    for (const id of Object.keys(NAMES)) if (all[id]) picked[id] = NAMES[id];          // 核心清單（還有在交易的）
+    for (const [id, x] of Object.entries(all).sort((a, b) => (b[1].val || 0) - (a[1].val || 0))) {
+      if (Object.keys(picked).length >= UNIVERSE_SIZE) break;
+      if (!picked[id]) picked[id] = x.name;
+    }
+    uni = picked; meta.universe = uni; meta.uniDate = today;
+    console.log('股票池重排：', Object.keys(uni).length, '檔');
+  }
+  if (!uni) uni = { ...NAMES };
+  const IDS = Object.keys(uni);
+
+  // 3. 套用交易所行情；上次更新到今天之間如果漏了幾天（例如有一天沒跑），上市用 MI_INDEX 逐日補
+  let lastCached = '';
+  for (const a of Object.values(store)) if (a.length && a[a.length - 1][0] > lastCached) lastCached = a[a.length - 1][0];
+  for (const d of days) info.daily.push(`${d.mkt} ${d.date} ${putDay(store, d, IDS)}檔`);
+  const LD = days.reduce((m, d) => d.date > m ? d.date : m, '') || lastCached;
+  const gapDays = [];
+  if (lastCached && LD) {
+    const d = new Date(lastCached + 'T00:00:00Z');
+    for (let k = 0; k < 20; k++) {
+      d.setUTCDate(d.getUTCDate() + 1);
+      const iso = d.toISOString().slice(0, 10);
+      if (iso >= LD) break;
+      if (d.getUTCDay() === 0 || d.getUTCDay() === 6) continue;
+      const day = await twseDay(iso); await sleep(2500);       // 證交所有頻率限制，慢慢抓
+      if (day && Object.keys(day.rows).length > 100) { gapDays.push(iso); info.daily.push(`補 twse ${iso} ${putDay(store, day, IDS)}檔`); }
+    }
+  }
+
+  // 4. 需要用 FinMind 補的：沒有資料、或缺最近的交易日（每個交易日每檔最多試一次）
+  const cal = new Set([...gapDays, LD]);
+  for (const id of ['2330', '2317', '2454']) for (const b of (store[id] || []).slice(-15)) cal.add(b[0]);
+  const tdays = [...cal].filter(Boolean).sort();
+  const PD = tdays[tdays.length - 2];
+  const mustHave = [...new Set([...gapDays, PD, LD].filter(Boolean))];
+  meta.tried = meta.tried && meta.tried.LD === LD ? meta.tried : { LD, ids: [] };
+  const need = [];
+  for (const id of IDS) {
+    const a = store[id];
+    if (!a || a.length < 120) { need.push([0, id]); continue; }
+    const have = new Set(a.slice(-30).map(b => b[0]));
+    if (mustHave.some(d => !have.has(d)) && !meta.tried.ids.includes(id)) need.push([1, id]);
+  }
+  need.sort((a, b) => a[0] - b[0]);
+  const token = process.env.FINMIND_TOKEN || '';
+  const startFull = new Date(Date.now() - KEEP_DAYS * 864e5).toISOString().slice(0, 10);
+  const q = need.slice(0, FINMIND_BUDGET).map(x => x[1]);
+  async function worker() {
+    while (q.length && !info.quota) {
+      const id = q.shift();
+      const a = store[id];
+      const start = a && a.length >= 120 ? a[Math.max(0, a.length - 25)][0] : startFull;
+      const st = await finmindInto(store, id, start, token);
+      if (st === 'quota') { info.quota = true; q.unshift(id); break; }
+      info.finmind++;
+      if (a && a.length >= 120) meta.tried.ids.push(id);
+    }
+  }
+  await Promise.all([worker(), worker(), worker()]);
+  info.pending = need.map(x => x[1]).filter(id => !store[id] || store[id].length < 120);
+
+  // 5. 修剪、存檔
+  const cut = new Date(Date.now() - KEEP_DAYS * 864e5).toISOString().slice(0, 10);
+  for (const id of Object.keys(store)) { store[id] = store[id].filter(b => b[0] >= cut); if (!store[id].length || !uni[id] && !NAMES[id]) delete store[id]; }
+  fs.writeFileSync(path.join(CACHE, 'bars.json'), JSON.stringify(store));
+  fs.writeFileSync(path.join(CACHE, 'meta.json'), JSON.stringify(meta));
+
+  const D = {};
+  for (const id of IDS) if (store[id] && store[id].length >= 120) D[id] = store[id].map(b => ({ d: b[0], o: b[1], h: b[2], l: b[3], c: b[4], v: b[5] }));
+  console.log('資料：', info.daily.join('、') || '交易所行情抓取失敗', `｜FinMind 補 ${info.finmind} 檔${info.quota ? '（額度用完）' : ''}｜可用 ${Object.keys(D).length}/${IDS.length}｜待補 ${info.pending.length}`);
+  return { D, names: uni, info };
+}
+
+const CORE = NAMES;
 let NEWS = [];
 try { NEWS = JSON.parse(fs.readFileSync('news.json', 'utf8')).slice(0, 30); } catch (e) { console.log('沒有 news.json，略過每日重點'); }
 async function main() {
-  const IDS = Object.keys(NAMES);
   const prev = await loadPrev();
   const today = tw().toISOString().slice(0, 10);
   let params = (prev && prev.params) || { ...DEFAULT_PARAMS };
@@ -437,11 +620,13 @@ async function main() {
   let bt = (prev && prev.bt) || null;
   let lastOpt = (prev && prev.lastOpt) || '';
 
-  // 1. 抓資料（約 400 天，給回測用）
-  const { D, err } = await fetchAll(IDS, 400);
-  console.log('fetched', Object.keys(D).length, '/', IDS.length, '型態外掛', PLUGINS.map(p => p.key).join(',') || '無');
-  if (Object.keys(D).length < IDS.length * 0.8) { console.error('Too many failures', JSON.stringify(err).slice(0, 500)); process.exit(1); }
+  // 1. 資料：交易所每日行情 + 快取（FinMind 只用來補缺）
+  const { D, names: NAMES, info } = await loadData();
+  const IDS = Object.keys(NAMES);
+  console.log('型態外掛', PLUGINS.map(p => p.key).join(',') || '無');
+  if (Object.keys(D).length < 150) { console.error('可用資料不到 150 檔，這次不發布'); process.exit(1); }
   const { skip, split } = cleanD(D, IDS);
+  const pending = skip.filter(id => info.pending.includes(id));
 
   // 2. 自動優化：每 5 天檢討一次
   const daysSince = lastOpt ? (Date.parse(today) - Date.parse(lastOpt)) / 864e5 : 999;
@@ -519,8 +704,10 @@ async function main() {
 
   // 6. 輸出
   const nm = id => (id + ' ' + (NAMES[id] || '')).trim();
-  let note = '資料來自 FinMind，由 GitHub 每日自動抓取。';
-  if (skip.length) note += '沒有資料而略過：' + skip.map(nm).join('、') + '。';
+  let note = `資料來自證交所、櫃買中心每日行情（缺漏時用 FinMind 補），由 GitHub 每日自動更新。股票池：核心 ${Object.keys(NAMES).filter(id => CORE[id]).length} 檔 + 依成交金額補足共 ${IDS.length} 檔，每週重排。`;
+  if (pending.length) note += `還在補歷史資料、這次先略過 ${pending.length} 檔（會在之後幾次更新自動補齊）。`;
+  const noData = skip.filter(id => !pending.includes(id));
+  if (noData.length) note += '沒有資料而略過：' + noData.map(nm).join('、') + '。';
   if (split.length) note += '近期股價有分割或異常跳動、略過：' + split.map(nm).join('、') + '。';
   const allSkip = [...skip, ...split];
   const snap = { asOf, updated: tw().toISOString().slice(0, 16).replace('T', ' '), checked: IDS.length - allSkip.length, names: NAMES, results, bars,
@@ -548,4 +735,4 @@ async function main() {
   console.log('asOf', asOf, '做多', Lc, '做空', Sc, '紀錄', records.length, '參數', JSON.stringify(params));
 }
 if (require.main === module) main().catch(e => { console.error(e); process.exit(1); });
-module.exports = { analyzeAll, helpers, mirrorBars, DEFAULTS, DEFAULT_PARAMS, HORIZON, NAMES, PLUGINS, BUILTIN, evaluate, signalsOnDay, fetchAll, cleanD, loadPrev, loadPatternDir };
+module.exports = { loadData, analyzeAll, helpers, mirrorBars, DEFAULTS, DEFAULT_PARAMS, HORIZON, NAMES, PLUGINS, BUILTIN, evaluate, signalsOnDay, fetchAll, cleanD, loadPrev, loadPatternDir };

@@ -5,6 +5,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: research
@@ -19,8 +20,20 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: 讀取資料快取
+        uses: actions/cache/restore@v4
+        with:
+          path: .cache
+          key: bars-${{ github.run_id }}
+          restore-keys: bars-
       - name: 回測現有與候選型態
         run: node research/run.js
+      - name: 儲存資料快取
+        if: always() && hashFiles('.cache/bars.json') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: .cache
+          key: bars-${{ github.run_id }}-${{ github.run_attempt }}
       - name: 把結果存回 repo
         run: |
           git config user.name "github-actions[bot]"

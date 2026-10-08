@@ -8,7 +8,7 @@
 |---|---|
 | `patterns/*.js` | 已加入選股器的外掛型態。`node scan.js` 每天自動載入，做多做空都會掃、會記錄成績、出現在網頁上。 |
 | `research/candidates/*.js` | 正在測試的候選型態，不會出現在網頁。 |
-| `research/run.js` | 回測（只能在 GitHub Actions 跑，要抓 FinMind 資料）。由 `.github/workflows/research.yml` 執行，結果自動 commit 到 `research/results/latest.md` / `latest.json`。 |
+| `research/run.js` | 回測（只能在 GitHub Actions 跑；用和每日選股共用的資料快取：約 500 檔、兩年日K）。由 `.github/workflows/research.yml` 執行，結果自動 commit 到 `research/results/latest.md` / `latest.json`。 |
 | `research/selftest.js` | 本機用假資料檢查外掛會不會出錯：`node research/selftest.js research/candidates/xxx.js` |
 | `research/log.md` | 每週研究紀錄：試過什麼、結果、有沒有加入。**設計新型態前先看，不要重複試已經失敗的點子。** |
 | `scan.js` | 主程式（引擎＋網頁）。**每週研究不要改它**，新型態一律用外掛檔。 |

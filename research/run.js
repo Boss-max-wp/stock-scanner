@@ -1,4 +1,4 @@
-// 型態研究：在 GitHub Actions 上抓約兩年資料，回測「現有型態 + research/candidates/ 裡的候選型態」，
+// 型態研究：在 GitHub Actions 上用快取的約兩年資料，回測「現有型態 + research/candidates/ 裡的候選型態」，
 // 結果寫到 research/results/latest.json 和 latest.md。
 // 用法：node research/run.js        （本機沒有 FinMind 網路時，用 node research/selftest.js 檢查語法）
 const fs = require('fs');
@@ -6,7 +6,6 @@ const path = require('path');
 process.chdir(path.join(__dirname, '..'));
 const S = require('../scan.js');
 
-const DAYS = +process.env.DAYS || 730;
 // 候選型態通過門檻（寫死在這裡，避免每次判斷標準不一樣）
 const RULE = { minN: 40, minAvgR: 0.15, minHalfN: 15, maxOverlap: 0.5 };
 
@@ -23,11 +22,10 @@ const RULE = { minN: 40, minAvgR: 0.15, minHalfN: 15, maxOverlap: 0.5 };
   const role = k => S.BUILTIN[k] ? 'builtin' : cands.find(c => c.key === k) ? 'candidate' : (S.PLUGINS.find(p => p.key === k) || {}).status || 'unknown';
   const nameOf = k => (S.BUILTIN[k] || (S.PLUGINS.find(p => p.key === k) || {}).names || [k, k]).join(' / ');
 
-  const IDS = Object.keys(S.NAMES);
   const t0 = Date.now();
-  const { D, err } = await S.fetchAll(IDS, DAYS);
-  console.log('fetched', Object.keys(D).length, '/', IDS.length, `${((Date.now() - t0) / 1000).toFixed(0)}s`);
-  if (Object.keys(D).length < IDS.length * 0.8) { console.error('資料抓取失敗太多', JSON.stringify(err).slice(0, 500)); process.exit(1); }
+  const { D, names } = await S.loadData();   // 和每日選股共用快取（約兩年資料）
+  const IDS = Object.keys(names);
+  if (Object.keys(D).length < 150) { console.error('可用資料不到 150 檔，先不研究'); process.exit(1); }
   S.cleanD(D, IDS);
 
   // 每一天只看當天以前的資料，找出當天的訊號，再看之後 HORIZON 天的結果
@@ -80,7 +78,7 @@ const RULE = { minN: 40, minAvgR: 0.15, minHalfN: 15, maxOverlap: 0.5 };
     return r;
   }).sort((a, b) => (a.dir === 'both' ? 0 : 1) - (b.dir === 'both' ? 0 : 1) || b.avgR - a.avgR);
 
-  const out = { date: new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 16).replace('T', ' '), days: DAYS, horizon: S.HORIZON, params, rule: RULE,
+  const out = { date: new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 16).replace('T', ' '), horizon: S.HORIZON, params, rule: RULE,
     range: [dates[0], dates[dates.length - 1]], mid, recentFrom, stocks: Object.keys(D).length, builtinAll, candidates: cands.map(c => c.key), rows };
   fs.mkdirSync('research/results', { recursive: true });
   fs.writeFileSync('research/results/latest.json', JSON.stringify(out, null, 1));
