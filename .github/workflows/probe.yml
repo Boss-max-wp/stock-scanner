@@ -1,0 +1,20 @@
+name: 測試資料來源
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: probe
+        run: |
+          for u in \
+            "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL" \
+            "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes" \
+            "https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?date=20261007&type=ALLBUT0999&response=json" \
+            "https://www.tpex.org.tw/www/zh-tw/afterTrading/dailyQ?date=2026/10/07&response=json" \
+            "https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockInfo" ; do
+            echo "== $u"
+            curl -sS -m 60 -A "Mozilla/5.0" -o out.bin -w "http=%{http_code} size=%{size_download}\n" "$u" || echo FAIL
+            head -c 400 out.bin; echo
+          done
