@@ -271,11 +271,11 @@ function analyzeAll(bars, P) {
     if (r) res.push({ type: 'fake', dir, ...r });
   }
   const longs = patternsLong(bars, P);
-  for (const p of PLUGINS) longs.push(...runPlugin(p, bars, P));
+  for (const p of PLUGINS) if (!p.dirs || p.dirs.includes('long')) longs.push(...runPlugin(p, bars, P));
   for (const h of longs) res.push({ dir: 'long', kind: h.miss ? 'near' : 'signal', ...h });
   const m = mirrorBars(bars);
   const shorts = patternsLong(m.bars, P);
-  for (const p of PLUGINS) shorts.push(...runPlugin(p, m.bars, P).map(h => ({ ...h, desc: h.descShort || h.desc })));
+  for (const p of PLUGINS) if (!p.dirs || p.dirs.includes('short')) shorts.push(...runPlugin(p, m.bars, P).map(h => ({ ...h, desc: h.descShort || h.desc })));
   for (const h of shorts) {
     const back = v => (v == null || !isFinite(v) || v === 0) ? v : m.K / v;
     res.push({ ...h, dir: 'short', kind: h.miss ? 'near' : 'signal', close: back(h.close), level: back(h.level), low: back(h.low),

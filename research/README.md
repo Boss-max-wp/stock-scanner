@@ -20,6 +20,7 @@ module.exports = {
   key: 'ma_squeeze',                       // 英文小寫/數字/底線，不能和 fake/base/retest 重複
   names: ['均線糾結突破', '均線糾結跌破'],   // [做多名稱, 做空名稱]
   status: 'experimental',                  // candidate（研究中）| experimental（實驗中，網頁會標示）| active | off（停用）
+  dirs: ['long'],                          // 選填：只做多 ['long'] 或只做空 ['short']；不寫＝兩邊都做
   desc: '一句話說明',
   added: '2026-10-10',                     // 加入選股器的日期（patterns/ 裡才需要）
   backtest: '...',                         // 加入時的回測摘要（patterns/ 裡才需要）
@@ -34,13 +35,14 @@ module.exports = {
 - `H`（輔助）：`n, O, H, L, C, V`（陣列）、`sma(arr, end, len)`、`maxH(a,b)`、`minL(a,b)`、`maxC(a,b)`、`minC(a,b)`（含頭尾）、`avgV(end,len)`、`closeStr(s)`（收盤在當天區間的位置 0～1）、`body(s)`、`volRatio(s)`、`plan(s, stop, target)` → `{entry, stop, target, risk, rr}`、`score(checks, base=40)`。
 - hit 必要欄位：`sigIdx`、`entry`、`stop`（做多要低於 entry）、`target`、`risk`、`rr`（用 `...H.plan()` 帶入）、`checks: [{k:'條件名', ok:true/false, pts:分數}]`、`score`、`miss`（全部符合填 `null`；只差一個條件填那個條件的說明，會出現在「觀察中」）。
 - 建議欄位：`level`（關鍵價，畫在圖上）、`levelLabel`、`low`、`volRatio`、`body`、`depth`、`desc` / `descShort`（卡片上的一句說明，做多 / 做空用詞）。
+- 結果表會分 both / long / short 三列。判定看 both 列；如果只有一邊好（例如 long 列明顯好、short 列虧），可以加 `dirs: ['long']` 當成新候選再測一次（判定會以只做多的結果為準）。
 - 停損一定要是圖上合理的位置（整理區低點、突破點下方等），風險超過 10% 的不要出訊號。
 
 ## 每週流程（排程任務照做）
 
 1. 讀 `research/log.md`、`patterns/` 現有型態、上次的 `research/results/latest.md`。
 2. 設計 1～2 個**新的**候選型態（台股常見、規則能寫清楚、和現有型態不同）。放到 `research/candidates/`，`node research/selftest.js` 要 OK。
-3. commit + push，執行 `gh workflow run research.yml -R Boss-max-wp/stock-scanner`，等它跑完（`gh run watch`），`git pull` 讀 `research/results/latest.md`。
+3. commit + push，用 REST API 觸發：`gh api -X POST repos/Boss-max-wp/stock-scanner/actions/workflows/research.yml/dispatches -f ref=main`（`gh workflow run` 會因為 GraphQL 被擋而失敗），再用 `gh run list -R Boss-max-wp/stock-scanner -L 3` 找到這次的 run id，`gh run watch <id> -R Boss-max-wp/stock-scanner` 等它跑完（約 5～20 分鐘），`git pull` 讀 `research/results/latest.md`。
 4. `latest.json` 的 `verdict`：
    - 候選 `pass` → 可以加入。**一週最多加 1 個**，實驗中的型態總數最多 4 個。把檔案移到 `patterns/`，`status: 'experimental'`、填 `added`、`backtest`（筆數、達標率、平均R、前後半段）。
    - 候選 `reject` → 刪掉候選檔，在 log 記原因。可以小改一次再測（同一週最多再跑一輪），不要為了過關一直調參數（過度擬合）。
