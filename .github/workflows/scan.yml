@@ -4,6 +4,9 @@ on:
   schedule:
     - cron: "30 9 * * 1-5"
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["news.json", "scan.js", ".github/workflows/scan.yml"]   # 新聞或程式更新時自動重建網頁
 
 permissions:
   contents: read
@@ -12,7 +15,7 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   scan:
