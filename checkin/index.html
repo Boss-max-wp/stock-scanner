@@ -70,6 +70,8 @@ function makeUser(u){const id=PEOPLE[(u.email||'').toLowerCase()]||null;return{
 const $=id=>document.getElementById(id);
 let mode='in';
 function show(m){mode=m;$('login').hidden=false;
+  try{if(!$('lgEmail').value)$('lgEmail').value=localStorage.getItem('lastEmail')||''}catch(e){}
+  $('lgPass').setAttribute('autocomplete',m==='up'?'new-password':'current-password');
   $('lgName').hidden=m!=='up';$('lgPass').hidden=m==='verify'||m==='reset';$('lgEmail').hidden=m==='verify';
   $('lgGo').textContent={in:'登入',up:'建立帳號',verify:'我已經驗證好了',reset:'寄送重設密碼信'}[m];
   $('lgAlt').textContent=m==='in'?'第一次使用？建立帳號':m==='up'?'已經有帳號？登入':m==='verify'?'重新寄驗證信':'回到登入';
@@ -84,8 +86,9 @@ async function go(){
     if(mode==='reset'){await sendPasswordResetEmail(auth,email);$('lgMsg').textContent='重設密碼信寄出了，去信箱看看';return}
     if(!PEOPLE[email]){$('lgMsg').textContent='這個 Email 不能使用這本打卡本';return}
     if(mode==='up'){const nm=$('lgName').value.trim();if(!nm){$('lgMsg').textContent='寫一下你的暱稱';return}
-      localStorage.setItem('pendingName',nm);
+      localStorage.setItem('pendingName',nm);try{localStorage.setItem('lastEmail',email)}catch(e){}
       const c=await createUserWithEmailAndPassword(auth,email,pw);await sendEmailVerification(c.user);show('verify');return}
+    try{localStorage.setItem('lastEmail',email)}catch(e){}
     await signInWithEmailAndPassword(auth,email,pw);
   }catch(e){$('lgMsg').textContent=ERR[e.code]||('發生錯誤：'+(e.code||e.message))}
 }
@@ -113,10 +116,12 @@ onAuthStateChanged(auth,async u=>{
 <div id="login" hidden>
   <div class="box">
     <h1 style="font-family:var(--display);font-weight:400;font-size:26px">我們的打卡本</h1>
+    <form id="lgForm" autocomplete="on" style="display:grid;gap:12px" onsubmit="return false">
     <input id="lgName" type="text" placeholder="你的暱稱（對方會看到）" autocomplete="nickname" hidden>
-    <input id="lgEmail" type="email" placeholder="Email" autocomplete="email" inputmode="email">
-    <input id="lgPass" type="password" placeholder="密碼（至少 6 個字）" autocomplete="current-password">
-    <button type="button" class="go" id="lgGo">登入</button>
+    <input id="lgEmail" name="username" type="email" placeholder="Email" autocomplete="username" inputmode="email">
+    <input id="lgPass" name="password" type="password" placeholder="密碼（至少 6 個字）" autocomplete="current-password">
+    <button type="submit" class="go" id="lgGo">登入</button>
+    </form>
     <div class="msg" id="lgMsg"></div>
     <div class="tip" id="lgTip"></div>
     <button type="button" class="alt" id="lgAlt">第一次使用？建立帳號</button>
