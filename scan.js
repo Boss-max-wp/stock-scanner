@@ -461,10 +461,16 @@ async function twseLatest() {
 }
 // 上市：指定日期全部股票（補缺漏用）
 async function twseDay(iso) {
-  const j = await getJSON(`https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?date=${iso.replace(/-/g, '')}&type=ALLBUT0999&response=json`);
-  if (!j || j.stat !== 'OK' || !Array.isArray(j.tables)) return null;
-  const t = j.tables.find(t => t.fields && t.fields.includes('證券代號') && t.fields.includes('收盤價'));
-  if (!t || !t.data || !t.data.length) return null;
+  // ALLBUT0999 有時候晚上才出來，抓不到就改抓 ALL（收盤後就有）
+  let t = null;
+  for (const type of ['ALLBUT0999', 'ALL']) {
+    const j = await getJSON(`https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?date=${iso.replace(/-/g, '')}&type=${type}&response=json`);
+    if (!j || j.stat !== 'OK' || !Array.isArray(j.tables)) continue;
+    t = j.tables.find(t => t.fields && t.fields.includes('證券代號') && t.fields.includes('收盤價'));
+    if (t && t.data && t.data.length) break;
+    t = null;
+  }
+  if (!t) return null;
   const F = n => t.fields.indexOf(n), iI = F('證券代號'), iN = F('證券名稱'), iV = F('成交股數'), iVal = F('成交金額'), iO = F('開盤價'), iH = F('最高價'), iL = F('最低價'), iC = F('收盤價');
   const rows = {};
   for (const r of t.data) {
@@ -485,6 +491,30 @@ async function tpexLatest() {
     if (o > 0 && h > 0 && l > 0 && c > 0 && v > 0) rows[id] = { o, h, l, c, v: Math.round(v / 1000), val: num(x.TransactionAmount), name: String(x.CompanyName).trim() };
   }
   return { date: rocDate(j[0].Date), rows, mkt: 'tpex' };
+}
+// 上櫃：指定日期全部股票（openapi 還沒更新時用）
+async function tpexDay(iso) {
+  const [y, m, d] = iso.split('-');
+  const pick = (fields, data) => {
+    const F = re => fields.findIndex(f => re.test(String(f).replace(/\s/g, '')));
+    const iI = F(/^代號$/), iN = F(/^名稱$/), iC = F(/^收盤/), iO = F(/^開盤/), iH = F(/^最高/), iL = F(/^最低/), iV = F(/^成交股數/), iVal = F(/^成交金額/);
+    if ([iI, iC, iO, iH, iL, iV].some(i => i < 0)) return null;
+    const rows = {};
+    for (const r of data) {
+      const id = String(r[iI]).trim(); if (!isCommon(id)) continue;
+      const o = num(r[iO]), h = num(r[iH]), l = num(r[iL]), c = num(r[iC]), v = num(r[iV]);
+      if (o > 0 && h > 0 && l > 0 && c > 0 && v > 0) rows[id] = { o, h, l, c, v: Math.round(v / 1000), val: iVal >= 0 ? num(r[iVal]) : 0, name: iN >= 0 ? String(r[iN]).trim() : id };
+    }
+    return Object.keys(rows).length > 100 ? { date: iso, rows, mkt: 'tpex' } : null;
+  };
+  const j = await getJSON(`https://www.tpex.org.tw/www/zh-tw/afterTrading/dailyQuotes?date=${y}%2F${m}%2F${d}&id=&response=json`);
+  if (j && Array.isArray(j.tables)) for (const t of j.tables) { if (t.fields && t.data && t.data.length) { const r = pick(t.fields, t.data); if (r) return r; } }
+  const k = await getJSON(`https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotes/stk_quote_result.php?l=zh-tw&o=json&d=${+y - 1911}/${m}/${d}`);
+  if (k && Array.isArray(k.aaData) && k.aaData.length) {
+    const fields = ['代號', '名稱', '收盤', '漲跌', '開盤', '最高', '最低', '均價', '成交股數', '成交金額'];
+    return pick(fields, k.aaData);
+  }
+  return null;
 }
 // FinMind 一檔補資料：回傳 'ok' | 'quota' | 'fail'
 async function finmindInto(store, id, start, token) {
@@ -526,8 +556,18 @@ async function loadData() {
   if (tw1) days.push(tw1);
   if (tp1) days.push(tp1);
   // 上市的 openapi 有時候晚上才更新：上櫃已經是今天、上市還是前一天時，改抓當天 MI_INDEX
-  const newest = days.reduce((m, d) => d.date > m ? d.date : m, '');
-  if (newest && (!tw1 || tw1.date < newest)) { const d = await twseDay(newest); if (d) days.push(d); }
+  let newest = days.reduce((m, d) => d.date > m ? d.date : m, '');
+  // openapi 常常要到晚上才更新到今天：平日收盤後，直接用「指定日期」的行情抓今天
+  const dow = new Date(today + 'T00:00:00Z').getUTCDay();
+  if (dow >= 1 && dow <= 5 && tw().getUTCHours() >= 14 && newest < today) {
+    const [a, b] = await Promise.all([twseDay(today), tpexDay(today)]);
+    if (a) days.push(a);
+    if (b) days.push(b);
+    console.log('補抓今天', today, '上市', a ? Object.keys(a.rows).length : '無', '上櫃', b ? Object.keys(b.rows).length : '無');
+    newest = days.reduce((m, d) => d.date > m ? d.date : m, '');
+  }
+  if (newest && (!days.some(d => d.mkt === 'twse' && d.date === newest))) { const d = await twseDay(newest); if (d) days.push(d); }
+  if (newest && (!days.some(d => d.mkt === 'tpex' && d.date === newest))) { const d = await tpexDay(newest); if (d) days.push(d); }
 
   // 2. 股票池：核心清單 + 依成交金額補到 UNIVERSE_SIZE 檔（每 7 天重排一次，平常沿用）
   let uni = meta.universe || null;
