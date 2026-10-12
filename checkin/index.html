@@ -292,6 +292,10 @@ label.q{display:grid;gap:4px;font-size:13px;color:var(--muted)}
 .bar{height:6px;border-radius:99px;background:var(--line);overflow:hidden}
 .bar i{display:block;height:100%;border-radius:99px}
 .rwform{display:grid;grid-template-columns:84px 1fr;gap:8px;align-items:end;padding-top:6px;border-top:1px dashed var(--line)}
+.rwkinds{grid-column:1/-1;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.rwkinds .mode{grid-column:auto;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:13px;padding:5px 12px;border-radius:999px;border:1px solid var(--line)}
+.rwkinds .mode[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.rwitem{font:inherit;font-size:13px;padding:5px 8px;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--ink)}
 .rwform button{grid-column:1/-1;background:var(--you);border:0;color:#fff;font-family:var(--display);font-size:16px;padding:10px;border-radius:14px}
 .done{color:var(--ok);font-weight:500}
 
@@ -476,7 +480,9 @@ body{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
     <div class="who"><h2><span class="mini" id="rwMiniMe">我</span>我達標可以換</h2></div>
     <div class="rewards" id="rewardsMe"></div>
     <form class="rwform" data-target="me">
-      <label class="q">連續幾天<input type="text" class="rwdays" inputmode="numeric" value="7"></label>
+      <div class="rwkinds"><button type="button" class="mode" data-kind="streak" aria-pressed="true">連續天數</button><button type="button" class="mode" data-kind="count" aria-pressed="false">完成項目數</button>
+        <select class="rwitem" hidden><option value="">任何項目</option></select></div>
+      <label class="q"><span class="rwnlabel">連續幾天</span><input type="text" class="rwdays" inputmode="numeric" value="7"></label>
       <label class="q">我達成後可以換…<input type="text" class="rwprize" placeholder="例：買一杯手搖飲"></label>
       <button type="submit" class="rwadd" style="background:var(--me)">新增我的獎勵</button>
       <div class="status rwstatus" style="grid-column:1/-1"></div>
@@ -486,7 +492,9 @@ body{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
     <div class="who"><h2><span class="mini" id="rwMiniYou">她</span><span id="rwYouTitle">她達標可以換</span></h2></div>
     <div class="rewards" id="rewardsYou"></div>
     <form class="rwform" data-target="you">
-      <label class="q">連續幾天<input type="text" class="rwdays" inputmode="numeric" value="7"></label>
+      <div class="rwkinds"><button type="button" class="mode" data-kind="streak" aria-pressed="true">連續天數</button><button type="button" class="mode" data-kind="count" aria-pressed="false">完成項目數</button>
+        <select class="rwitem" hidden><option value="">任何項目</option></select></div>
+      <label class="q"><span class="rwnlabel">連續幾天</span><input type="text" class="rwdays" inputmode="numeric" value="7"></label>
       <label class="q rwyoulabel">她達成後可以換…<input type="text" class="rwprize" placeholder="例：下次見面請她吃火鍋"></label>
       <button type="submit" class="rwadd">新增她的獎勵</button>
       <div class="status rwstatus" style="grid-column:1/-1"></div>
@@ -776,17 +784,22 @@ $('mnext').onclick=()=>{const [y,m]=S.month.split('-').map(Number);const d=new D
 $('grid').addEventListener('click',e=>{const b=e.target.closest('[data-d]');if(b){setDate(b.dataset.d);showTab('me')}});
 
 function rTo(r){return r.to||(r.from===S.me?partner():S.me)}
+function itemsOfUser(u){return Array.isArray(S.memberData[u]?.items)?S.memberData[u].items:[]}
+function countDone(u,item,since){let n=0;for(const [k,c] of Object.entries(S.checkins)){if(c.uid!==u||c.date<since)continue;
+  itemsIn(c).forEach(i=>{if(i.done&&(!item||i.k===item))n++})}return n}
+function rewardGoal(r){return r.kind==='count'?(r.n||1):r.days}
+function rewardProgress(r){const to=rTo(r);if(!to)return 0;return r.kind==='count'?countDone(to,r.item||'',(r.createdAt||'').slice(0,10)||'0000'):streak(to)}
 function couponHTML(r){
-    const to=rTo(r),s=streak(to),pct=Math.min(100,Math.round(s/r.days*100)),col=to===S.me?'--me':'--you';
-    const reached=s>=r.days;
+    const to=rTo(r),goal=rewardGoal(r),s=rewardProgress(r),pct=Math.min(100,Math.round(s/goal*100)),col=to===S.me?'--me':'--you';
+    const reached=s>=goal,cnt=r.kind==='count';
     let act=r.claimedAt?`<button class="small" data-unclaim="${r.id}">取消劃掉</button>`
       :`<button class="small" data-claim="${r.id}">${reached?'達成了！劃掉兌現':'劃掉'}</button>`;
     const del=`<button class="small" data-del="${r.id}">${S.confirmDel===r.id?'確定刪除？':'刪除'}</button>`;
     const by=r.from===to?`${esc(nameOf(r.from))}自己設的`:`${esc(nameOf(r.from))}送的`;
-    return `<div class="coupon ${r.claimedAt?'claimed':''}">${r.claimedAt?'<span class="used">已兌現</span>':''}<div class="left" style="background:var(${col})"><span><b>${r.days}</b>天</span></div>
-      <div class="right"><div class="sub">${by}</div><div class="prize">${esc(r.prize)}</div>
+    return `<div class="coupon ${r.claimedAt?'claimed':''}">${r.claimedAt?'<span class="used">已兌現</span>':''}<div class="left" style="background:var(${col})"><span><b>${goal}</b>${cnt?'次':'天'}</span></div>
+      <div class="right"><div class="sub">${by} · ${cnt?(r.itemLabel?`完成「${esc(r.itemLabel)}」${goal} 次`:`完成任意項目 ${goal} 個`):`連續達標 ${goal} 天`}</div><div class="prize">${esc(r.prize)}</div>
       <div class="bar"><i style="width:${r.claimedAt?100:pct}%;background:var(${col})"></i></div>
-      <div class="meta"><span style="font-family:var(--mono)">${reached&&!r.claimedAt?'🎉 ':''}${Math.min(s,r.days)} / ${r.days}</span><span style="display:flex;gap:6px;align-items:center">${act}${del}</span></div></div></div>`;
+      <div class="meta"><span style="font-family:var(--mono)">${reached&&!r.claimedAt?'🎉 ':''}${Math.min(s,goal)} / ${goal}</span><span style="display:flex;gap:6px;align-items:center">${act}${del}</span></div></div></div>`;
 }
 function renderRewards(){
   renderBadge();
@@ -795,6 +808,7 @@ function renderRewards(){
   document.querySelector('.rwyoulabel').firstChild.nodeValue=`${pn}達成後可以換…`;
   document.querySelector('[data-target="you"] .rwadd').textContent=`新增${pn}的獎勵`;
   $('rwMiniMe').innerHTML=avatar(S.me,'我');$('rwMiniYou').innerHTML=p?avatar(p,pn[0]||'她'):'她';
+  fillRwItems();
   const sorted=S.rewards.slice().sort((a,b)=>(a.createdAt||'').localeCompare(b.createdAt||''));
   const mine=sorted.filter(r=>rTo(r)===S.me),hers=sorted.filter(r=>rTo(r)!==S.me);
   $('rewardsMe').innerHTML=mine.length?mine.map(couponHTML).join(''):`<p class="empty">還沒有。幫自己設一個目標獎勵，例如「連續 7 天 → 買一杯手搖飲」。</p>`;
@@ -809,16 +823,23 @@ function renderRewards(){
     if(d){if(S.confirmDel===d.dataset.del){S.confirmDel=null;const id=d.dataset.del;await S.db.doc('rewards/'+id).delete();S.rewards=S.rewards.filter(x=>x.id!==id);renderRewards()}else{S.confirmDel=d.dataset.del;renderRewards()}}
   }catch(err){}
 }));
+function fillRwItems(){document.querySelectorAll('.rwform').forEach(f=>{const u=f.dataset.target==='me'?S.me:partner();const sel=f.querySelector('.rwitem'),cur=sel.value;
+  sel.innerHTML='<option value="">任何項目</option>'+itemsOfUser(u).map(i=>`<option value="${esc(i.k)}">${esc(i.label)}</option>`).join('');sel.value=cur})}
+document.querySelectorAll('.rwform').forEach(f=>f.querySelector('.rwkinds').addEventListener('click',e=>{const b=e.target.closest('[data-kind]');if(!b)return;
+  f.dataset.kind=b.dataset.kind;f.querySelectorAll('[data-kind]').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  const c=b.dataset.kind==='count';f.querySelector('.rwitem').hidden=!c;f.querySelector('.rwnlabel').textContent=c?'完成幾次':'連續幾天';f.querySelector('.rwdays').value=c?'20':'7';fillRwItems()}));
 document.querySelectorAll('.rwform').forEach(f=>f.addEventListener('submit',async e=>{
   e.preventDefault();
   const self=f.dataset.target==='me',p=partner(),days=parseInt(f.querySelector('.rwdays').value,10),prize=f.querySelector('.rwprize').value.trim(),st=f.querySelector('.rwstatus'),btn=f.querySelector('.rwadd');
   if(!S.db||!S.me){st.textContent='需要登入才能新增';return}
-  if(!(days>0&&days<=365)){st.textContent='連續天數請填 1 到 365 的數字';return}
+  const cnt=f.dataset.kind==='count';
+  if(!(days>0&&days<=(cnt?999:365))){st.textContent=cnt?'次數請填 1 到 999 的數字':'連續天數請填 1 到 365 的數字';return}
   if(!prize){st.textContent='請寫上可以換什麼';return}
   if(!self&&!p){st.textContent='等她加入後才能幫她設';return}
   btn.disabled=true;st.textContent='儲存中…';
   try{
-    const doc={from:S.me,to:self?S.me:p,days,prize,createdAt:new Date().toISOString()};
+    const doc={from:S.me,to:self?S.me:p,prize,createdAt:new Date().toISOString()};
+    if(cnt){const sel=f.querySelector('.rwitem');doc.kind='count';doc.n=days;doc.item=sel.value||'';doc.itemLabel=sel.value?sel.selectedOptions[0].textContent:'';doc.days=days}else{doc.kind='streak';doc.days=days}
     const ref=await S.db.collection('rewards').add(doc);
     if(!S.rewards.some(x=>x.id===ref.id)){S.rewards.push({id:ref.id,...doc});renderRewards()}
     f.querySelector('.rwprize').value='';st.textContent='新增好了 🎁';
@@ -977,7 +998,7 @@ function showTab(t){if(!TABS.includes(t))t='me';
 document.querySelector('.pair').addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(b)showTab(b.dataset.go)});
 document.querySelector('.pair').addEventListener('keydown',e=>{const b=e.target.closest('[data-go]');if(b&&(e.key==='Enter'||e.key===' ')){e.preventDefault();showTab(b.dataset.go)}});
 document.querySelector('.tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b)showTab(b.dataset.tab)});
-function renderBadge(){const n=S.rewards.filter(r=>!r.claimedAt&&rTo(r)===S.me&&streak(S.me)>=r.days).length;
+function renderBadge(){const n=S.rewards.filter(r=>!r.claimedAt&&rTo(r)===S.me&&rewardProgress(r)>=rewardGoal(r)).length;
   $('rwBadge').hidden=!n;$('rwBadge').textContent=n}
 (()=>{let t=(location.hash||'').slice(1);if(!t){try{t=localStorage.getItem('tab')||''}catch(e){}}showTab(t)})();
 
@@ -1056,7 +1077,7 @@ S.draft={items:[],happy:'',share:'',stuck:'',score:0};setDate(TODAY);renderAll()
 document.getElementById('page-history').appendChild(document.getElementById('logoutbtn').parentNode);</script>
 <script>
 // Home-screen apps can keep showing a cached copy; check for a newer build whenever the app is opened.
-window.__BUILD='1791832620';
+window.__BUILD='1791832882';
 async function checkUpdate(){try{const t=await (await fetch('./?nocache='+Date.now(),{cache:'no-store'})).text();const m=t.match(/__BUILD='(\d+)'/);
   if(m&&m[1]!==window.__BUILD)location.replace('./?v='+m[1]);}catch(e){}}
 checkUpdate();document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});
