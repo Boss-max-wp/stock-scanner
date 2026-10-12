@@ -93,7 +93,7 @@ async function go(){
   }catch(e){$('lgMsg').textContent=ERR[e.code]||('發生錯誤：'+(e.code||e.message))}
 }
 $('lgGo').onclick=go;
-$('lgPass').addEventListener('keydown',e=>{if(e.key==='Enter')go()});
+
 $('lgAlt').onclick=async()=>{if(mode==='verify'){try{await sendEmailVerification(auth.currentUser);$('lgMsg').textContent='寄出了，去信箱看看'}catch(e){$('lgMsg').textContent=ERR[e.code]||'寄送失敗'}return}show(mode==='in'?'up':'in')};
 $('lgForgot').onclick=()=>show('reset');
 
