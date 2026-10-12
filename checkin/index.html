@@ -984,7 +984,7 @@ S.draft={items:[],happy:'',share:'',stuck:'',score:0};setDate(TODAY);renderAll()
     if(first){first=false;if(!myItems().length)S.editing=true}
     await refreshNames();renderAll()});
   db.collection('checkins').onSnapshot(s=>{S.checkins={};s.docs.forEach(d=>S.checkins[d.id]=d.data());renderAll()},
-    e=>{$('notice').hidden=false;$('notice').textContent='讀取打卡紀錄失敗：'+e.message});
+    e=>{$('notice').hidden=false;$('notice').textContent=(e.code==='permission-denied'?'資料庫還沒開放權限：請到 Firebase → Firestore Database → 規則，貼上 Claude 給的規則並按「發布」。':'讀取打卡紀錄失敗：'+e.message)});
   db.collection('rewards').onSnapshot(async s=>{S.rewards=s.docs.map(d=>({id:d.id,...d.data()}));await refreshNames();renderRewards()});
   db.collection('reads').onSnapshot(s=>{s.docs.forEach(d=>{const a=d.data()?.at||'';if(d.id!==S.me||a>(S.reads[S.me]||''))S.reads[d.id]=a});renderBoard()});
   claude.use('assets').then(a=>{S.assets=a;renderPhotos()});
@@ -994,7 +994,7 @@ S.draft={items:[],happy:'',share:'',stuck:'',score:0};setDate(TODAY);renderAll()
 })();
 </script>
 
-<div id="importbox" hidden style="margin:16px auto 0;max-width:560px;background:var(--paper);border-radius:22px;padding:18px;display:grid;gap:10px;box-shadow:var(--shadow)">
+<div id="importbox" style="margin:16px auto 0;max-width:560px;background:var(--paper);border-radius:22px;padding:18px;display:grid;gap:10px;box-shadow:var(--shadow)">
   <h2 style="margin:0;font-family:var(--display);font-weight:400;font-size:19px">匯入舊打卡本的資料</h2>
   <div class="sub">把之前在 Claude 打卡本的紀錄、留言和照片搬過來。輸入 Claude 給你的匯入碼，只要做一次。</div>
   <input type="text" id="impcode" placeholder="匯入碼" autocomplete="off" style="font:inherit;font-size:16px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink)">
@@ -1005,7 +1005,7 @@ S.draft={items:[],happy:'',share:'',stuck:'',score:0};setDate(TODAY);renderAll()
 (async()=>{
   const db=await claude.use('db');if(!db)return;
   const box=document.getElementById('importbox');document.getElementById('page-history').appendChild(box);
-  db.doc('meta/imported').onSnapshot(s=>{box.hidden=s.exists});
+  box.hidden=false;db.doc('meta/imported').onSnapshot(s=>{box.hidden=s.exists},e=>{document.getElementById('impmsg').textContent='讀不到資料庫（'+(e.code||e.message)+'），請確認 Firestore 規則已經發布';});
   document.getElementById('impgo').onclick=async()=>{
     const msg=document.getElementById('impmsg'),code=document.getElementById('impcode').value.trim();
     if(!code){msg.textContent='請輸入匯入碼';return}
