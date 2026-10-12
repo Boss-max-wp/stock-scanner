@@ -471,16 +471,26 @@ body{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
   </div>
 
   <div class="page" id="page-rewards" hidden>
-  <div class="pagehead"><h1>獎勵兌換券</h1><div class="sub">幫對方設目標，連續打卡達成就兌現</div></div>
-  <section class="card">
-    <div class="who"><h2>兌換券</h2></div>
-    <div class="rewards" id="rewards"></div>
-    <form class="rwform" id="rwform">
-      <label class="q">連續天數<input type="text" id="rwdays" inputmode="numeric" value="7"></label>
-      <label class="q" id="rwlabel">達成後送對方…<input type="text" id="rwprize" placeholder="例：下次見面請你吃火鍋"></label>
-      <button type="submit" id="rwadd">送出一張兌換券</button>
+  <div class="pagehead"><h1>獎勵兌換券</h1><div class="sub">各自的獎勵分開算，誰連續達標誰就能兌換</div></div>
+  <section class="card me">
+    <div class="who"><h2><span class="mini" id="rwMiniMe">我</span>我達標可以換</h2></div>
+    <div class="rewards" id="rewardsMe"></div>
+    <form class="rwform" data-target="me">
+      <label class="q">連續幾天<input type="text" class="rwdays" inputmode="numeric" value="7"></label>
+      <label class="q">我達成後可以換…<input type="text" class="rwprize" placeholder="例：買一杯手搖飲"></label>
+      <button type="submit" class="rwadd" style="background:var(--me)">新增我的獎勵</button>
+      <div class="status rwstatus" style="grid-column:1/-1"></div>
     </form>
-    <div class="status" id="rwstatus"></div>
+  </section>
+  <section class="card you">
+    <div class="who"><h2><span class="mini" id="rwMiniYou">她</span><span id="rwYouTitle">她達標可以換</span></h2></div>
+    <div class="rewards" id="rewardsYou"></div>
+    <form class="rwform" data-target="you">
+      <label class="q">連續幾天<input type="text" class="rwdays" inputmode="numeric" value="7"></label>
+      <label class="q rwyoulabel">她達成後可以換…<input type="text" class="rwprize" placeholder="例：下次見面請她吃火鍋"></label>
+      <button type="submit" class="rwadd">新增她的獎勵</button>
+      <div class="status rwstatus" style="grid-column:1/-1"></div>
+    </form>
   </section>
 
   </div>
@@ -766,47 +776,55 @@ $('mnext').onclick=()=>{const [y,m]=S.month.split('-').map(Number);const d=new D
 $('grid').addEventListener('click',e=>{const b=e.target.closest('[data-d]');if(b){setDate(b.dataset.d);showTab('me')}});
 
 function rTo(r){return r.to||(r.from===S.me?partner():S.me)}
-function renderRewards(){
-  renderBadge();
-  const p=partner();
-  $('rwlabel').firstChild.nodeValue=`${p?nameOf(p):'對方'}連續達成後，我送…`;
-  if(!S.rewards.length){$('rewards').innerHTML=`<p class="empty">還沒有兌換券。幫對方設一張吧：例如「連續 7 天打卡 → 請吃一頓好料」。</p>`;return}
-  $('rewards').innerHTML=S.rewards.slice().sort((a,b)=>(a.createdAt||'').localeCompare(b.createdAt||'')).map(r=>{
+function couponHTML(r){
     const to=rTo(r),s=streak(to),pct=Math.min(100,Math.round(s/r.days*100)),col=to===S.me?'--me':'--you';
     const reached=s>=r.days;
     let act=r.claimedAt?`<button class="small" data-unclaim="${r.id}">取消劃掉</button>`
       :`<button class="small" data-claim="${r.id}">${reached?'達成了！劃掉兌現':'劃掉'}</button>`;
     const del=`<button class="small" data-del="${r.id}">${S.confirmDel===r.id?'確定刪除？':'刪除'}</button>`;
+    const by=r.from===to?`${esc(nameOf(r.from))}自己設的`:`${esc(nameOf(r.from))}送的`;
     return `<div class="coupon ${r.claimedAt?'claimed':''}">${r.claimedAt?'<span class="used">已兌現</span>':''}<div class="left" style="background:var(${col})"><span><b>${r.days}</b>天</span></div>
-      <div class="right"><div class="sub">${esc(nameOf(r.from))} 送給 ${esc(to?nameOf(to):'她')}</div><div class="prize">${esc(r.prize)}</div>
+      <div class="right"><div class="sub">${by}</div><div class="prize">${esc(r.prize)}</div>
       <div class="bar"><i style="width:${r.claimedAt?100:pct}%;background:var(${col})"></i></div>
-      <div class="meta"><span style="font-family:var(--mono)">${Math.min(s,r.days)} / ${r.days}</span><span style="display:flex;gap:6px;align-items:center">${act}${del}</span></div></div></div>`;
-  }).join('');
+      <div class="meta"><span style="font-family:var(--mono)">${reached&&!r.claimedAt?'🎉 ':''}${Math.min(s,r.days)} / ${r.days}</span><span style="display:flex;gap:6px;align-items:center">${act}${del}</span></div></div></div>`;
 }
-$('rewards').addEventListener('click',async e=>{
-  const c=e.target.closest('[data-claim]'),d=e.target.closest('[data-del]');
+function renderRewards(){
+  renderBadge();
+  const p=partner(),pn=p?nameOf(p):'她';
+  $('rwYouTitle').textContent=`${pn}達標可以換`;
+  document.querySelector('.rwyoulabel').firstChild.nodeValue=`${pn}達成後可以換…`;
+  document.querySelector('[data-target="you"] .rwadd').textContent=`新增${pn}的獎勵`;
+  $('rwMiniMe').innerHTML=avatar(S.me,'我');$('rwMiniYou').innerHTML=p?avatar(p,pn[0]||'她'):'她';
+  const sorted=S.rewards.slice().sort((a,b)=>(a.createdAt||'').localeCompare(b.createdAt||''));
+  const mine=sorted.filter(r=>rTo(r)===S.me),hers=sorted.filter(r=>rTo(r)!==S.me);
+  $('rewardsMe').innerHTML=mine.length?mine.map(couponHTML).join(''):`<p class="empty">還沒有。幫自己設一個目標獎勵，例如「連續 7 天 → 買一杯手搖飲」。</p>`;
+  $('rewardsYou').innerHTML=hers.length?hers.map(couponHTML).join(''):`<p class="empty">還沒有。幫${esc(pn)}設一個，例如「連續 7 天 → 請吃一頓好料」。</p>`;
+}
+['rewardsMe','rewardsYou'].forEach(id=>$(id).addEventListener('click',async e=>{
+  const c=e.target.closest('[data-claim]'),d=e.target.closest('[data-del]'),u=e.target.closest('[data-unclaim]');
   try{
     const setLocal=(id,v)=>{const r=S.rewards.find(x=>x.id===id);if(r){r.claimedAt=v;renderRewards()}};
     if(c){const v=new Date().toISOString();await S.db.doc('rewards/'+c.dataset.claim).update({claimedAt:v});setLocal(c.dataset.claim,v)}
-    const u=e.target.closest('[data-unclaim]');
     if(u){await S.db.doc('rewards/'+u.dataset.unclaim).update({claimedAt:null});setLocal(u.dataset.unclaim,null)}
     if(d){if(S.confirmDel===d.dataset.del){S.confirmDel=null;const id=d.dataset.del;await S.db.doc('rewards/'+id).delete();S.rewards=S.rewards.filter(x=>x.id!==id);renderRewards()}else{S.confirmDel=d.dataset.del;renderRewards()}}
   }catch(err){}
-});
-$('rwform').addEventListener('submit',async e=>{
+}));
+document.querySelectorAll('.rwform').forEach(f=>f.addEventListener('submit',async e=>{
   e.preventDefault();
-  const p=partner(),days=parseInt($('rwdays').value,10),prize=$('rwprize').value.trim(),st=$('rwstatus');
-  if(!S.db||!S.me){st.textContent='需要登入才能送兌換券';return}
+  const self=f.dataset.target==='me',p=partner(),days=parseInt(f.querySelector('.rwdays').value,10),prize=f.querySelector('.rwprize').value.trim(),st=f.querySelector('.rwstatus'),btn=f.querySelector('.rwadd');
+  if(!S.db||!S.me){st.textContent='需要登入才能新增';return}
   if(!(days>0&&days<=365)){st.textContent='連續天數請填 1 到 365 的數字';return}
-  if(!prize){st.textContent='請寫上要送什麼獎勵';return}
-  $('rwadd').disabled=true;st.textContent='送出中…';
+  if(!prize){st.textContent='請寫上可以換什麼';return}
+  if(!self&&!p){st.textContent='等她加入後才能幫她設';return}
+  btn.disabled=true;st.textContent='儲存中…';
   try{
-    if(!S.members.includes(S.me))await S.db.doc('members/'+S.me).set({joinedAt:new Date().toISOString(),items:myItems()});
-    await S.db.collection('rewards').add({from:S.me,to:p||null,days,prize,createdAt:new Date().toISOString()});
-    $('rwprize').value='';st.textContent=p?'兌換券已送出 🎁':'兌換券已送出 🎁 她加入後就會看到';
-  }catch(err){st.textContent=err?.code==='not_granted'?'你目前只有檢視權限':'沒送出去，請再按一次'}
-  $('rwadd').disabled=false;
-});
+    const doc={from:S.me,to:self?S.me:p,days,prize,createdAt:new Date().toISOString()};
+    const ref=await S.db.collection('rewards').add(doc);
+    if(!S.rewards.some(x=>x.id===ref.id)){S.rewards.push({id:ref.id,...doc});renderRewards()}
+    f.querySelector('.rwprize').value='';st.textContent='新增好了 🎁';
+  }catch(err){st.textContent='沒存成功，請再按一次'}
+  btn.disabled=false;
+}));
 
 /* ---------- message board ---------- */
 S.messages=[];S.confirmMsg=null;S.reads={};
