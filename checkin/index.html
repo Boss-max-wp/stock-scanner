@@ -1054,4 +1054,11 @@ S.draft={items:[],happy:'',share:'',stuck:'',score:0};setDate(TODAY);renderAll()
 <div style="text-align:center;padding:24px 0 8px"><button type="button" id="logoutbtn" style="font:inherit;font-size:13px;border:1px solid var(--line);background:var(--paper);color:var(--muted);border-radius:999px;padding:6px 16px">登出</button></div>
 <script>document.getElementById('logoutbtn').onclick=async()=>{const u=await claude.use('user');if(u&&u.signOut){await u.signOut();location.reload()}};
 document.getElementById('page-history').appendChild(document.getElementById('logoutbtn').parentNode);</script>
+<script>
+// Home-screen apps can keep showing a cached copy; check for a newer build whenever the app is opened.
+window.__BUILD='1791832620';
+async function checkUpdate(){try{const t=await (await fetch('./?nocache='+Date.now(),{cache:'no-store'})).text();const m=t.match(/__BUILD='(\d+)'/);
+  if(m&&m[1]!==window.__BUILD)location.replace('./?v='+m[1]);}catch(e){}}
+checkUpdate();document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});
+</script>
 </body></html>
