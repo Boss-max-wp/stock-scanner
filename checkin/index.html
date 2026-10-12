@@ -292,6 +292,9 @@ label.q{display:grid;gap:4px;font-size:13px;color:var(--muted)}
 .bar{height:6px;border-radius:99px;background:var(--line);overflow:hidden}
 .bar i{display:block;height:100%;border-radius:99px}
 .rwform{display:grid;grid-template-columns:84px 1fr;gap:8px;align-items:end;padding-top:6px;border-top:1px dashed var(--line)}
+.rwstat{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;font-size:11px}
+.rwstat span{padding:2px 8px;border-radius:999px;background:var(--bg);color:var(--muted);white-space:nowrap}
+.rwstat b{font-family:var(--mono);color:var(--ink)}
 .rwkinds{grid-column:1/-1;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .rwkinds .mode{grid-column:auto;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:13px;padding:5px 12px;border-radius:999px;border:1px solid var(--line)}
 .rwkinds .mode[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
@@ -477,7 +480,7 @@ body{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
   <div class="page" id="page-rewards" hidden>
   <div class="pagehead"><h1>獎勵兌換券</h1><div class="sub">各自的獎勵分開算，誰連續達標誰就能兌換</div></div>
   <section class="card me">
-    <div class="who"><h2><span class="mini" id="rwMiniMe">我</span>我達標可以換</h2></div>
+    <div class="who"><h2><span class="mini" id="rwMiniMe">我</span>我達標可以換</h2><span class="rwstat" id="rwStatMe"></span></div>
     <div class="rewards" id="rewardsMe"></div>
     <form class="rwform" data-target="me">
       <div class="rwkinds"><button type="button" class="mode" data-kind="streak" aria-pressed="true">連續天數</button><button type="button" class="mode" data-kind="count" aria-pressed="false">完成項目數</button>
@@ -489,7 +492,7 @@ body{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
     </form>
   </section>
   <section class="card you">
-    <div class="who"><h2><span class="mini" id="rwMiniYou">她</span><span id="rwYouTitle">她達標可以換</span></h2></div>
+    <div class="who"><h2><span class="mini" id="rwMiniYou">她</span><span id="rwYouTitle">她達標可以換</span></h2><span class="rwstat" id="rwStatYou"></span></div>
     <div class="rewards" id="rewardsYou"></div>
     <form class="rwform" data-target="you">
       <div class="rwkinds"><button type="button" class="mode" data-kind="streak" aria-pressed="true">連續天數</button><button type="button" class="mode" data-kind="count" aria-pressed="false">完成項目數</button>
@@ -811,6 +814,9 @@ function renderRewards(){
   fillRwItems();
   const sorted=S.rewards.slice().sort((a,b)=>(a.createdAt||'').localeCompare(b.createdAt||''));
   const mine=sorted.filter(r=>rTo(r)===S.me),hers=sorted.filter(r=>rTo(r)!==S.me);
+  const stat=list=>{const got=list.filter(r=>r.claimedAt||rewardProgress(r)>=rewardGoal(r)).length,used=list.filter(r=>r.claimedAt).length;
+    return list.length?`<span>已達成 <b>${got}</b></span><span>已兌換 <b>${used}</b></span>`:''};
+  $('rwStatMe').innerHTML=stat(mine);$('rwStatYou').innerHTML=stat(hers);
   $('rewardsMe').innerHTML=mine.length?mine.map(couponHTML).join(''):`<p class="empty">還沒有。幫自己設一個目標獎勵，例如「連續 7 天 → 買一杯手搖飲」。</p>`;
   $('rewardsYou').innerHTML=hers.length?hers.map(couponHTML).join(''):`<p class="empty">還沒有。幫${esc(pn)}設一個，例如「連續 7 天 → 請吃一頓好料」。</p>`;
 }
@@ -1077,7 +1083,7 @@ S.draft={items:[],happy:'',share:'',stuck:'',score:0};setDate(TODAY);renderAll()
 document.getElementById('page-history').appendChild(document.getElementById('logoutbtn').parentNode);</script>
 <script>
 // Home-screen apps can keep showing a cached copy; check for a newer build whenever the app is opened.
-window.__BUILD='1791832882';
+window.__BUILD='1791833101';
 async function checkUpdate(){try{const t=await (await fetch('./?nocache='+Date.now(),{cache:'no-store'})).text();const m=t.match(/__BUILD='(\d+)'/);
   if(m&&m[1]!==window.__BUILD)location.replace('./?v='+m[1]);}catch(e){}}
 checkUpdate();document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});
