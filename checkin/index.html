@@ -814,9 +814,9 @@ function renderRewards(){
   fillRwItems();
   const sorted=S.rewards.slice().sort((a,b)=>(a.createdAt||'').localeCompare(b.createdAt||''));
   const mine=sorted.filter(r=>rTo(r)===S.me),hers=sorted.filter(r=>rTo(r)!==S.me);
-  const stat=list=>{const got=list.filter(r=>r.claimedAt||rewardProgress(r)>=rewardGoal(r)).length,used=list.filter(r=>r.claimedAt).length;
-    return list.length?`<span>已達成 <b>${got}</b></span><span>已兌換 <b>${used}</b></span>`:''};
-  $('rwStatMe').innerHTML=stat(mine);$('rwStatYou').innerHTML=stat(hers);
+  const stat=(list,u)=>{const done=u?countDone(u,'','0000'):0,ready=list.filter(r=>!r.claimedAt&&rewardProgress(r)>=rewardGoal(r)).length,used=list.filter(r=>r.claimedAt).length;
+    return `<span>已完成 <b>${done}</b> 項</span>${list.length?`<span>可兌換 <b>${ready}</b></span><span>已兌換 <b>${used}</b></span>`:''}`};
+  $('rwStatMe').innerHTML=stat(mine,S.me);$('rwStatYou').innerHTML=stat(hers,p);
   $('rewardsMe').innerHTML=mine.length?mine.map(couponHTML).join(''):`<p class="empty">還沒有。幫自己設一個目標獎勵，例如「連續 7 天 → 買一杯手搖飲」。</p>`;
   $('rewardsYou').innerHTML=hers.length?hers.map(couponHTML).join(''):`<p class="empty">還沒有。幫${esc(pn)}設一個，例如「連續 7 天 → 請吃一頓好料」。</p>`;
 }
@@ -1083,7 +1083,7 @@ S.draft={items:[],happy:'',share:'',stuck:'',score:0};setDate(TODAY);renderAll()
 document.getElementById('page-history').appendChild(document.getElementById('logoutbtn').parentNode);</script>
 <script>
 // Home-screen apps can keep showing a cached copy; check for a newer build whenever the app is opened.
-window.__BUILD='1791833101';
+window.__BUILD='1791833357';
 async function checkUpdate(){try{const t=await (await fetch('./?nocache='+Date.now(),{cache:'no-store'})).text();const m=t.match(/__BUILD='(\d+)'/);
   if(m&&m[1]!==window.__BUILD)location.replace('./?v='+m[1]);}catch(e){}}
 checkUpdate();document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});
