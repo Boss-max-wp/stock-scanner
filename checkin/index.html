@@ -80,7 +80,7 @@ const ERR={'auth/invalid-credential':'Email 或密碼不對','auth/wrong-passwor
 async function go(){
   const email=$('lgEmail').value.trim().toLowerCase(),pw=$('lgPass').value;$('lgMsg').textContent='';
   try{
-    if(mode==='verify'){await auth.currentUser.reload();if(auth.currentUser.emailVerified)location.reload();else $('lgMsg').textContent='還沒驗證成功，請先點信裡的連結';return}
+    if(mode==='verify'){await auth.currentUser.reload();if(auth.currentUser.emailVerified){await auth.currentUser.getIdToken(true);location.reload()}else $('lgMsg').textContent='還沒驗證成功，請先點信裡的連結';return}
     if(mode==='reset'){await sendPasswordResetEmail(auth,email);$('lgMsg').textContent='重設密碼信寄出了，去信箱看看';return}
     if(!PEOPLE[email]){$('lgMsg').textContent='這個 Email 不能使用這本打卡本';return}
     if(mode==='up'){const nm=$('lgName').value.trim();if(!nm){$('lgMsg').textContent='寫一下你的暱稱';return}
@@ -100,6 +100,8 @@ onAuthStateChanged(auth,async u=>{
   if(!u.emailVerified){show('verify');return}
   const id=PEOPLE[(u.email||'').toLowerCase()];
   if(!id){$('lgMsg').textContent='這個帳號不能使用這本打卡本';await signOut(auth);show('in');return}
+  // The saved login token may predate email verification; refresh it so the database sees the verified status.
+  try{const t=await u.getIdTokenResult();if(!t.claims.email_verified)await u.getIdToken(true)}catch(e){}
   $('login').hidden=true;
   const nm=localStorage.getItem('pendingName');
   if(nm){try{const r=doc(fs,'members/'+id);const s=await getDoc(r);await setDoc(r,{...(s.exists()?s.data():{joinedAt:new Date().toISOString(),items:[]}),name:nm});localStorage.removeItem('pendingName')}catch(e){}}
