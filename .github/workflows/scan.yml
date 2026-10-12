@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ["news.json", "scan.js", "patterns/**", "checkin/**", ".github/workflows/scan.yml"]   # 新聞或程式更新時自動重建網頁
+    paths: ["news.json", "scan.js", "patterns/**", "checkin/**", "trip/**", ".github/workflows/scan.yml"]   # 新聞或程式更新時自動重建網頁
 
 permissions:
   contents: read
@@ -44,7 +44,7 @@ jobs:
           path: .cache
           key: bars-${{ github.run_id }}-${{ github.run_attempt }}
       - name: 放入打卡本
-        run: mkdir -p public && cp -r checkin public/checkin
+        run: mkdir -p public && cp -r checkin public/checkin && cp -r trip public/trip
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

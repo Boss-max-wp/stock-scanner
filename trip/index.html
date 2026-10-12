@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>札幌行程本</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: one column like a transit line diagram — stops are stations, legs are line segments with a "how to get there" button */
+:root{
+  --bg:#EEF2F5; --card:#FFFFFF; --fg:#18232E; --muted:#5E6C79; --line:#C9D3DB;
+  --accent:#2C6A8A; --accent-ink:#FFFFFF; --warm:#B8502C; --chip:#E1EAF0;
+  --sans:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10171E; --card:#18222C; --fg:#E6EDF2; --muted:#93A3B1; --line:#2E3C49;
+  --accent:#6FB3D6; --accent-ink:#0C1620; --warm:#E58B66; --chip:#22303C; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10171E; --card:#18222C; --fg:#E6EDF2; --muted:#93A3B1; --line:#2E3C49;
+  --accent:#6FB3D6; --accent-ink:#0C1620; --warm:#E58B66; --chip:#22303C; color-scheme:dark}
+*{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.55;padding-inline:16px;padding-block:12px 40px}
+.wrap{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+header{display:flex;flex-direction:column;gap:6px}
+h1{font-size:26px;font-weight:900;margin:0;letter-spacing:.02em;text-wrap:balance}
+.sub{color:var(--muted);font-size:13px}
+.quick{display:flex;flex-wrap:wrap;gap:8px}
+.quick a{font-size:13px;text-decoration:none;color:var(--fg);background:var(--chip);padding:6px 10px;border-radius:999px}
+.quick a b{color:var(--warm);font-weight:700}
+.tabs{display:flex;gap:6px;overflow-x:auto;position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);padding-block:8px;z-index:2}
+.tab{flex:1 0 auto;min-width:70px;border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:12px;padding:6px 10px;font:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;line-height:1.2}
+.tab .d{font-family:var(--mono);font-weight:600;font-size:16px}
+.tab .w{font-size:11px;color:var(--muted)}
+.tab[aria-selected="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.tab[aria-selected="true"] .w{color:var(--accent-ink);opacity:.85}
+.daytitle{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.daytitle h2{margin:0;font-size:19px;font-weight:700}
+.sample{font-size:11px;color:var(--warm);border:1px solid var(--warm);border-radius:999px;padding:1px 8px;white-space:nowrap}
+.route{display:flex;flex-direction:column}
+.stop{display:grid;grid-template-columns:52px 22px 1fr;align-items:start;gap:0 8px}
+.time{font-family:var(--mono);font-size:14px;font-weight:600;padding-top:12px;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.rail{position:relative;align-self:stretch;display:flex;justify-content:center}
+.dot{width:16px;height:16px;border-radius:50%;background:var(--card);border:4px solid var(--accent);margin-top:14px;position:relative;z-index:1}
+.body{background:var(--card);border-radius:12px;padding:10px 12px;margin-block:4px;min-width:0;display:flex;flex-direction:column;gap:4px}
+.name{font-weight:700;font-size:16px;display:flex;justify-content:space-between;gap:8px;align-items:start}
+.name span{min-width:0;overflow-wrap:anywhere}
+.note{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
+.row{display:flex;gap:6px;flex-wrap:wrap}
+.btn{font:inherit;font-size:13px;border:1px solid var(--line);background:transparent;color:var(--fg);border-radius:8px;padding:4px 10px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
+.btn.ghost{border-color:transparent;color:var(--muted);padding:2px 6px}
+.leg{display:grid;grid-template-columns:52px 22px 1fr;gap:0 8px}
+.leg .rail::before{content:"";position:absolute;top:0;bottom:0;width:6px;border-radius:3px;background:var(--accent);opacity:.35}
+.legbody{padding-block:8px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.legtxt{font-size:13px;color:var(--muted)}
+.legtxt strong{color:var(--fg);font-weight:500}
+.add{align-self:flex-start;margin-left:82px}
+.tools{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;font-size:12px}
+.help{background:var(--card);border-radius:12px;padding:12px 14px;font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+.help b{color:var(--fg)}
+:focus-visible{outline:2px solid var(--warm);outline-offset:2px}
+/* sheet */
+.scrim{position:fixed;inset:0;background:rgba(10,18,26,.45);z-index:10;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--card);width:100%;max-width:560px;border-radius:16px 16px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px;max-height:90%;overflow:auto}
+.sheet h3{margin:0;font-size:17px}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+input,textarea{font:inherit;font-size:16px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+textarea{min-height:60px;resize:vertical}
+.hint{font-size:12px;color:var(--muted)}
+.sheet .row{justify-content:space-between}
+.danger{color:var(--warm);border-color:var(--warm)}
+@media (prefers-reduced-motion:no-preference){.sheet{animation:up .18s ease-out}@keyframes up{from{transform:translateY(20px);opacity:.6}}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>札幌行程本</h1>
+    <div class="sub">2026/12/5 – 12/8 · 按「怎麼去」會打開 Google 地圖，顯示要搭哪班車、走多久、下一班幾點</div>
+    <div class="quick">
+      <a href="https://www3.jrhokkaido.co.jp/webunkou/" target="_blank" rel="noopener"><b>●</b> JR 北海道運行狀況</a>
+      <a href="https://www.google.com/maps/search/?api=1&query=%E6%9C%AD%E5%B9%8C%E9%A7%85" target="_blank" rel="noopener">札幌站地圖</a>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist" id="tabs"></nav>
+  <section id="day"></section>
+
+  <div class="help">
+    <div><b>怎麼用</b></div>
+    <div>「怎麼去」＝從上一站到這一站的大眾運輸路線。「從我這裡出發」＝從你手機目前位置過去，在當地臨時要走時用這個。</div>
+    <div>點景點名稱旁的「編輯」可以改名字、時間、備註；「地圖上搜尋的名稱」填日文或地址最準。</div>
+    <div>行程存在這支手機的瀏覽器裡。下雪天 JR 容易延誤，出門前先看上面的運行狀況。</div>
+  </div>
+  <div class="tools">
+    <button class="btn ghost" id="reset">還原成範例行程</button>
+  </div>
+</div>
+
+<div class="scrim" id="scrim" hidden>
+  <form class="sheet" id="form">
+    <h3 id="ftitle">編輯景點</h3>
+    <label>顯示名稱<input id="f-name" required></label>
+    <label>地圖上搜尋的名稱<input id="f-q"><span class="hint">日文或地址最準，例如「小樽運河」「札幌駅」</span></label>
+    <label>預計時間<input id="f-time" placeholder="例如 10:30"></label>
+    <label>從上一站過來怎麼走（自己的筆記）<input id="f-leg" placeholder="例如 JR 快速 約 40 分"></label>
+    <label>備註<textarea id="f-note"></textarea></label>
+    <div class="row">
+      <button type="button" class="btn danger" id="f-del">刪除這站</button>
+      <span class="row">
+        <button type="button" class="btn" id="f-cancel">取消</button>
+        <button type="submit" class="btn primary">儲存</button>
+      </span>
+    </div>
+  </form>
+</div>
+
+<script>
+const KEY='sapporo-trip-v1';
+const SAMPLE={sample:true,days:[
+ {date:'12/5',week:'六',title:'抵達・札幌站周邊',stops:[
+  {name:'新千歲機場',q:'新千歳空港',time:'11:00',note:'入境後到 B1 搭 JR，可以刷 Suica／Kitaca',leg:''},
+  {name:'札幌站',q:'札幌駅',time:'13:00',note:'先去飯店放行李',leg:'JR 快速 Airport 約 40 分'},
+  {name:'大通公園',q:'大通公園',time:'16:30',note:'12 月有白色燈樹節，傍晚點燈',leg:'地下鐵 1 站，或地下街走路約 10 分'},
+  {name:'狸小路商店街',q:'狸小路商店街',time:'18:30',note:'晚餐、逛藥妝',leg:'走路約 5 分'}]},
+ {date:'12/6',week:'日',title:'小樽一日',stops:[
+  {name:'札幌站',q:'札幌駅',time:'09:00',note:'',leg:''},
+  {name:'小樽站',q:'小樽駅',time:'09:45',note:'',leg:'JR 快速 約 35–45 分'},
+  {name:'小樽運河',q:'小樽運河',time:'10:00',note:'',leg:'走路約 10 分'},
+  {name:'堺町通・北一硝子',q:'北一硝子 三号館',time:'11:30',note:'午餐吃海鮮丼',leg:'走路約 10 分'},
+  {name:'小樽音樂盒堂',q:'小樽オルゴール堂 本館',time:'14:00',note:'',leg:'走路約 5 分'},
+  {name:'回札幌站',q:'札幌駅',time:'17:00',note:'',leg:'從南小樽站搭 JR 約 40 分'}]},
+ {date:'12/7',week:'一',title:'札幌市區',stops:[
+  {name:'飯店',q:'札幌駅',time:'09:30',note:'改成你住的飯店',leg:''},
+  {name:'北海道神宮',q:'北海道神宮',time:'10:30',note:'',leg:'地下鐵東西線到圓山公園站，再走 15 分'},
+  {name:'白色戀人公園',q:'白い恋人パーク',time:'13:30',note:'',leg:'地下鐵到宮の沢站，再走約 7 分'},
+  {name:'薄野',q:'すすきの駅',time:'18:00',note:'湯咖哩或成吉思汗烤肉',leg:'地下鐵東西線＋南北線'}]},
+ {date:'12/8',week:'二',title:'回程',stops:[
+  {name:'二條市場',q:'二条市場',time:'08:30',note:'早餐海鮮',leg:''},
+  {name:'札幌站',q:'札幌駅',time:'11:00',note:'拿行李',leg:'地下鐵或走路約 20 分'},
+  {name:'新千歲機場',q:'新千歳空港',time:'12:00',note:'國際線至少提前 2 小時到',leg:'JR 快速 Airport 約 40 分'}]}
+]};
+
+let data, cur=0, editing=null;
+function load(){try{const s=localStorage.getItem(KEY);if(s){data=JSON.parse(s);return}}catch(e){}data=structuredClone(SAMPLE)}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){}}
+try{const t=localStorage.getItem(KEY+'-tab');if(t)cur=+t||0}catch(e){}
+load(); if(cur>=data.days.length)cur=0;
+
+const enc=encodeURIComponent;
+const dir=(a,b,mode)=>'https://www.google.com/maps/dir/?api=1'+(a?'&origin='+enc(a):'')+'&destination='+enc(b)+'&travelmode='+(mode||'transit');
+const place=q=>'https://www.google.com/maps/search/?api=1&query='+enc(q);
+const esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function render(){
+  const tabs=document.getElementById('tabs');
+  tabs.innerHTML=data.days.map((d,i)=>`<button class="tab" role="tab" aria-selected="${i===cur}" data-i="${i}"><span class="d">${esc(d.date)}</span><span class="w">週${esc(d.week)}</span></button>`).join('');
+  const d=data.days[cur];
+  let h=`<div class="daytitle"><h2>${esc(d.title)}</h2>${data.sample?'<span class="sample">範例行程，可直接改</span>':''}</div><div class="route">`;
+  d.stops.forEach((s,i)=>{
+    const q=s.q||s.name;
+    if(i>0){
+      const p=d.stops[i-1], pq=p.q||p.name;
+      h+=`<div class="leg"><div></div><div class="rail"></div><div class="legbody">
+        ${s.leg?`<div class="legtxt">預估：<strong>${esc(s.leg)}</strong></div>`:''}
+        <div class="row">
+          <a class="btn primary" target="_blank" rel="noopener" href="${dir(pq,q)}">怎麼去 ›</a>
+          <a class="btn" target="_blank" rel="noopener" href="${dir(pq,q,'walking')}">走路</a>
+        </div></div></div>`;
+    }
+    h+=`<div class="stop"><div class="time">${esc(s.time)}</div><div class="rail"><span class="dot"></span></div>
+      <div class="body"><div class="name"><span>${esc(s.name)}</span><button class="btn ghost" data-edit="${i}">編輯</button></div>
+      ${s.note?`<div class="note">${esc(s.note)}</div>`:''}
+      <div class="row"><a class="btn" target="_blank" rel="noopener" href="${place(q)}">地圖</a>
+      <a class="btn" target="_blank" rel="noopener" href="${dir('',q)}">從我這裡出發</a></div></div></div>`;
+  });
+  h+=`</div><button class="btn add" id="addstop">＋ 新增一站</button>`;
+  document.getElementById('day').innerHTML=h;
+}
+
+document.getElementById('tabs').addEventListener('click',e=>{const b=e.target.closest('.tab');if(!b)return;cur=+b.dataset.i;try{localStorage.setItem(KEY+'-tab',cur)}catch(_){ }render()});
+document.getElementById('day').addEventListener('click',e=>{
+  const ed=e.target.closest('[data-edit]'); if(ed){open(+ed.dataset.edit);return}
+  if(e.target.id==='addstop')open(-1);
+});
+const $=id=>document.getElementById(id);
+let delArmed=false;
+function open(i){
+  editing=i; delArmed=false; $('f-del').textContent='刪除這站';
+  const s=i>=0?data.days[cur].stops[i]:{name:'',q:'',time:'',note:'',leg:''};
+  $('ftitle').textContent=i>=0?'編輯景點':'新增一站';
+  $('f-name').value=s.name;$('f-q').value=s.q;$('f-time').value=s.time;$('f-note').value=s.note;$('f-leg').value=s.leg;
+  $('f-del').hidden=i<0; $('scrim').hidden=false; $('f-name').focus();
+}
+function close(){$('scrim').hidden=true}
+$('f-cancel').onclick=close;
+$('scrim').addEventListener('click',e=>{if(e.target.id==='scrim')close()});
+$('form').addEventListener('submit',e=>{
+  e.preventDefault();
+  const s={name:$('f-name').value.trim(),q:$('f-q').value.trim(),time:$('f-time').value.trim(),note:$('f-note').value.trim(),leg:$('f-leg').value.trim()};
+  if(!s.name)return;
+  const st=data.days[cur].stops;
+  if(editing>=0)st[editing]=s;else st.push(s);
+  data.sample=false;save();close();render();
+});
+$('f-del').onclick=()=>{
+  if(!delArmed){delArmed=true;$('f-del').textContent='再按一次確認刪除';return}
+  data.days[cur].stops.splice(editing,1);data.sample=false;save();close();render();
+};
+let resetArmed=false;
+$('reset').onclick=()=>{
+  if(!resetArmed){resetArmed=true;$('reset').textContent='再按一次：你的修改會被清掉';setTimeout(()=>{resetArmed=false;$('reset').textContent='還原成範例行程'},4000);return}
+  data=structuredClone(SAMPLE);save();resetArmed=false;$('reset').textContent='還原成範例行程';render();
+};
+render();
+</script>
+</body>
+</html>
