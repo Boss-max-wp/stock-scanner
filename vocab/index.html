@@ -167,6 +167,16 @@ select.n{flex:none;width:100%}
       <div class="label">我的單元</div>
       <div id="unitlist" class="unitlist"></div>
       <button id="addunit" class="btn" type="button">＋ 新單元</button>
+      <details id="backupbox">
+        <summary>備份 / 搬移單字</summary>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <p class="hint">從主畫面打開和在 Safari 打開，單字是分開存的。要搬過去或備份時：在有單字的地方按「複製全部單字」，貼到備忘錄存著；到另一邊再貼進下面的框框，按「匯入」。</p>
+          <button id="exportbtn" class="btn" type="button">複製全部單字</button>
+          <textarea id="importbox" spellcheck="false" style="min-height:110px" placeholder="把複製的單字貼在這裡"></textarea>
+          <button id="importbtn" class="btn primary" type="button">匯入</button>
+          <p id="backupst" class="status" role="status"></p>
+        </div>
+      </details>
       <details id="keybox">
         <summary id="keysum">Gemini 金鑰設定</summary>
         <div style="display:flex;flex-direction:column;gap:8px">
@@ -299,7 +309,7 @@ select.n{flex:none;width:100%}
     <section id="stage-form" class="card" aria-live="polite"></section>
   </section>
 
-  <p class="hint" style="text-align:center">版本 10/14-11</p>
+  <p class="hint" style="text-align:center">版本 10/14-12</p>
 </div>
 
 <script>
@@ -443,6 +453,37 @@ nameEl.addEventListener("input",()=>{unit().name=nameEl.value;saveUnits();drawUn
 wordsEl.addEventListener("input",()=>{unit().words=wordsEl.value;saveUnits();drawUnitList();drawVocab()});
 $("#editbtn").onclick=()=>{const box=$("#editbox");box.hidden=!box.hidden;if(!box.hidden){wordsEl.value=unit().words;wordsEl.focus()}};
 $("#editdone").onclick=()=>{$("#editbox").hidden=true};
+/* 備份：每個單元用「## 單元名」開頭，下面一行一個單字 */
+function exportText(){return units.map(u=>`## ${u.name||"未命名單元"}\n${parseEntries(u.words).map(e=>e.zh?`${e.word} ${e.zh}`:e.word).join("\n")}`).join("\n\n")}
+$("#exportbtn").onclick=async()=>{
+  const t=exportText(), st=$("#backupst"), box=$("#importbox");
+  try{await navigator.clipboard.writeText(t); st.textContent=`已複製 ${units.length} 個單元。去備忘錄貼上存起來就好。`; st.className="status ok"}
+  catch(e){box.value=t; box.focus(); box.select(); st.textContent="手機不讓我直接複製，已經把內容放進下面的框框並選取好了，請按「拷貝」。"; st.className="status"}
+};
+$("#importbtn").onclick=()=>{
+  const st=$("#backupst"), text=$("#importbox").value;
+  const blocks=[]; let curB=null;
+  for(const line of text.split(/\n/)){
+    const h=line.match(/^\s*##\s*(.+?)\s*$/);
+    if(h){curB={name:h[1],lines:[]};blocks.push(curB);continue}
+    if(!line.trim()) continue;
+    if(!curB){curB={name:"匯入的單字",lines:[]};blocks.push(curB)}
+    curB.lines.push(line);
+  }
+  let addedW=0, addedU=0;
+  for(const b of blocks){
+    const es=parseEntries(b.lines.join("\n")); if(!es.length) continue;
+    let u=units.find(x=>x.name===b.name);
+    if(!u){u={id:newId(),name:b.name,words:""};units.push(u);addedU++}
+    const have=new Set(parseEntries(u.words).map(e=>e.word.toLowerCase()));
+    const add=es.filter(e=>!have.has(e.word.toLowerCase())).map(e=>e.zh?`${e.word} ${e.zh}`:e.word);
+    if(add.length){u.words=(u.words.trim()?u.words.replace(/\s*$/,"\n"):"")+add.join("\n");addedW+=add.length}
+  }
+  if(!addedW&&!addedU){st.textContent="沒有讀到新的單字。請確認貼上的內容是「英文 中文」一行一個。";st.className="status err";return}
+  saveUnits(); drawUnit();
+  st.textContent=`匯入完成：新增 ${addedU} 個單元、${addedW} 個單字。已經有的單字不會重複加。`; st.className="status ok";
+  $("#importbox").value="";
+};
 $("#addunit").onclick=()=>{
   const u={id:newId(),name:`單元 ${units.length+1}`,words:""};
   units.push(u); cur=u.id; saveUnits(); drawUnit(); nameEl.focus(); nameEl.select();
