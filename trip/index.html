@@ -78,6 +78,12 @@ h1{font-size:24px;font-weight:900;margin:0;letter-spacing:.02em}
 .seg.small button[aria-pressed="true"] .ml{color:var(--accent)}
 .seg.small .mt{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
 .add{align-self:flex-start;margin-left:76px}
+.daytitle{display:flex;justify-content:space-between;align-items:flex-end;gap:8px}
+.daytitle>div{min-width:0}
+.mv{display:inline-flex;gap:2px}
+.mv .btn{padding:2px 8px;font-size:14px;line-height:1.2}
+.mv .btn:disabled{opacity:.3;cursor:default}
+.tab.plus{flex:0 0 auto;min-width:46px;font-size:20px;color:var(--accent);border-style:dashed;justify-content:center}
 .help{background:var(--card);border-radius:12px;padding:12px 14px;font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
 .help b{color:var(--fg)}
 .tools{display:flex;justify-content:flex-end}
@@ -100,7 +106,7 @@ textarea{min-height:56px;resize:vertical}
     <img src="icon-180.png" alt="">
     <div>
       <h1>北海道行程本</h1>
-      <div class="sub">2026/12/3 – 12/8 · 函館 → 札幌</div>
+      <div class="sub" id="range"></div>
     </div>
   </header>
   <div class="quick">
@@ -123,7 +129,7 @@ textarea{min-height:56px;resize:vertical}
     <div><b>怎麼用</b></div>
     <div>每段路都會顯示大眾運輸、走路、開車各要多久。走路和開車是打開頁面時即時算的；大眾運輸是我依路線估的，不含等車時間。點選其中一種再按「怎麼去」，就會用那個方式打開 Google 地圖，會顯示路線、要多久、下一班車幾點。「從我這裡出發」是從你手機目前的位置過去。</div>
     <div>「預計搭乘」是我依你的行程先寫的建議班次，出發前以 Google 地圖或 JR 時刻表為準。橘色框是時間可能有問題的地方。</div>
-    <div>按「編輯」可以改景點、時間、預計搭乘和預設交通方式。行程存在這支手機上。</div>
+    <div><b>調整行程</b>：景點旁的 ↑ ↓ 可以換順序；按「編輯」可以改內容、搬到別天或指定位置。日期旁的「編輯這天」可以改日期、標題、插入或刪除一天；日期列最後的「＋」是加一天。行程存在這支手機上。</div>
   </div>
   <div class="tools"><button class="btn ghost" id="reset">還原成原本的行程</button></div>
 </div>
@@ -133,6 +139,10 @@ textarea{min-height:56px;resize:vertical}
     <h3 id="ftitle">編輯景點</h3>
     <label>顯示名稱<input id="f-name" required></label>
     <label>地圖上搜尋的名稱<input id="f-q"><span class="hint">日文或地址最準，例如「小樽運河」「札幌駅」</span></label>
+    <div class="row" style="flex-wrap:nowrap">
+      <label style="flex:1">放在哪一天<select id="f-day"></select></label>
+      <label style="flex:1.4">位置<select id="f-pos"></select></label>
+    </div>
     <label>預計抵達時間<input id="f-time" placeholder="例如 10:30"></label>
     <label>從上一站過來的預設方式
       <select id="f-mode"><option value="transit">大眾運輸</option><option value="walking">走路</option><option value="driving">開車</option></select>
@@ -145,6 +155,23 @@ textarea{min-height:56px;resize:vertical}
       <button type="button" class="btn danger" id="f-del">刪除這站</button>
       <span class="row">
         <button type="button" class="btn" id="f-cancel">取消</button>
+        <button type="submit" class="btn primary">儲存</button>
+      </span>
+    </div>
+  </form>
+</div>
+
+<div class="scrim" id="dscrim" hidden>
+  <form class="sheet" id="dform">
+    <h3 id="dtitle">編輯這天</h3>
+    <label>日期<input id="d-date" type="date"></label>
+    <label>標題<input id="d-title" placeholder="例如 小樽一日"></label>
+    <label>地區<input id="d-city" placeholder="例如 札幌"></label>
+    <button type="button" class="btn" id="d-insert" style="align-self:flex-start">在這天後面插入新的一天</button>
+    <div class="row">
+      <button type="button" class="btn danger" id="d-del">刪除這天</button>
+      <span class="row">
+        <button type="button" class="btn" id="d-cancel">取消</button>
         <button type="submit" class="btn primary">儲存</button>
       </span>
     </div>
@@ -300,9 +327,12 @@ const segBtns=(m,i,p,s)=>['transit','walking','driving'].map(k=>{
   return `<button type="button" data-leg="${i}" data-m="${k}" aria-pressed="${m===k}"><span class="ml">${ML[k]}</span><span class="mt"${r.key?` data-tk="${r.key}"`:''}>${r.t}</span></button>`}).join('');
 
 function render(){
-  document.getElementById('tabs').innerHTML=data.days.map((d,i)=>`<button class="tab" role="tab" aria-selected="${i===cur}" data-i="${i}"><span class="d">${esc(d.date)}</span><span class="w">週${esc(d.week)}</span></button>`).join('');
+  document.getElementById('tabs').innerHTML=data.days.map((d,i)=>`<button class="tab" role="tab" aria-selected="${i===cur}" data-i="${i}"><span class="d">${esc(d.date)}</span><span class="w">週${esc(d.week)}</span></button>`).join('')+`<button class="tab plus" id="addday" aria-label="加一天">＋</button>`;
+  const f=data.days[0],l=data.days[data.days.length-1];
+  $('range').textContent=f?`2026/${f.date} – ${l.date} · 共 ${data.days.length} 天`:'';
+  if(!data.days.length){$('day').innerHTML='<p>還沒有任何一天，按上面的「＋」加一天。</p>';return}
   const d=data.days[cur];
-  let h=`<div class="daytitle"><div class="city">第 ${cur+1} 天 · ${esc(d.city)}</div><h2>${esc(d.title)}</h2></div><div class="route">`;
+  let h=`<div class="daytitle"><div><div class="city">第 ${cur+1} 天${d.city?' · '+esc(d.city):''}</div><h2>${esc(d.title)||'（未命名）'}</h2></div><button class="btn ghost" id="editday">編輯這天</button></div><div class="route">`;
   d.stops.forEach((s,i)=>{
     const q=s.q||s.name;
     if(i>0){
@@ -315,7 +345,7 @@ function render(){
     }
     const m=legMode(s);
     h+=`<div class="stop"><div class="time">${esc(s.time)||'—'}</div><div class="rail"><span class="dot"></span></div>
-      <div class="body"><div class="name"><span>${esc(s.name)}</span><button class="btn ghost" data-edit="${i}">編輯</button></div>
+      <div class="body"><div class="name"><span>${esc(s.name)}</span><span class="mv"><button class="btn ghost" data-up="${i}" aria-label="往上" ${i===0?'disabled':''}>↑</button><button class="btn ghost" data-down="${i}" aria-label="往下" ${i===d.stops.length-1?'disabled':''}>↓</button><button class="btn ghost" data-edit="${i}">編輯</button></span></div>
       ${s.note?`<div class="note">${esc(s.note)}</div>`:''}
       ${s.warn?`<div class="warn">${esc(s.warn)}</div>`:''}
       <div class="row"><a class="btn" target="_blank" rel="noopener" href="${place(q)}">地圖</a>
@@ -325,7 +355,7 @@ function render(){
   document.getElementById('day').innerHTML=h;
 }
 const $=id=>document.getElementById(id);
-$('tabs').addEventListener('click',e=>{const b=e.target.closest('.tab');if(!b)return;cur=+b.dataset.i;try{localStorage.setItem(KEY+'-tab',cur)}catch(_){}render();window.scrollTo({top:0})});
+$('tabs').addEventListener('click',e=>{if(e.target.closest('#addday')){addDay(data.days.length);return}const b=e.target.closest('.tab');if(!b)return;cur=+b.dataset.i;try{localStorage.setItem(KEY+'-tab',cur)}catch(_){}render();window.scrollTo({top:0})});
 $('allmode').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;allMode=b.dataset.m;
   $('allmode').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));render()});
 $('day').addEventListener('click',e=>{
@@ -333,6 +363,10 @@ $('day').addEventListener('click',e=>{
   if(lb){const s=data.days[cur].stops[+lb.dataset.leg];s.pick=lb.dataset.m;
     if(allMode!=='plan'){allMode='plan';$('allmode').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.m==='plan'))}
     save();render();return}
+  const up=e.target.closest('[data-up]'),dn=e.target.closest('[data-down]');
+  if(up||dn){const st=data.days[cur].stops,i=+(up||dn).dataset[up?'up':'down'],j=up?i-1:i+1;
+    if(j<0||j>=st.length)return;[st[i],st[j]]=[st[j],st[i]];save();render();return}
+  if(e.target.id==='editday'){openDay();return}
   const ed=e.target.closest('[data-edit]');if(ed){open(+ed.dataset.edit);return}
   if(e.target.id==='addstop')open(-1);
 });
@@ -343,8 +377,16 @@ function open(i){
   $('ftitle').textContent=i>=0?'編輯景點':'新增一站';
   $('f-name').value=s.name||'';$('f-q').value=s.q||'';$('f-time').value=s.time||'';
   $('f-mode').value=s.pick||s.mode||T;$('f-ride').value=s.ride||'';$('f-tr').value=s.trmin||'';$('f-note').value=s.note||'';$('f-warn').value=s.warn||'';
+  $('f-day').innerHTML=data.days.map((d,k)=>`<option value="${k}">${esc(d.date)} ${esc(d.title||'')}</option>`).join('');
+  $('f-day').value=cur;fillPos(cur,i);
   $('f-del').hidden=i<0;$('scrim').hidden=false;
 }
+function fillPos(dk,i){
+  const st=data.days[dk].stops.filter((_,k)=>!(dk===cur&&k===i));
+  $('f-pos').innerHTML=`<option value="0">最前面</option>`+st.map((s,k)=>`<option value="${k+1}">在「${esc(s.name)}」之後</option>`).join('');
+  $('f-pos').value=(dk===cur&&i>=0)?i:st.length;
+}
+$('f-day').addEventListener('change',()=>fillPos(+$('f-day').value,editing));
 const close=()=>{$('scrim').hidden=true};
 $('f-cancel').onclick=close;
 $('scrim').addEventListener('click',e=>{if(e.target.id==='scrim')close()});
@@ -352,7 +394,9 @@ $('form').addEventListener('submit',e=>{
   e.preventDefault();
   const s={name:$('f-name').value.trim(),q:$('f-q').value.trim(),time:$('f-time').value.trim(),mode:$('f-mode').value,ride:$('f-ride').value.trim(),trmin:$('f-tr').value.replace(/\D/g,''),note:$('f-note').value.trim(),warn:$('f-warn').value.trim()};
   if(!s.name)return;
-  const st=data.days[cur].stops;if(editing>=0)st[editing]=s;else st.push(s);
+  if(editing>=0){const o=data.days[cur].stops[editing];if(o.pick)s.pick=o.pick;if(s.mode!==(o.pick||o.mode))delete s.pick;data.days[cur].stops.splice(editing,1)}
+  const dk=+$('f-day').value,pos=+$('f-pos').value;
+  data.days[dk].stops.splice(pos,0,s);cur=dk;
   save();close();render();
 });
 $('f-del').onclick=()=>{
@@ -364,6 +408,33 @@ $('reset').onclick=()=>{
   if(!resetArmed){resetArmed=true;$('reset').textContent='再按一次：你的修改會被清掉';setTimeout(()=>{resetArmed=false;$('reset').textContent='還原成原本的行程'},4000);return}
   data=clone(PLAN);save();resetArmed=false;$('reset').textContent='還原成原本的行程';render();
 };
+/* ---- 天數 ---- */
+const WK='日一二三四五六';
+const toISO=md=>{const m=String(md||'').match(/(\d+)\/(\d+)/);return m?`2026-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`:''};
+function setDate(d,iso){const t=new Date(iso+'T00:00:00');if(isNaN(t))return;d.date=`${t.getMonth()+1}/${t.getDate()}`;d.week=WK[t.getDay()];
+  d.year=t.getFullYear()}
+function addDay(at){
+  const prev=data.days[at-1];const d={date:'',week:'',title:'',city:prev?prev.city:'',stops:[]};
+  const iso=prev?toISO(prev.date):'2026-12-03';
+  if(iso){const t=new Date(iso+'T00:00:00');t.setDate(t.getDate()+(prev?1:0));setDate(d,`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`)}
+  data.days.splice(at,0,d);
+  // 後面的日期往後推一天
+  for(let k=at+1;k<data.days.length;k++){const x=data.days[k],i2=toISO(x.date);if(!i2)continue;const t=new Date(i2+'T00:00:00');t.setDate(t.getDate()+1);
+    setDate(x,`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`)}
+  cur=at;save();render();openDay();
+}
+let dDelArmed=false;
+function openDay(){const d=data.days[cur];dDelArmed=false;$('d-del').textContent='刪除這天';
+  $('dtitle').textContent=`編輯第 ${cur+1} 天`;$('d-date').value=toISO(d.date);$('d-title').value=d.title||'';$('d-city').value=d.city||'';$('dscrim').hidden=false}
+const dclose=()=>{$('dscrim').hidden=true};
+$('d-cancel').onclick=dclose;
+$('dscrim').addEventListener('click',e=>{if(e.target.id==='dscrim')dclose()});
+$('dform').addEventListener('submit',e=>{e.preventDefault();const d=data.days[cur];
+  if($('d-date').value)setDate(d,$('d-date').value);d.title=$('d-title').value.trim();d.city=$('d-city').value.trim();save();dclose();render()});
+$('d-insert').onclick=()=>{dclose();addDay(cur+1)};
+$('d-del').onclick=()=>{
+  if(!dDelArmed){dDelArmed=true;$('d-del').textContent=`再按一次：這天的 ${data.days[cur].stops.length} 個景點也會刪掉`;return}
+  data.days.splice(cur,1);if(cur>=data.days.length)cur=Math.max(0,data.days.length-1);save();dclose();render()};
 render();
 </script>
 </body>
