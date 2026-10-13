@@ -226,7 +226,7 @@ select.n{flex:none;width:100%}
     </aside>
     <section id="stage-meaning" class="card" aria-live="polite"></section>
   </section>
-  <p class="hint" style="text-align:center">版本 10/14-4</p>
+  <p class="hint" style="text-align:center">版本 10/14-5</p>
 </div>
 
 <script>
@@ -398,10 +398,19 @@ async function findModels(key){
   const ok=(j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes("generateContent"))
     .map(m=>String(m.name).replace(/^models\//,""))
     .filter(n=>/^gemini-.*flash/.test(n)&&!/image|tts|audio|live|embed|thinking|exp/i.test(n));
-  ok.sort((a,b)=>(/preview/.test(a)-/preview/.test(b))||(/lite/.test(a)-/lite/.test(b))||(ver(b)-ver(a)));
+  ok.sort((a,b)=>(/preview/.test(a)-/preview/.test(b))||(ver(b)-ver(a))||(/lite/.test(a)-/lite/.test(b)));
+  const full=ok.filter(n=>!/lite/.test(n)), lite=ok.filter(n=>/lite/.test(n)), mixed=[];
+  for(let i=0;i<Math.max(full.length,lite.length);i++){if(full[i])mixed.push(full[i]);if(lite[i])mixed.push(lite[i])}
+  ok.length=0; ok.push(...mixed);
   return ok;
 }
-function modelList(){const saved=loadJSON("vc-models",[]);return [...new Set([...(Array.isArray(saved)?saved:[]),...DEFAULT_MODELS])]}
+function modelList(){
+  const saved=loadJSON("vc-models",[]);
+  const list=[...new Set([...(Array.isArray(saved)?saved:[]),...DEFAULT_MODELS])];
+  /* 上次成功的模型排第一個 */
+  const good=load("vc-good-model"); if(good&&list.includes(good)){list.splice(list.indexOf(good),1);list.unshift(good)}
+  return list;
+}
 /* Gemini 有時會把清單包在 {"words":[...]} 裡，這裡把它拆出來 */
 function asArray(v){
   if(Array.isArray(v)) return v;
@@ -415,6 +424,7 @@ function asArray(v){
 const WORD_SCHEMA={type:"ARRAY",items:{type:"OBJECT",properties:{word:{type:"STRING"},zh:{type:"STRING"}},required:["word","zh"]}};
 async function geminiCall(text,key,images=[],temperature=0.9,_retried,schema){
   let last=null;
+  const busy=[];
   for(const model of modelList()){
     const r=await fetch(`${API}/models/${model}:generateContent`,{
       method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":key},
@@ -422,6 +432,7 @@ async function geminiCall(text,key,images=[],temperature=0.9,_retried,schema){
     }).catch(()=>null);
     if(!r){last={code:"network"};continue}
     if(r.ok){
+      store("vc-good-model",model);
       const j=await r.json().catch(()=>({}));
       const out=(j.candidates?.[0]?.content?.parts||[]).map(p=>p.text||"").join("");
       if(!out){throw {code:"empty",detail:String(j.promptFeedback?.blockReason||j.candidates?.[0]?.finishReason||"")}}
@@ -431,14 +442,16 @@ async function geminiCall(text,key,images=[],temperature=0.9,_retried,schema){
       throw {code:"invalid_json",detail:(String(j.candidates?.[0]?.finishReason||"")+" "+out.slice(0,80)).trim()};
     }
     const e=await apiErr(r);
+    if(e.code==="busy") busy.push(model);
     if(e.code==="model"||e.code==="busy"||(e.status===400&&/model/i.test(e.detail))){last=e;continue}
     if(e.status===400&&schema) return geminiCall(text,key,images,temperature,_retried,null);
     throw e;
   }
   if((last?.code==="model"||last?.code==="busy")&&!_retried&&!loadJSON("vc-models",null)){
     const found=await findModels(key);
-    if(found.length){store("vc-models",JSON.stringify(found.slice(0,3)));return geminiCall(text,key,images,temperature,true,schema)}
+    if(found.length){store("vc-models",JSON.stringify(found.slice(0,8)));return geminiCall(text,key,images,temperature,true,schema)}
   }
+  if(busy.length&&last){last={...last,code:"busy",detail:`試過 ${busy.length} 個模型都在忙：${busy.join("、")}`}}
   throw last||{code:"upstream"};
 }
 /* 模型太忙時，換下一個模型；全部都忙就等一下再試，最多三輪 */
@@ -447,8 +460,8 @@ async function gemini(text,key,images=[],temperature=0.9,_r,schema){
   for(let round=0;;round++){
     try{return await geminiCall(text,key,images,temperature,false,schema)}
     catch(e){
-      if(e?.code!=="busy"||round>=2) throw e;
-      const wait=(round+1)*5;
+      if(e?.code!=="busy"||round>=3) throw e;
+      const wait=[5,15,30][round];
       busyNote?.(`Google 那邊現在比較忙，${wait} 秒後自動再試一次…`);
       await new Promise(r=>setTimeout(r,wait*1000));
     }
@@ -474,7 +487,7 @@ $("#keytest").onclick=async()=>{
   try{
     const found=await findModels(key);
     if(!found.length) throw {code:"model"};
-    store("vc-models",JSON.stringify(found.slice(0,3)));
+    store("vc-models",JSON.stringify(found.slice(0,8)));
     show(`✓ 金鑰已儲存，可以使用。之後拍照、出題都會用這組金鑰。`,"ok");
   }catch(e){show(errMsg(e),"err")}
   finally{b.disabled=false}
