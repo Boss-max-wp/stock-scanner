@@ -255,7 +255,7 @@ function parseEntries(text){
   for(const line of String(text||"").split(/\n+/)){
     const parts = CJK.test(line) ? [line] : line.split(/[,;]+/);
     for(const part of parts){
-      const t=part.trim();
+      const t=part.trim().replace(/^(?:\(?\d+[.)、:：]?|[-•*・●▪︎]+)\s*/,"");
       const m=t.match(/^[A-Za-z][A-Za-z'\- ]*[A-Za-z]|^[A-Za-z]/);
       if(!m) continue;
       const word=m[0].replace(/\s+/g," ").trim(), key=word.toLowerCase();
