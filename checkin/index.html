@@ -452,6 +452,7 @@ body{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
       <label class="q">😊 今天開心的事<textarea id="happy" rows="2"></textarea></label>
       <label class="q">💬 想跟對方分享的<textarea id="share" rows="2"></textarea></label>
       <label class="q">🧱 卡住的地方<textarea id="stuck" rows="2"></textarea></label>
+      <label class="q">🔧 覺得可以改善什麼<textarea id="improve" rows="2"></textarea></label>
     </div>
     <div class="scorebox">今天給自己幾分？<div class="scores" id="scores"></div></div>
     <div id="weekhint" class="warn" hidden></div>
@@ -629,7 +630,7 @@ function draftItems(prev){
 }
 function loadDraft(){
   const c=S.me&&S.checkins[cid(S.date,S.me)];
-  S.draft={items:draftItems(itemsIn(c).map(i=>({k:i.k,label:i.label,type:i.type||'daily',times:i.times||1,done:!!i.done,note:i.note||''}))),happy:c?.happy||'',share:c?.share||'',stuck:c?.stuck||'',score:c?.score||0};
+  S.draft={items:draftItems(itemsIn(c).map(i=>({k:i.k,label:i.label,type:i.type||'daily',times:i.times||1,done:!!i.done,note:i.note||''}))),happy:c?.happy||'',share:c?.share||'',stuck:c?.stuck||'',improve:c?.improve||'',score:c?.score||0};
   S.dirty=false;renderForm();
 }
 function wProgress(i){ // count this week excluding the draft day, then add draft tick
@@ -652,7 +653,7 @@ function renderItems(){
 function renderForm(){
   const d=S.draft;
   renderItems();
-  ['happy','share','stuck'].forEach(k=>$(k).value=d[k]);
+  ['happy','share','stuck','improve'].forEach(k=>$(k).value=d[k]||'');
   $('scores').innerHTML=Array.from({length:10},(_,i)=>`<button type="button" data-s="${i+1}" aria-pressed="${d.score===i+1}">${i+1}</button>`).join('');
   renderMeta();
 }
@@ -673,7 +674,7 @@ $('items').addEventListener('click',e=>{const b=e.target.closest('.check');if(!b
   if(isW(it)){const pl=b.closest('.item').querySelector('[data-wp]');const n=wProgress(it),met=n>=(it.times||1);pl.classList.toggle('met',met);pl.textContent=met?'本週達成 ✓':`本週 ${n}/${it.times||1} 次`}
   saveSoon(300)});
 $('items').addEventListener('input',e=>{const k=e.target.dataset.note;if(k){findDraft(k).note=e.target.value;S.dirty=true;saveSoon(1500)}});
-['happy','share','stuck'].forEach(k=>$(k).addEventListener('input',e=>{S.draft[k]=e.target.value;S.dirty=true;saveSoon(1500)}));
+['happy','share','stuck','improve'].forEach(k=>$(k).addEventListener('input',e=>{S.draft[k]=e.target.value;S.dirty=true;saveSoon(1500)}));
 $('scores').addEventListener('click',e=>{const b=e.target.closest('[data-s]');if(!b)return;S.draft.score=+b.dataset.s;S.dirty=true;
   $('scores').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',+x.dataset.s===S.draft.score));saveSoon(300)});
 $('mecard').addEventListener('focusout',()=>{if(S.dirty)saveSoon(0)});
@@ -691,7 +692,7 @@ async function saveNow(manual){
   try{
     const rec={uid:S.me,date,
       items:d.items.map(i=>({k:i.k,label:i.label,type:i.type||'daily',times:i.times||1,done:i.done,note:i.note.trim()})),
-      happy:d.happy.trim(),share:d.share.trim(),stuck:d.stuck.trim(),score:d.score,updatedAt:new Date().toISOString()};
+      happy:d.happy.trim(),share:d.share.trim(),stuck:d.stuck.trim(),improve:(d.improve||'').trim(),score:d.score,updatedAt:new Date().toISOString()};
     await S.db.doc('checkins/'+cid(date,S.me)).set(rec);
     S.checkins[cid(date,S.me)]=rec;
     if(S.draft===d)S.dirty=false;
@@ -754,7 +755,7 @@ function renderPartner(){
     if(wl.length)h+=`<div class="sec">本週目標</div>`+wl.map(row).join('');
     h+=`</div>`;
   }
-  h+=`<div class="refl">`+[['happy','😊 今天開心的事'],['share','💬 想跟對方分享的'],['stuck','🧱 卡住的地方']].map(([k,l])=>`<div class="q">${l}<div class="robox ${c?.[k]?'':'none'}">${c?.[k]?esc(c[k]):'還沒寫'}</div></div>`).join('')+`</div>`;
+  h+=`<div class="refl">`+[['happy','😊 今天開心的事'],['share','💬 想跟對方分享的'],['stuck','🧱 卡住的地方'],['improve','🔧 覺得可以改善什麼']].map(([k,l])=>`<div class="q">${l}<div class="robox ${c?.[k]?'':'none'}">${c?.[k]?esc(c[k]):'還沒寫'}</div></div>`).join('')+`</div>`;
   h+=`<div class="scorebox">今天給自己幾分？<div class="scores ro-scores">${Array.from({length:10},(_,i)=>`<span class="${c?.score===i+1?'on':''}">${i+1}</span>`).join('')}</div></div>`;
   h+=`<div><button class="hug" id="hugbtn" ${hugged||!S.me?'disabled':''}>${hugged?'已送出抱抱 🤗':'送她一個抱抱 🤗'}</button></div>`;
   el.innerHTML=h;
@@ -1022,7 +1023,7 @@ function renderAllNow(){
 
 /* ---------- boot ---------- */
 setInterval(()=>{if(S.tab==='photos')renderPhotos()},300000);
-S.draft={items:[],happy:'',share:'',stuck:'',score:0};setDate(TODAY);renderAll();renderBoard();
+S.draft={items:[],happy:'',share:'',stuck:'',improve:'',score:0};setDate(TODAY);renderAll();renderBoard();
 (async()=>{
   const [db,user]=await Promise.all([claude.use('db'),claude.use('user')]);
   if(!db||!user){$('notice').hidden=false;$('notice').textContent='請先登入。';return}
@@ -1083,7 +1084,7 @@ S.draft={items:[],happy:'',share:'',stuck:'',score:0};setDate(TODAY);renderAll()
 document.getElementById('page-history').appendChild(document.getElementById('logoutbtn').parentNode);</script>
 <script>
 // Home-screen apps can keep showing a cached copy; check for a newer build whenever the app is opened.
-window.__BUILD='1791833357';
+window.__BUILD='1791917734';
 async function checkUpdate(){try{const t=await (await fetch('./?nocache='+Date.now(),{cache:'no-store'})).text();const m=t.match(/__BUILD='(\d+)'/);
   if(m&&m[1]!==window.__BUILD)location.replace('./?v='+m[1]);}catch(e){}}
 checkUpdate();document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});
