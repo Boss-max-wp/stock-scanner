@@ -44,6 +44,9 @@ textarea:focus,input:focus,button:focus-visible{outline:2px solid var(--accent);
 .row{display:flex;gap:8px;flex-wrap:wrap}
 .status{font-size:.85rem;color:var(--muted);min-height:1.4em;margin:0}
 .status.err{color:var(--bad)}
+.status.ok{color:var(--good)}
+.status.big:not(:empty){font-size:.95rem;padding:10px 12px;border-radius:8px;background:var(--accent-soft);color:var(--ink)}
+.status.big.err:not(:empty){background:var(--bad-soft);color:var(--bad)}
 .card{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:22px 24px;display:flex;flex-direction:column;gap:18px;min-width:0}
 .meta{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-size:.85rem;color:var(--muted)}
 .qno{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
@@ -147,6 +150,8 @@ select.n{flex:none;width:100%}
         <div style="display:flex;flex-direction:column;gap:8px">
           <label class="label" for="key">Gemini API 金鑰</label>
           <input id="key" class="key" type="password" autocomplete="off" spellcheck="false" placeholder="貼上金鑰（AQ. 或 AIza 開頭）">
+          <button id="keytest" class="btn primary" type="button">儲存並測試金鑰</button>
+          <p id="keyst" class="status" role="status"></p>
           <p class="hint">拍照抓單字、出填空題、補中文都會用到 Google 的 Gemini（免費）。到 <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> 用 Google 帳號登入、按「建立 API 金鑰」，複製貼在這裡。金鑰只存在這台裝置的瀏覽器。</p>
         </div>
       </details>
@@ -162,16 +167,6 @@ select.n{flex:none;width:100%}
           <button type="button" data-mask="en">遮英文</button>
         </div>
       </div>
-      <div id="player" class="row player">
-        <button id="playall" class="btn primary" type="button">全部念一遍</button>
-        <div class="seg small" role="group" aria-label="念的內容">
-          <button type="button" data-read="both">英文＋中文</button>
-          <button type="button" data-read="en">只念英文</button>
-        </div>
-        <select id="rate" aria-label="念的速度"><option value="0.7">慢速</option><option value="0.9">正常</option><option value="1.1">快速</option></select>
-      </div>
-      <ul id="vocab" class="vocab"></ul>
-      <p id="maskhint" class="hint">點一下那一行，就會顯示被遮住的部分。</p>
       <div class="row">
         <label class="btn photo" for="photo" id="photolabel">拍照 / 選照片加單字</label>
         <input id="photo" type="file" accept="image/*" multiple hidden>
@@ -183,7 +178,17 @@ select.n{flex:none;width:100%}
         <textarea id="words" spellcheck="false" placeholder="postpone 延後&#10;budget 預算&#10;reimburse 報銷"></textarea>
         <button id="editdone" class="btn primary" type="button" style="align-self:flex-start">完成</button>
       </div>
-      <p id="st-units" class="status" role="status"></p>
+      <p id="st-units" class="status big" role="status"></p>
+      <div id="player" class="row player">
+        <button id="playall" class="btn primary" type="button">全部念一遍</button>
+        <div class="seg small" role="group" aria-label="念的內容">
+          <button type="button" data-read="both">英文＋中文</button>
+          <button type="button" data-read="en">只念英文</button>
+        </div>
+        <select id="rate" aria-label="念的速度"><option value="0.7">慢速</option><option value="0.9">正常</option><option value="1.1">快速</option></select>
+      </div>
+      <ul id="vocab" class="vocab"></ul>
+      <p id="maskhint" class="hint">點一下那一行，就會顯示被遮住的部分。</p>
       <button id="delunit" class="linkbtn" type="button">刪除這個單元</button>
     </div>
   </section>
@@ -240,7 +245,7 @@ function loadJSON(k,d){try{const v=JSON.parse(load(k)||"null");return v??d}catch
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 const norm = s => String(s||"").toLowerCase().replace(/[’']/g,"'").replace(/\s+/g," ").trim();
 function shuffle(a){a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
-function setSt(id,t,err){const el=$("#st-"+id);el.textContent=t||"";el.classList.toggle("err",!!err)}
+function setSt(id,t,err){const el=$("#st-"+id);el.textContent=t||"";el.classList.toggle("err",!!err);if(t&&el.classList.contains("big")){const r=el.getBoundingClientRect();if(r.top<0||r.bottom>innerHeight)el.scrollIntoView({block:"center"})}}
 const newId=()=>"u"+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 
 /* ---------- 單字解析：一行「英文 中文」 ---------- */
@@ -366,38 +371,81 @@ const keyEl=$("#key");
 keyEl.value=load("vc-key")||"";
 if(!keyEl.value) $("#keybox").open=true;
 keyEl.addEventListener("input",()=>store("vc-key",keyEl.value.trim()));
-const MODELS=["gemini-3.5-flash-lite","gemini-3.8-flash"];
-async function gemini(text,key,images=[],temperature=0.9){
-  let last;
-  for(const model of MODELS){
-    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,{
+const DEFAULT_MODELS=["gemini-3.8-flash","gemini-3.5-flash-lite","gemini-3.6-flash","gemini-2.5-flash"];
+const API="https://generativelanguage.googleapis.com/v1beta";
+async function apiErr(r){
+  const j=await r.json().catch(()=>({}));
+  const m=String(j?.error?.message||"");
+  const e={status:r.status,detail:m.slice(0,160)};
+  if(/API_KEY_INVALID|API key not valid|invalid api key|UNAUTHENTICATED/i.test(m+JSON.stringify(j))||r.status===401) e.code="bad_key";
+  else if(r.status===429) e.code="rate_limited";
+  else if(r.status===403) e.code="forbidden";
+  else if(r.status===404) e.code="model";
+  else e.code="upstream";
+  return e;
+}
+/* 問 Google 這組金鑰能用哪些模型，挑一個 flash */
+async function findModels(key){
+  const r=await fetch(`${API}/models?pageSize=200`,{headers:{"x-goog-api-key":key}}).catch(()=>null);
+  if(!r) throw {code:"network"};
+  if(!r.ok) throw await apiErr(r);
+  const j=await r.json().catch(()=>({}));
+  const ver=n=>{const m=n.match(/gemini-(\d+(?:\.\d+)?)/);return m?parseFloat(m[1]):0};
+  const ok=(j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes("generateContent"))
+    .map(m=>String(m.name).replace(/^models\//,""))
+    .filter(n=>/^gemini-.*flash/.test(n)&&!/image|tts|audio|live|embed|thinking|exp/i.test(n));
+  ok.sort((a,b)=>(/preview/.test(a)-/preview/.test(b))||(/lite/.test(a)-/lite/.test(b))||(ver(b)-ver(a)));
+  return ok;
+}
+function modelList(){const saved=loadJSON("vc-models",[]);return [...new Set([...(Array.isArray(saved)?saved:[]),...DEFAULT_MODELS])]}
+async function gemini(text,key,images=[],temperature=0.9,_retried){
+  let last=null;
+  for(const model of modelList()){
+    const r=await fetch(`${API}/models/${model}:generateContent`,{
       method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":key},
       body:JSON.stringify({contents:[{role:"user",parts:[...images.map(data=>({inlineData:{mimeType:"image/jpeg",data}})),{text}]}],generationConfig:{responseMimeType:"application/json",temperature}})
     }).catch(()=>null);
     if(!r){last={code:"network"};continue}
-    const j=await r.json().catch(()=>({}));
     if(r.ok){
+      const j=await r.json().catch(()=>({}));
       const out=(j.candidates?.[0]?.content?.parts||[]).map(p=>p.text||"").join("");
+      if(!out){throw {code:"empty",detail:String(j.promptFeedback?.blockReason||j.candidates?.[0]?.finishReason||"")}}
       try{return JSON.parse(out)}catch(e){const m=out.match(/\[[\s\S]*\]/);if(m)try{return JSON.parse(m[0])}catch(_){} throw {code:"invalid_json"}}
     }
-    const msg=JSON.stringify(j);
-    if(r.status===404){last={code:"model"};continue}
-    if(/API_KEY_INVALID|API key not valid/i.test(msg)) throw {code:"bad_key"};
-    if(r.status===429) throw {code:"rate_limited"};
-    if(r.status===403) throw {code:"forbidden"};
-    last={code:"upstream",status:r.status};
+    const e=await apiErr(r);
+    if(e.code==="model"||(e.status===400&&/model/i.test(e.detail))){last=e;continue}
+    throw e;
+  }
+  if(last?.code==="model"&&!_retried){
+    const found=await findModels(key);
+    if(found.length){store("vc-models",JSON.stringify(found.slice(0,3)));return gemini(text,key,images,temperature,true)}
   }
   throw last||{code:"upstream"};
 }
 const ERR={
-  bad_key:"Gemini 金鑰不正確，請到「單元複習」頁左下的「Gemini 金鑰設定」重新貼一次。",
+  bad_key:"Gemini 金鑰不正確。請到「單元複習」頁左下的「Gemini 金鑰設定」重新貼上，再按「儲存並測試金鑰」。",
   forbidden:"這組金鑰沒有權限使用 Gemini，請到 AI Studio 重新建立一組。",
   rate_limited:"免費額度這一分鐘或今天用完了，等一下再試。",
   invalid_json:"這次回傳的格式不對，請再試一次。",
-  model:"Gemini 的模型名稱變了，請跟 Claude 說要更新。",
+  model:"找不到可以用的 Gemini 模型。",
   network:"連不上 Google，請檢查網路後再試。",
+  empty:"Gemini 沒有回答。",
 };
-const errMsg=e=>ERR[e?.code]||"Gemini 出了點問題，請再試一次。";
+const errMsg=e=>(ERR[e?.code]||"Gemini 出了點問題，請再試一次。")+(e?.detail?`（Google 回應：${e.detail}）`:"");
+$("#keytest").onclick=async()=>{
+  const key=keyEl.value.trim(), st=$("#keyst"), b=$("#keytest");
+  store("vc-key",key);
+  const show=(t,cls)=>{st.textContent=t;st.className="status "+(cls||"")};
+  if(!key){show("請先把金鑰貼在上面的框框。","err");return}
+  b.disabled=true; show("測試中…");
+  try{
+    const found=await findModels(key);
+    if(!found.length) throw {code:"model"};
+    store("vc-models",JSON.stringify(found.slice(0,3)));
+    show(`✓ 金鑰已儲存，可以使用。之後拍照、出題都會用這組金鑰。`,"ok");
+  }catch(e){show(errMsg(e),"err")}
+  finally{b.disabled=false}
+};
 function getKey(page){
   const key=keyEl.value.trim();
   if(!key){
@@ -439,19 +487,20 @@ $("#fillzh").onclick=async()=>{
 };
 
 /* 拍照抓單字 */
-const PHOTO_PROMPT=`This photo shows a page from an English textbook, vocabulary book or word list used by a Taiwanese learner preparing for the TOEIC.
-Find the English vocabulary words and phrases the page is teaching: headwords, bold or highlighted words, word lists, glossary entries. Skip page numbers, instructions, people's names, and ordinary words that only appear inside example sentences. Keep phrases (e.g. "take over") together, in dictionary form as printed.
-If a Chinese meaning is printed next to a word, use it; otherwise give a short Traditional Chinese (Taiwan) meaning.
-Reply with only a JSON array in page order, like [{"word":"postpone","zh":"延後"}]. Reply [] if no vocabulary is visible.`;
+const PHOTO_PROMPT=`This photo shows English vocabulary study material from a Taiwanese learner preparing for the TOEIC. It may be a printed textbook page, a vocabulary book, or HANDWRITTEN notes (often two or more columns of "English word  Chinese meaning").
+List every English vocabulary word or phrase the learner is studying: every entry of a word list (even easy words), headwords, bold or highlighted words. Skip page numbers, instructions, people's names, and ordinary words that only appear inside example sentences. Read every column, top to bottom.
+Handwriting may be messy or misspelled: write each word as the real English word the learner meant (e.g. "superrise" -> "supervise", "toster" -> "foster"). Keep phrases together.
+For the Chinese, use the meaning written next to the word (in Traditional Chinese). If none is written or it is unreadable, give a short Traditional Chinese (Taiwan) meaning.
+Reply with only a JSON array, like [{"word":"postpone","zh":"延後"}]. Reply [] if no English vocabulary is visible.`;
 async function shrink(file){
   const url=URL.createObjectURL(file);
   try{
     const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=url});
-    const k=Math.min(1,1600/Math.max(img.naturalWidth,img.naturalHeight));
+    const k=Math.min(1,2048/Math.max(img.naturalWidth,img.naturalHeight));
     const c=document.createElement("canvas");
     c.width=Math.round(img.naturalWidth*k); c.height=Math.round(img.naturalHeight*k);
     c.getContext("2d").drawImage(img,0,0,c.width,c.height);
-    return c.toDataURL("image/jpeg",0.85).split(",")[1];
+    return c.toDataURL("image/jpeg",0.9).split(",")[1];
   }finally{URL.revokeObjectURL(url)}
 }
 const photoEl=$("#photo"), photoLabel=$("#photolabel");
