@@ -74,6 +74,13 @@ textarea:focus,input:focus,button:focus-visible{outline:2px solid var(--accent);
 .wrong{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
 .wrong li{border-bottom:1px solid var(--line);padding-bottom:8px;display:flex;gap:10px;flex-wrap:wrap;align-items:baseline}
 .example{font-size:.8rem;color:var(--muted)}
+.tabs button{white-space:nowrap}
+@media (max-width:460px){.tabs{gap:2px}.tabs button{padding:8px 9px;font-size:.92rem}}
+.cheat{display:flex;flex-direction:column;gap:6px;font-size:.88rem}
+.cheat b{font-weight:700}
+.posopts .opt{font-family:var(--f-ui);font-size:1rem}
+.formopts{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.9rem}
+.formopts span b{font-family:var(--f-read);font-size:1rem}
 .allres{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
 .allres li{display:grid;grid-template-columns:auto auto minmax(0,1fr);gap:4px 10px;padding:10px 0;border-bottom:1px solid var(--line);align-items:baseline}
 .allres .no{font-family:var(--f-mono);font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;min-width:2ch;text-align:right}
@@ -146,6 +153,8 @@ select.n{flex:none;width:100%}
     <button type="button" data-page="units">單元複習</button>
     <button type="button" data-page="cloze">填空題</button>
     <button type="button" data-page="meaning">英翻中</button>
+    <button type="button" data-page="pos">單字詞性</button>
+    <button type="button" data-page="form">詞性練習</button>
   </nav>
 
   <!-- 單元 -->
@@ -236,7 +245,50 @@ select.n{flex:none;width:100%}
     </aside>
     <section id="stage-meaning" class="card" aria-live="polite"></section>
   </section>
-  <p class="hint" style="text-align:center">版本 10/14-8</p>
+  <!-- 單字詞性 -->
+  <section id="p-pos" class="grid" hidden>
+    <aside class="panel">
+      <div class="label">要考哪些單元</div>
+      <div id="sel-pos" class="checks"></div>
+      <div class="row"><button class="linkbtn" type="button" data-all="pos">全選</button><button class="linkbtn" type="button" data-none="pos">全不選</button></div>
+      <label class="label" for="n-pos">題數</label>
+      <select id="n-pos" class="n"><option value="10">10 題</option><option value="20">20 題</option><option value="30">30 題</option><option value="999">全部</option></select>
+      <button id="gen-pos" class="btn primary" type="button">開始</button>
+      <p class="hint">看你的單字和中文，選它是名詞、動詞、形容詞還是副詞。</p>
+      <p id="st-pos" class="status" role="status"></p>
+    </aside>
+    <section id="stage-pos" class="card" aria-live="polite"></section>
+  </section>
+
+  <!-- 詞性練習 -->
+  <section id="p-form" class="grid" hidden>
+    <aside class="panel">
+      <p class="hint" style="font-size:.9rem;color:var(--ink)">多益第五大題很常考：四個選項是同一個字的不同詞性（例如 success、succeed、successful、successfully），要看空格前後判斷該填哪一種。題目不一定是你單元裡的字。</p>
+      <label class="label" for="n-form">題數</label>
+      <select id="n-form" class="n"><option value="10">10 題</option><option value="20">20 題</option><option value="30">30 題</option></select>
+      <button id="gen-form" class="btn primary" type="button">開始</button>
+      <button id="more-form" class="btn" type="button">請 Gemini 再出 10 題新的</button>
+      <p id="st-form" class="status" role="status"></p>
+      <details>
+        <summary>詞性小抄（看不懂時打開）</summary>
+        <div class="cheat">
+          <span><b>名詞</b>（人、事、物）：常見結尾 -tion、-sion、-ment、-ness、-ity、-ance、-ence、-er、-or、-ee</span>
+          <span><b>動詞</b>（動作）：常見結尾 -ize、-ify、-en、-ate</span>
+          <span><b>形容詞</b>（形容名詞）：常見結尾 -ful、-ive、-able、-ible、-al、-ous、-ic、-ent、-ant</span>
+          <span><b>副詞</b>（形容動詞、形容詞或整句）：大多是形容詞 + -ly</span>
+          <span style="margin-top:4px"><b>看位置判斷：</b></span>
+          <span>・a / an / the / our / his 後面 + 空格 + 名詞 → <b>形容詞</b></span>
+          <span>・a / the / our 後面 + 空格，後面沒有名詞 → <b>名詞</b></span>
+          <span>・to、will、can、should、please 後面 → <b>原形動詞</b></span>
+          <span>・is / are / was / be / remain / very 後面描述主詞 → <b>形容詞</b></span>
+          <span>・句子已經完整，空格在修飾動作或形容詞 → <b>副詞</b></span>
+        </div>
+      </details>
+    </aside>
+    <section id="stage-form" class="card" aria-live="polite"></section>
+  </section>
+
+  <p class="hint" style="text-align:center">版本 10/14-9</p>
 </div>
 
 <script>
@@ -618,7 +670,7 @@ function drawChecks(kind){
   $("#sel-"+kind).innerHTML=units.map(u=>`<label class="check"><input type="checkbox" value="${u.id}" ${ids.has(u.id)?"checked":""}><span>${esc(u.name||"未命名單元")}</span><span class="count">${parseEntries(u.words).length} 字</span></label>`).join("");
 }
 function saveChecks(kind){store("vc-sel-"+kind,JSON.stringify([...document.querySelectorAll(`#sel-${kind} input:checked`)].map(i=>i.value)))}
-["cloze","meaning"].forEach(kind=>{
+["cloze","meaning","pos"].forEach(kind=>{
   $("#sel-"+kind).addEventListener("change",()=>saveChecks(kind));
   document.querySelector(`[data-all="${kind}"]`).onclick=()=>{document.querySelectorAll(`#sel-${kind} input`).forEach(i=>i.checked=true);saveChecks(kind)};
   document.querySelector(`[data-none="${kind}"]`).onclick=()=>{document.querySelectorAll(`#sel-${kind} input`).forEach(i=>i.checked=false);saveChecks(kind)};
@@ -647,7 +699,17 @@ function makeRunner(kind){
   function render(){
     S.answered=false;
     const q=S.items[S.idx];
-    if(kind==="meaning"){
+    if(kind==="pos"){
+      stage.innerHTML=head()+`<div class="label">這個字是什麼詞性？</div><p class="bigword" lang="en">${esc(q.word)}</p>
+        ${q.zh?`<p class="hint" style="font-size:1rem">中文：${esc(q.zh)}</p>`:""}
+        <div class="opts posopts">${q.options.map((o,i)=>`<button class="btn opt" data-v="${esc(o)}" type="button"><b>${i+1}</b>${POSNAME[o]} ${esc(o)}</button>`).join("")}</div>
+        <div id="fb-${kind}"></div><div class="actions"></div>`;
+    }else if(kind==="form"){
+      const parts=q.sentence.split("____");
+      stage.innerHTML=head()+`<div class="label">空格要填哪一個？</div><p class="sentence" lang="en">${esc(parts[0])}<span class="gap" id="gap">&nbsp;</span>${esc(parts.slice(1).join("____"))}</p>
+        <div class="opts">${shuffle(q.options).map((o,i)=>`<button class="btn opt" data-v="${esc(o)}" type="button"><b>${"ABCD"[i]}</b>${esc(o)}</button>`).join("")}</div>
+        <div id="fb-${kind}"></div><div class="actions"></div>`;
+    }else if(kind==="meaning"){
       stage.innerHTML=head()+`<div class="label">這個字是什麼意思？</div><p class="bigword" lang="en">${esc(q.word)}</p>
         <div class="opts">${shuffle(q.options).map((o,i)=>`<button class="btn opt zh" data-v="${esc(o)}" type="button"><b>${i+1}</b>${esc(o)}</button>`).join("")}</div>
         <div id="fb-${kind}"></div><div class="actions"></div>`;
@@ -682,7 +744,7 @@ function makeRunner(kind){
       const inp=stage.querySelector("#ans"); inp.classList.add(ok?"ok":"no"); inp.readOnly=true;
       const go=stage.querySelector("#go"); go.textContent=nextLabel; go.focus({preventScroll:true});
     }else{
-      if(kind==="cloze") stage.querySelector("#gap").textContent=q.answer;
+      if(kind==="cloze"||kind==="form") stage.querySelector("#gap").textContent=q.answer;
       stage.querySelectorAll(".opt").forEach(b=>{b.disabled=true;if(norm(b.dataset.v)===norm(right))b.classList.add("ok")});
       if(!ok&&btn) btn.classList.add("no");
       const nb=document.createElement("button");nb.className="btn primary";nb.type="button";nb.textContent=nextLabel;nb.onclick=next;
@@ -690,7 +752,15 @@ function makeRunner(kind){
     }
     const h=stage.querySelector("#hint"); if(h) h.hidden=true;
     const fb=stage.querySelector("#fb-"+kind);
-    if(kind==="meaning"){
+    if(kind==="pos"){
+      const tip=suffixTip(q.word,q.answer);
+      fb.innerHTML=`<div class="fb ${ok?"ok":"no"}"><strong>${ok?"答對了":"答錯了"}</strong><span><span class="word">${esc(q.word)}</span> 是<b>${POSNAME[q.answer]}</b>（${esc(q.answer)}）${q.zh?`，意思是「${esc(q.zh)}」`:""}。</span>${tip?`<span class="zh">${esc(tip)}</span>`:""}</div>`;
+    }else if(kind==="form"){
+      fb.innerHTML=`<div class="fb ${ok?"ok":"no"}"><strong>${ok?"答對了":"答錯了"}</strong>
+        <span>空格要填<b>${POSNAME[q.need]}</b>：${esc(q.why)}</span>
+        <span class="formopts">${q.options.map(o=>`<span><b>${esc(o)}</b> ${POSNAME[q.optPos[o]]||""}</span>`).join("")}</span>
+        <span class="zh">${esc(q.zh)}</span></div>`;
+    }else if(kind==="meaning"){
       fb.innerHTML=`<div class="fb ${ok?"ok":"no"}"><strong>${ok?"答對了":"答錯了"}</strong><span><span class="word">${esc(q.word)}</span>：${esc(q.zh)}</span></div>`;
     }else{
       const close=!ok&&norm(val)===norm(q.word);
@@ -698,24 +768,29 @@ function makeRunner(kind){
         <span>正確答案：<span class="word">${esc(q.answer)}</span>${norm(q.answer)!==norm(q.word)?`（原形 ${esc(q.word)}）`:""} · ${esc(q.pos)} ${esc(q.meaning)}</span>
         <span class="zh">${esc(q.zh)}</span></div>`;
     }
+    /* 作答後馬上把結果捲到看得到的地方 */
+    const act=stage.querySelector(".actions");
+    if(act){const r=act.getBoundingClientRect(); if(r.bottom>innerHeight||r.top<0) act.scrollIntoView({block:"end",behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"})}
   }
   function next(){S.idx++; S.idx<S.items.length?render():finish()}
   function finish(){
     const right=S.results.filter(r=>r.ok).length, wrong=S.results.filter(r=>!r.ok);
-    const mean=r=>kind==="meaning"?r.q.zh:`${r.q.pos} ${r.q.meaning}`;
+    const mean=r=>kind==="meaning"?r.q.zh:kind==="pos"?`${POSNAME[r.q.answer]} ${r.q.answer}${r.q.zh?"　"+r.q.zh:""}`:kind==="form"?`${POSNAME[r.q.need]}`:`${r.q.pos} ${r.q.meaning}`;
+    const given=r=>kind==="pos"?`${POSNAME[r.given]||""} ${r.given}`:r.given;
     stage.innerHTML=`<div class="meta"><span>${S.example?"範例題目練習結果":"練習結果"}</span></div>
       <div class="bar"><i style="width:100%"></i></div>
       <div><div class="score">${right} / ${S.results.length}</div><p class="hint">答對率 ${Math.round(right/S.results.length*100)}%</p></div>
-      ${wrong.length?`<div class="label">要再複習的單字</div><ul class="wrong">${wrong.map(r=>`<li><span class="word">${esc(r.q.word)}</span><span>${esc(mean(r))}</span><span class="hint">你選：${esc(r.given)}</span></li>`).join("")}</ul>`:'<p>全部答對，可以換其他單元了。</p>'}
+      ${wrong.length?`<div class="label">要再複習的單字</div><ul class="wrong">${wrong.map(r=>`<li><span class="word">${esc(r.q.word)}</span><span>${esc(mean(r))}</span><span class="hint">你選：${esc(given(r))}</span></li>`).join("")}</ul>`:'<p>全部答對，可以換其他單元了。</p>'}
       <div class="actions">
         ${wrong.length?'<button class="btn" data-act="redo" type="button">只練錯的</button>':""}
         <button class="btn" data-act="again" type="button">整份再做一次</button>
         ${wrong.length&&kind==="cloze"?'<button class="btn primary" data-act="fresh" type="button">錯的單字換新句子</button>':""}
       </div>
-      <div class="label">這次考的所有單字和中文</div>
+      <div class="label">${kind==="form"?"這次所有題目和解說":"這次考的所有單字和中文"}</div>
       <ol class="allres">${S.results.map((r,i)=>`<li><span class="no">${i+1}</span><span class="mk ${r.ok?"ok":"no"}" aria-label="${r.ok?"答對":"答錯"}">${r.ok?"✓":"✗"}</span>
         <span class="line"><span class="word">${esc(r.q.word)}</span><span>${esc(mean(r))}</span></span>
-        ${kind==="cloze"?`<span class="ex">${esc(r.q.sentence).replace("____",`<b>${esc(r.q.answer)}</b>`)}<br>${esc(r.q.zh)}</span>`:""}</li>`).join("")}</ol>`;
+        ${kind==="cloze"?`<span class="ex">${esc(r.q.sentence).replace("____",`<b>${esc(r.q.answer)}</b>`)}<br>${esc(r.q.zh)}</span>`:""}
+        ${kind==="form"?`<span class="ex">${esc(r.q.sentence).replace("____",`<b>${esc(r.q.answer)}</b>`)}<br>${esc(r.q.why)}</span>`:""}</li>`).join("")}</ol>`;
     stage.querySelector('[data-act="again"]').onclick=()=>start(shuffle(S.items),S.example);
     if(wrong.length){
       stage.querySelector('[data-act="redo"]').onclick=()=>start(shuffle(wrong.map(r=>r.q)),S.example);
@@ -731,7 +806,7 @@ function makeRunner(kind){
   }
   return {start,render,S,onKey};
 }
-const runners={cloze:makeRunner("cloze"),meaning:makeRunner("meaning")};
+const runners={cloze:makeRunner("cloze"),meaning:makeRunner("meaning"),pos:makeRunner("pos"),form:makeRunner("form")};
 
 /* ---------- 填空題 ---------- */
 function setMode(m){
@@ -905,15 +980,157 @@ genMeaning.onclick=async()=>{
   setSt("meaning",(note?note+" ":"")+`共 ${items.length} 題。可以用鍵盤 1–4 作答。`,!!note);
 };
 
+/* ---------- 詞性共用 ---------- */
+const POSNAME={"n.":"名詞","v.":"動詞","adj.":"形容詞","adv.":"副詞"};
+const POS4=["n.","v.","adj.","adv."];
+function normPos(p){
+  const t=String(p||"").toLowerCase().trim();
+  if(/^adv/.test(t)||t==="副詞") return "adv.";
+  if(/^adj|^a\.?$/.test(t)||t==="形容詞") return "adj.";
+  if(/^n/.test(t)||t==="名詞") return "n.";
+  if(/^v/.test(t)||t==="動詞") return "v.";
+  return null;
+}
+function suffixTip(word,pos){
+  const w=word.toLowerCase();
+  const rules=[
+    [/(tion|sion|ment|ness|ity|ance|ence)$/,"n.","結尾是名詞常見的字尾"],
+    [/(ee|or)$/,"n.","結尾 -ee / -or 常是「人」，是名詞"],
+    [/ly$/,"adv.","結尾 -ly 大多是副詞"],
+    [/(ful|ive|able|ible|ous|ic|al|ent|ant)$/,"adj.","結尾是形容詞常見的字尾"],
+    [/(ize|ise|ify)$/,"v.","結尾 -ize / -ify 是動詞常見的字尾"],
+  ];
+  for(const [re,p,txt] of rules){
+    const m=w.match(re); if(!m) continue;
+    if(p===pos) return `小技巧：${txt}（-${m[1]}）。`;
+    return `注意：-${m[1]} 結尾通常是${POSNAME[p]}，但 ${word} 這裡是${POSNAME[pos]}，要特別記。`;
+  }
+  if(/(ing|ed)$/.test(w)&&pos==="adj.") return "小技巧：-ing / -ed 結尾的字常常當形容詞用。";
+  return "";
+}
+/* 單字的詞性：先看你自己存的、再看題庫 */
+function posOf(word){
+  const k=word.toLowerCase();
+  const mine=loadJSON("vc-pos",{})[k]; if(mine) return mine;
+  const b=bankGet(word)[0]; return b?normPos(b.pos):null;
+}
+async function fillPos(entries,key){
+  const got=loadJSON("vc-pos",{});
+  for(let i=0;i<entries.length;i+=40){
+    const chunk=entries.slice(i,i+40);
+    setSt("pos",`正在查詞性…（${Math.min(i+40,entries.length)} / ${entries.length}）`);
+    const arr=await gemini(`For each English word below, give its part of speech in the sense of the Chinese meaning shown. Use only "n.", "v.", "adj." or "adv.".
+Reply with only a JSON array in the same order, like [{"word":"postpone","pos":"v."}].
+
+${chunk.map(e=>e.zh?`${e.word} (${e.zh})`:e.word).join("\n")}`,key,[],0.1,false,{type:"ARRAY",items:{type:"OBJECT",properties:{word:{type:"STRING"},pos:{type:"STRING"}},required:["word","pos"]}});
+    arr.forEach((it,j)=>{const p=normPos(it?.pos); const w=String(it?.word||chunk[j]?.word||"").toLowerCase(); if(p&&w) got[w]=p});
+  }
+  store("vc-pos",JSON.stringify(got));
+}
+const genPos=$("#gen-pos");
+genPos.onclick=async()=>{
+  const {us,entries}=pickEntries("pos");
+  if(!us.length){setSt("pos","請先勾選至少一個單元。",true);return}
+  if(!entries.length){setSt("pos","勾選的單元裡還沒有單字。先到「單元複習」加單字。",true);return}
+  let note="";
+  const missing=entries.filter(e=>!posOf(e.word));
+  if(missing.length){
+    const key=keyEl.value.trim();
+    if(key){
+      genPos.disabled=true; busyNote=t=>setSt("pos",t);
+      try{await fillPos(missing,key)}catch(e){note=`有 ${missing.length} 個單字查不到詞性，這次先跳過（${errMsg(e)}）。`}
+      finally{genPos.disabled=false}
+    }else note=`有 ${missing.length} 個單字還不知道詞性，設定 Gemini 金鑰後會自動查。這次先跳過。`;
+  }
+  const n=Number($("#n-pos").value)||10;
+  const items=shuffle(entries.map(e=>({word:e.word,zh:e.zh,answer:posOf(e.word),unit:e.unit,options:POS4})).filter(q=>POS4.includes(q.answer))).slice(0,n);
+  if(!items.length){setSt("pos",note||"沒有可以出題的單字。",true);return}
+  runners.pos.start(items,false);
+  setSt("pos",(note?note+" ":"")+`共 ${items.length} 題。`,!!note);
+};
+function startPosExample(){
+  runners.pos.start(shuffle(EXAMPLE).map(q=>({word:q.word,zh:q.meaning,answer:normPos(q.pos),options:POS4})),true);
+  setSt("pos","右邊是範例題目。勾選你的單元後按「開始」。");
+}
+
+/* ---------- 詞性練習題庫（[句子, 答案, {選項:詞性}, 要填的詞性, 為什麼, 中譯]） ---------- */
+const FORM_RAW=[
+["Our team was very ____ in reaching this year's sales goal.","successful",{success:"n.",succeed:"v.",successful:"adj.",successfully:"adv."},"adj.","was（be 動詞）後面在描述主詞的狀態，前面又有 very，所以填形容詞。","我們團隊在達成今年業績目標上非常成功。"],
+["The marketing campaign ____ attracted many new customers.","successfully",{success:"n.",succeed:"v.",successful:"adj.",successfully:"adv."},"adv.","空格在主詞和動詞 attracted 中間，是在修飾動作「怎麼吸引」，所以填副詞（-ly）。","這個行銷活動成功吸引了許多新顧客。"],
+["Ms. Kim hopes to ____ in her new role as sales director.","succeed",{success:"n.",succeed:"v.",successful:"adj.",successfully:"adv."},"v.","to 後面要接原形動詞。","金小姐希望在新的業務總監職位上獲得成功。"],
+["The ____ of the project depends on good communication.","success",{success:"n.",succeed:"v.",successful:"adj.",successfully:"adv."},"n.","the 後面、of 前面沒有其他名詞，所以空格本身就是名詞。","專案的成功取決於良好的溝通。"],
+["The board will make a final ____ about the merger next week.","decision",{decision:"n.",decide:"v.",decisive:"adj.",decisively:"adv."},"n.","a final ____：final 是形容詞，形容詞後面要接名詞。","董事會下週會對合併案做出最後決定。"],
+["Mr. Lopez acted ____ when the computer system failed.","decisively",{decision:"n.",decide:"v.",decisive:"adj.",decisively:"adv."},"adv.","acted 是動詞，空格在說他「怎麼做」，修飾動詞要用副詞。","電腦系統故障時，羅培茲先生果斷地處理。"],
+["We need a more ____ approach to reduce costs.","creative",{creation:"n.",create:"v.",creative:"adj.",creatively:"adv."},"adj.","a more ____ approach：approach（方法）是名詞，前面要用形容詞來形容它。","我們需要更有創意的方法來降低成本。"],
+["The designer was hired to ____ a new logo for the company.","create",{creation:"n.",create:"v.",creative:"adj.",creatively:"adv."},"v.","to 後面要接原形動詞。","那位設計師受聘為公司設計新標誌。"],
+["Prices at Bayside Market are very ____ compared with other stores.","competitive",{competition:"n.",compete:"v.",competitive:"adj.",competitively:"adv."},"adj.","are very ____：be 動詞後面描述主詞，very 後面接形容詞。","和其他店比起來，灣邊市場的價格很有競爭力。"],
+["Small shops find it hard to ____ with large online retailers.","compete",{competition:"n.",compete:"v.",competitive:"adj.",competitively:"adv."},"v.","to 後面要接原形動詞。","小商店很難和大型網路零售商競爭。"],
+["Customer ____ is our top priority.","satisfaction",{satisfaction:"n.",satisfy:"v.",satisfactory:"adj.",satisfactorily:"adv."},"n.","Customer ____ 是整句的主詞（後面接 is），主詞要用名詞。","顧客滿意是我們最優先的事。"],
+["The repairs were completed ____, so the factory reopened on time.","satisfactorily",{satisfaction:"n.",satisfy:"v.",satisfactory:"adj.",satisfactorily:"adv."},"adv.","The repairs were completed 已經是完整的句子，空格只是補充「完成得怎麼樣」，所以填副詞。","維修順利完成，所以工廠準時重新開工。"],
+["Please ____ the receptionist if you will be late.","inform",{information:"n.",inform:"v.",informative:"adj.",informatively:"adv."},"v.","Please 開頭是命令句，後面接原形動詞。","如果會遲到，請通知接待人員。"],
+["The seminar was so ____ that everyone took notes.","informative",{information:"n.",inform:"v.",informative:"adj.",informatively:"adv."},"adj.","was so ____：be 動詞後面描述主詞，so 後面接形容詞。","研討會內容很有用，所以每個人都在做筆記。"],
+["This discount is available ____ to members of our rewards program.","exclusively",{exclusion:"n.",exclude:"v.",exclusive:"adj.",exclusively:"adv."},"adv.","句子已經完整（This discount is available），空格修飾後面的 to members（「只」給會員），所以填副詞。","這個折扣只限會員使用。"],
+["Prices listed on the website ____ tax and shipping fees.","exclude",{exclusion:"n.",exclude:"v.",exclusive:"adj.",exclusively:"adv."},"v.","主詞是 Prices，整句還缺一個動詞，所以填動詞。","網站上列的價格不含稅和運費。"],
+["It was never our ____ to cause any delay.","intention",{intention:"n.",intend:"v.",intentional:"adj.",intentionally:"adv."},"n.","our（我們的）後面要接名詞。","我們從來沒有要造成延誤的意思。"],
+["We ____ to open a new branch in Taichung next year.","intend",{intention:"n.",intend:"v.",intentional:"adj.",intentionally:"adv."},"v.","主詞 We 後面還缺動詞，所以填動詞。","我們打算明年在台中開新分店。"],
+["All employees must dress ____ for the awards ceremony.","formally",{formality:"n.",formalize:"v.",formal:"adj.",formally:"adv."},"adv.","dress 是動詞，說明「怎麼穿」要用副詞。","所有員工參加頒獎典禮都必須穿著正式。"],
+["The company plans to ____ its hiring process next year.","formalize",{formality:"n.",formalize:"v.",formal:"adj.",formally:"adv."},"v.","to 後面接原形動詞；-ize 結尾常是動詞。","公司計畫明年把招聘流程正式化。"],
+["The library has a large ____ of business books.","collection",{collection:"n.",collect:"v.",collective:"adj.",collectively:"adv."},"n.","a large ____ of：large 是形容詞，後面要接名詞。","圖書館收藏了大量商業書籍。"],
+["The two teams worked ____ to finish the report.","collectively",{collection:"n.",collect:"v.",collective:"adj.",collectively:"adv."},"adv.","worked 是動詞，說明「怎麼工作」要用副詞。","兩個團隊一起合作完成報告。"],
+["The city plans to ____ the main road to reduce traffic.","widen",{width:"n.",widen:"v.",wide:"adj.",widely:"adv."},"v.","to 後面接原形動詞；-en 結尾常是動詞（widen 拓寬）。","市政府計畫拓寬主要道路以減少塞車。"],
+["Our products are ____ available in stores across Asia.","widely",{width:"n.",widen:"v.",wide:"adj.",widely:"adv."},"adv.","空格在 are 和形容詞 available 中間，修飾形容詞要用副詞。","我們的產品在亞洲各地商店都買得到。"],
+["The mediator must remain ____ during the discussion.","neutral",{neutrality:"n.",neutralize:"v.",neutral:"adj.",neutrally:"adv."},"adj.","remain（保持）跟 be 動詞一樣，後面接形容詞描述主詞。","調解人在討論中必須保持中立。"],
+["Both companies accepted the plan, so the ____ was signed on Monday.","agreement",{agreement:"n.",agree:"v.",agreeable:"adj.",agreeably:"adv."},"n.","the ____ was signed：空格在 the 後面、was 前面，是主詞，要用名詞。","兩家公司都接受這個計畫，所以協議在週一簽署。"],
+["The hotel staff were very ____ and helpful.","professional",{profession:"n.",professionalize:"v.",professional:"adj.",professionally:"adv."},"adj.","helpful 是形容詞，and 連接的兩個字詞性要一樣，所以空格也是形容詞。","飯店員工非常專業又樂於幫忙。"],
+["Ms. Tanaka speaks ____ about the company's future.","confidently",{confidence:"n.",confide:"v.",confident:"adj.",confidently:"adv."},"adv.","speaks 是動詞，說明「怎麼說」要用副詞。","田中小姐對公司的未來說得很有自信。"],
+["The new software will make our work much more ____.","productive",{production:"n.",produce:"v.",productive:"adj.",productively:"adv."},"adj.","make + 東西 + 形容詞（讓某件事變得怎樣），much more 後面接形容詞。","新軟體會讓我們的工作更有效率。"],
+["The factory will ____ 5,000 units per day.","produce",{production:"n.",produce:"v.",productive:"adj.",productively:"adv."},"v.","will 後面接原形動詞。","工廠每天將生產五千件。"],
+];
+const FORM_BUILTIN=FORM_RAW.map(([sentence,answer,optPos,need,why,zh])=>({word:answer,sentence,answer,optPos,options:Object.keys(optPos),need,why,zh}));
+function formBank(){const mine=loadJSON("vc-formbank",[]);return [...FORM_BUILTIN,...(Array.isArray(mine)?mine:[])]}
+const nForm=$("#n-form"); {const sv=load("vc-n-form"); if(sv&&[...nForm.options].some(o=>o.value===sv)) nForm.value=sv; nForm.onchange=()=>store("vc-n-form",nForm.value)}
+function startForm(first){
+  const n=Number(nForm.value)||10;
+  runners.form.start(shuffle(formBank()).slice(0,n),false);
+  setSt("form",first?`題庫共 ${formBank().length} 題，每次隨機出 ${n} 題。`:`共 ${Math.min(n,formBank().length)} 題。`);
+}
+$("#gen-form").onclick=()=>startForm(false);
+$("#more-form").onclick=async()=>{
+  const key=getKey("form"); if(!key) return;
+  const b=$("#more-form"); b.disabled=true; busyNote=t=>setSt("form",t);
+  setSt("form","正在請 Gemini 出新題目…");
+  try{
+    const have=new Set(formBank().map(q=>q.answer.toLowerCase()));
+    const arr=await gemini(`Write 10 TOEIC Part 5 style "word form" questions for a Taiwanese learner who is weak at parts of speech.
+Each question: one business sentence (10-20 words) with exactly one blank written "____". The 4 options are forms of ONE word family with different parts of speech (e.g. success / succeed / successful / successfully). Exactly one option fits.
+Avoid these answers: ${[...have].slice(0,60).join(", ")}.
+For each option give its part of speech ("n.", "v.", "adj." or "adv."). "need" is the part of speech of the correct answer. "why" explains in simple Traditional Chinese (Taiwan), in one sentence, which clue around the blank shows the needed part of speech. "zh" is the sentence translated into Traditional Chinese (Taiwan).
+Reply with only a JSON array of objects: {"sentence","answer","options":[{"word","pos"}],"need","why","zh"}.`,key,[],0.9,false,{type:"ARRAY",items:{type:"OBJECT",properties:{sentence:{type:"STRING"},answer:{type:"STRING"},options:{type:"ARRAY",items:{type:"OBJECT",properties:{word:{type:"STRING"},pos:{type:"STRING"}},required:["word","pos"]}},need:{type:"STRING"},why:{type:"STRING"},zh:{type:"STRING"}},required:["sentence","answer","options","need","why","zh"]}});
+    const made=[];
+    for(const q of arr){
+      const sentence=String(q?.sentence||"").replace(/_{2,}/,"____"); const answer=String(q?.answer||"").trim();
+      const optPos={}; (Array.isArray(q?.options)?q.options:[]).forEach(o=>{const w=String(o?.word||"").trim(), p=normPos(o?.pos); if(w&&p) optPos[w]=p});
+      const need=normPos(q?.need)||optPos[answer];
+      if(!sentence.includes("____")||!answer||!(answer in optPos)||Object.keys(optPos).length<3||!need) continue;
+      made.push({word:answer,sentence,answer,optPos,options:Object.keys(optPos).slice(0,4),need,why:String(q.why||""),zh:String(q.zh||"")});
+    }
+    if(!made.length) throw {code:"invalid_json"};
+    const mine=loadJSON("vc-formbank",[]); store("vc-formbank",JSON.stringify([...(Array.isArray(mine)?mine:[]),...made].slice(-200)));
+    runners.form.start(shuffle(made),false);
+    setSt("form",`Gemini 出了 ${made.length} 題新的，已經加進題庫（現在共 ${formBank().length} 題）。`);
+  }catch(e){setSt("form",errMsg(e)+" 可以先按「開始」用題庫裡的題目練習。",true)}
+  finally{b.disabled=false}
+};
+
 /* ---------- 分頁 ---------- */
-const PAGES=["units","cloze","meaning"];
+const PAGES=["units","cloze","meaning","pos","form"];
 let page="units";
 function show(p){
   if(!PAGES.includes(p)) p="units";
   page=p; store("vc-page",p);
   PAGES.forEach(x=>$("#p-"+x).hidden=x!==p);
   document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-current",b.dataset.page===p?"page":"false"));
-  if(p==="units") drawUnit(); else drawChecks(p);
+  if(p==="units") drawUnit(); else if(p!=="form") drawChecks(p);
   if(location.hash!=="#"+p) history.replaceState(null,"","#"+p);
 }
 document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>show(b.dataset.page));
@@ -925,6 +1142,8 @@ runners.cloze.start(shuffle(EXAMPLE),true);
 setSt("cloze","右邊是範例題目。勾選你的單元後按「出題」。");
 runners.meaning.start(shuffle(EXAMPLE).map(q=>({word:q.word,zh:q.meaning,options:[q.meaning,...shuffle(EXAMPLE.filter(x=>x!==q).map(x=>x.meaning)).slice(0,3)]})),true);
 setSt("meaning","右邊是範例題目。勾選你的單元後按「開始」。");
+startPosExample();
+startForm(true);
 show(location.hash.slice(1)||load("vc-page")||"units");
 </script>
 </body>
