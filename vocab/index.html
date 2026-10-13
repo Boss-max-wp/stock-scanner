@@ -146,7 +146,7 @@ select.n{flex:none;width:100%}
       <div id="unitlist" class="unitlist"></div>
       <button id="addunit" class="btn" type="button">＋ 新單元</button>
       <details id="keybox">
-        <summary>Gemini 金鑰設定</summary>
+        <summary id="keysum">Gemini 金鑰設定</summary>
         <div style="display:flex;flex-direction:column;gap:8px">
           <label class="label" for="key">Gemini API 金鑰</label>
           <input id="key" class="key" type="password" autocomplete="off" spellcheck="false" placeholder="貼上金鑰（AQ. 或 AIza 開頭）">
@@ -226,7 +226,7 @@ select.n{flex:none;width:100%}
     </aside>
     <section id="stage-meaning" class="card" aria-live="polite"></section>
   </section>
-  <p class="hint" style="text-align:center">版本 10/14-3（照片失敗會顯示原因）</p>
+  <p class="hint" style="text-align:center">版本 10/14-4</p>
 </div>
 
 <script>
@@ -370,8 +370,10 @@ delBtn.onclick=()=>{
 /* ---------- Gemini ---------- */
 const keyEl=$("#key");
 keyEl.value=load("vc-key")||"";
+function keyLabel(){$("#keysum").textContent=keyEl.value.trim()?"Gemini 金鑰設定（✓ 已儲存，不用再填）":"Gemini 金鑰設定（還沒設定）"}
 if(!keyEl.value) $("#keybox").open=true;
-keyEl.addEventListener("input",()=>store("vc-key",keyEl.value.trim()));
+keyLabel();
+keyEl.addEventListener("input",()=>{store("vc-key",keyEl.value.trim());keyLabel()});
 const DEFAULT_MODELS=["gemini-3.8-flash","gemini-3.5-flash-lite","gemini-3.6-flash","gemini-2.5-flash"];
 const API="https://generativelanguage.googleapis.com/v1beta";
 async function apiErr(r){
@@ -382,6 +384,7 @@ async function apiErr(r){
   else if(r.status===429) e.code="rate_limited";
   else if(r.status===403) e.code="forbidden";
   else if(r.status===404) e.code="model";
+  else if(r.status>=500||/high demand|overloaded|UNAVAILABLE|try again later/i.test(m)) e.code="busy";
   else e.code="upstream";
   return e;
 }
@@ -410,7 +413,7 @@ function asArray(v){
   return null;
 }
 const WORD_SCHEMA={type:"ARRAY",items:{type:"OBJECT",properties:{word:{type:"STRING"},zh:{type:"STRING"}},required:["word","zh"]}};
-async function gemini(text,key,images=[],temperature=0.9,_retried,schema){
+async function geminiCall(text,key,images=[],temperature=0.9,_retried,schema){
   let last=null;
   for(const model of modelList()){
     const r=await fetch(`${API}/models/${model}:generateContent`,{
@@ -428,15 +431,28 @@ async function gemini(text,key,images=[],temperature=0.9,_retried,schema){
       throw {code:"invalid_json",detail:(String(j.candidates?.[0]?.finishReason||"")+" "+out.slice(0,80)).trim()};
     }
     const e=await apiErr(r);
-    if(e.code==="model"||(e.status===400&&/model/i.test(e.detail))){last=e;continue}
-    if(e.status===400&&schema) return gemini(text,key,images,temperature,_retried,null);
+    if(e.code==="model"||e.code==="busy"||(e.status===400&&/model/i.test(e.detail))){last=e;continue}
+    if(e.status===400&&schema) return geminiCall(text,key,images,temperature,_retried,null);
     throw e;
   }
-  if(last?.code==="model"&&!_retried){
+  if((last?.code==="model"||last?.code==="busy")&&!_retried&&!loadJSON("vc-models",null)){
     const found=await findModels(key);
-    if(found.length){store("vc-models",JSON.stringify(found.slice(0,3)));return gemini(text,key,images,temperature,true,schema)}
+    if(found.length){store("vc-models",JSON.stringify(found.slice(0,3)));return geminiCall(text,key,images,temperature,true,schema)}
   }
   throw last||{code:"upstream"};
+}
+/* 模型太忙時，換下一個模型；全部都忙就等一下再試，最多三輪 */
+let busyNote=null;
+async function gemini(text,key,images=[],temperature=0.9,_r,schema){
+  for(let round=0;;round++){
+    try{return await geminiCall(text,key,images,temperature,false,schema)}
+    catch(e){
+      if(e?.code!=="busy"||round>=2) throw e;
+      const wait=(round+1)*5;
+      busyNote?.(`Google 那邊現在比較忙，${wait} 秒後自動再試一次…`);
+      await new Promise(r=>setTimeout(r,wait*1000));
+    }
+  }
 }
 const ERR={
   bad_key:"Gemini 金鑰不正確。請到「單元複習」頁左下的「Gemini 金鑰設定」重新貼上，再按「儲存並測試金鑰」。",
@@ -446,6 +462,7 @@ const ERR={
   model:"找不到可以用的 Gemini 模型。",
   network:"連不上 Google，請檢查網路後再試。",
   empty:"Gemini 沒有回答。",
+  busy:"Google 的 Gemini 現在太多人用，試了幾次都沒成功。請過幾分鐘再按一次。",
 };
 const errMsg=e=>(ERR[e?.code]||"Gemini 出了點問題，請再試一次。")+(e?.detail?`（Google 回應：${e.detail}）`:"");
 $("#keytest").onclick=async()=>{
@@ -463,6 +480,7 @@ $("#keytest").onclick=async()=>{
   finally{b.disabled=false}
 };
 function getKey(page){
+  busyNote=t=>setSt(page,t);
   const key=keyEl.value.trim();
   if(!key){
     setSt(page,"這個功能要先設定 Gemini 金鑰。請到「單元複習」頁左下的「Gemini 金鑰設定」貼上。",true);
