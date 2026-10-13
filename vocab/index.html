@@ -228,7 +228,7 @@ select.n{flex:none;width:100%}
     </aside>
     <section id="stage-meaning" class="card" aria-live="polite"></section>
   </section>
-  <p class="hint" style="text-align:center">版本 10/14-6</p>
+  <p class="hint" style="text-align:center">版本 10/14-7</p>
 </div>
 
 <script>
@@ -707,7 +707,7 @@ function makeRunner(kind){
     stage.querySelector('[data-act="again"]').onclick=()=>start(shuffle(S.items),S.example);
     if(wrong.length){
       stage.querySelector('[data-act="redo"]').onclick=()=>start(shuffle(wrong.map(r=>r.q)),S.example);
-      const f=stage.querySelector('[data-act="fresh"]'); if(f) f.onclick=()=>generateCloze(wrong.map(r=>r.q.word));
+      const f=stage.querySelector('[data-act="fresh"]'); if(f) f.onclick=()=>generateCloze(wrong.map(r=>r.q.word),true);
     }
   }
   function onKey(e){
@@ -765,26 +765,100 @@ genCloze.onclick=()=>{
   const n=Number($("#n-cloze").value)||10;
   generateCloze(shuffle(entries.map(e=>e.word)).slice(0,Math.min(n,60)));
 };
-async function generateCloze(words){
+/* ---------- 內建題庫：不用 Gemini 就能出的題目（[原形, 答案, 詞性, 中文, 句子, 句子中譯, 3個錯誤選項]） ---------- */
+const BUILTIN_RAW=[
+["lax","lax","adj.","鬆懈；散漫","Security at the warehouse became ____ after the night guard retired, so the manager hired a new team.","夜班警衛退休後，倉庫的保全變得鬆懈，所以經理聘請了新團隊。",["formal","exclusive","respectful"]],
+["procrastinate","procrastinate","v.","拖延","If you ____ on the expense report, accounting will not be able to reimburse you this month.","如果你拖延費用報告，會計這個月就無法幫你報銷。",["assist","coordinate","supervise"]],
+["combined","combined","adj.","結合的；合計的","The ____ sales of our two stores exceeded last year's total by fifteen percent.","我們兩家店的合計銷售額比去年總額高出百分之十五。",["abstract","confidential","lax"]],
+["accomplish","accomplished","v.","達成","The team ____ all of its quarterly goals two weeks ahead of schedule.","團隊比預定提早兩週達成了所有季度目標。",["removed","assumed","collected"]],
+["voluntarily","voluntarily","adv.","自願地","Several employees ____ stayed late to help prepare the conference room for the client visit.","幾位員工自願留下來，幫忙布置會議室迎接客戶來訪。",["externally","hardly","widely"]],
+["undertake","undertake","v.","承擔；著手進行","The company plans to ____ a complete renovation of its headquarters next spring.","公司計畫明年春天著手進行總部的全面整修。",["procrastinate","agree","assist"]],
+["assume","assume","v.","以為；承擔","Ms. Lin will ____ the role of department manager when Mr. Park retires in June.","朴先生六月退休後，林小姐將接任部門經理一職。",["remove","collect","engage"]],
+["occasionally","occasionally","adv.","偶爾","The office is usually quiet, but ____ the sales team holds meetings in the lounge.","辦公室通常很安靜，但業務團隊偶爾會在休息室開會。",["skillfully","voluntarily","externally"]],
+["employee","employees","n.","員工","All new ____ must attend an orientation session on their first day of work.","所有新進員工上班第一天都必須參加新人訓練。",["directories","intentions","duplicates"]],
+["assist","assist","v.","協助","Our customer service representatives are available 24 hours a day to ____ you with any problems.","我們的客服人員全天候協助您處理任何問題。",["remove","transform","assume"]],
+["satisfied","satisfied","adj.","滿意的","According to the survey, most customers were ____ with the speed of our delivery service.","根據調查，大多數顧客對我們的送貨速度感到滿意。",["lax","abstract","confidential"]],
+["manner","manner","n.","方式","The receptionist answered every question in a polite and professional ____.","接待員以有禮且專業的方式回答每個問題。",["directory","neutrality","duplicate"]],
+["responsible","responsible","adj.","負責任的","Mr. Chen is ____ for ordering office supplies and keeping track of the budget.","陳先生負責訂購辦公用品並追蹤預算。",["satisfied","disturbing","exclusive"]],
+["conduct","conduct","v.","進行","The research department will ____ a survey to learn what customers think of the new product.","研究部門將進行一項調查，了解顧客對新產品的看法。",["assign","remove","agree"]],
+["adjust","adjust","v.","適應；調整","It usually takes new staff a few weeks to ____ to the fast pace of the newsroom.","新員工通常需要幾週才能適應新聞編輯室的快節奏。",["assign","collect","conduct"]],
+["personnel","personnel","n.","人員；員工","Only authorized ____ are allowed to enter the laboratory.","只有獲得授權的人員可以進入實驗室。",["manner","directory","intention"]],
+["agree","agreed","v.","同意","After a long discussion, both companies ____ to extend the contract for another two years.","經過長時間討論，兩家公司同意將合約再延長兩年。",["removed","collected","supervised"]],
+["supervise","supervises","v.","監督","Ms. Ramirez ____ a team of twelve engineers at the Taipei branch.","拉米瑞茲小姐在台北分公司督導一個十二人的工程師團隊。",["agrees","adjusts","assists"]],
+["coworker","coworkers","n.","同事","Jason organized a farewell lunch for his ____ before moving to the London office.","傑森調到倫敦辦公室前，為同事們辦了一場歡送午餐。",["directories","intentions","duplicates"]],
+["direct","directed","v.","指引；指導","The security guard ____ the visitors to the main conference hall on the third floor.","警衛引導訪客前往三樓的主會議廳。",["transformed","fostered","removed"]],
+["confidential","confidential","adj.","機密的","Please do not share this report outside the company because it contains ____ information.","請勿將這份報告分享給公司以外的人，因為裡面有機密資訊。",["respectful","satisfied","combined"]],
+["assign","assigned","v.","指派","Each intern was ____ to a different department for the first three months.","每位實習生在前三個月被分派到不同部門。",["removed","collected","accomplished"]],
+["leading","leading","adj.","領先的；一流的","Hanson Electronics is one of the ____ manufacturers of solar panels in Asia.","漢森電子是亞洲領先的太陽能板製造商之一。",["lax","abstract","disturbing"]],
+["formal","formal","adj.","正式的","Employees are expected to wear ____ business attire when meeting with clients.","員工與客戶會面時應穿著正式商務服裝。",["lax","disturbing","abstract"]],
+["remove","removed","v.","去除；移走","The old furniture will be ____ from the lobby before the new carpet is installed.","新地毯鋪設前，大廳的舊家具會先被移走。",["assigned","agreed","assumed"]],
+["collect","collect","v.","收集；收回","The receptionist will ____ your name tag at the end of the seminar.","研討會結束時，接待人員會回收你的名牌。",["transform","engage","adjust"]],
+["coordinate","coordinate","v.","協調","Ms. Wu was hired to ____ the schedules of the three departments involved in the project.","吳小姐受聘來協調參與這個專案的三個部門的時程。",["assume","procrastinate","foster"]],
+["hardly","hardly","adv.","幾乎不","The new printer is so quiet that you can ____ hear it when it is running.","新印表機非常安靜，運作時幾乎聽不到聲音。",["widely","skillfully","externally"]],
+["abstract","abstract","adj.","抽象的","The board members found the proposal too ____ and asked for specific examples.","董事們覺得提案太抽象，要求提供具體的例子。",["satisfied","respectful","combined"]],
+["directory","directory","n.","通訊錄","You can find the extension number of every employee in the company ____.","你可以在公司通訊錄裡找到每位員工的分機號碼。",["neutrality","intention","manner"]],
+["accountable","accountable","adj.","負有責任的","Department heads will be held ____ for any expenses that exceed the approved budget.","部門主管須為任何超出核准預算的支出負責。",["satisfied","exclusive","disturbing"]],
+["skillfully","skillfully","adv.","熟練地","The chef ____ prepared a five-course dinner for more than two hundred guests.","主廚熟練地為兩百多位賓客準備了五道菜的晚餐。",["hardly","externally","widely"]],
+["exclusive","exclusive","adj.","獨有的；獨家的","Members of our rewards program receive ____ discounts that are not available to other shoppers.","會員可以享有其他顧客沒有的獨家折扣。",["abstract","disturbing","lax"]],
+["intention","intention","n.","意圖；打算","The manager announced her ____ to open a second branch in Kaohsiung next year.","經理宣布她打算明年在高雄開第二家分店。",["directory","personnel","neutrality"]],
+["transform","transformed","v.","轉變；改造","The architects ____ the old factory into a modern office building with a rooftop garden.","建築師把舊工廠改造成一棟有屋頂花園的現代辦公大樓。",["assisted","agreed","collected"]],
+["respectful","respectful","adj.","尊重的","Staff members should always be ____ of customers' privacy when handling personal data.","員工處理個人資料時應始終尊重顧客隱私。",["lax","combined","abstract"]],
+["duplicate","duplicate","n.","副本","Please keep a ____ of the signed contract for your own records.","請保留一份簽好的合約副本作為您的紀錄。",["manner","neutrality","intention"]],
+["contrary","Contrary","adj.","相反的","____ to expectations, sales of the new laptop were higher in winter than in summer.","和預期相反，新筆電的銷量冬天比夏天還高。",["Exclusive","Accountable","Respectful"]],
+["disturbing","disturbing","adj.","令人不安的","The inspector reported some ____ safety problems at the construction site.","檢查員回報工地有一些令人不安的安全問題。",["satisfied","respectful","exclusive"]],
+["engage","engage","v.","參與；參加","The new training program encourages employees to ____ in team-building activities.","新的培訓計畫鼓勵員工參與團隊建立活動。",["assume","remove","assign"]],
+["foster","foster","v.","促進；培養","The company holds monthly social events to ____ better communication among departments.","公司每月舉辦聯誼活動，以促進部門之間的溝通。",["remove","procrastinate","assume"]],
+["neutrality","neutrality","n.","中立","As a mediator, Mr. Lee must maintain strict ____ during the negotiations.","身為調解人，李先生在談判中必須保持嚴格的中立。",["directory","duplicate","personnel"]],
+["widely","widely","adv.","廣泛地","The software is ____ used by accounting firms throughout the country.","這套軟體被全國的會計事務所廣泛使用。",["externally","voluntarily","formally"]],
+["externally","externally","adv.","外部地","The annual financial report is reviewed ____ by an independent auditing firm.","年度財報由一家獨立的稽核公司進行外部審查。",["hardly","voluntarily","widely"]],
+];
+const BUILTIN={};
+BUILTIN_RAW.forEach(([word,answer,pos,meaning,sentence,zh,wrong])=>{(BUILTIN[word]=BUILTIN[word]||[]).push({word,answer,pos,meaning,sentence,zh,options:[answer,...wrong]})});
+/* 你自己的題庫：Gemini 出過的題目會存起來，下次不用再問 */
+function bankGet(word){
+  const k=word.toLowerCase();
+  const mine=loadJSON("vc-bank",{})[k]||[];
+  return [...mine,...(BUILTIN[k]||[])];
+}
+function bankSave(qs){
+  const bank=loadJSON("vc-bank",{});
+  for(const q of qs){const k=q.word.toLowerCase(); bank[k]=[...(bank[k]||[]),q].slice(-3)}
+  try{localStorage.setItem("vc-bank",JSON.stringify(bank))}catch(e){}
+}
+/* 出填空題：先用題庫裡有的，缺的才問 Gemini；Gemini 塞車時就用題庫的先練 */
+async function generateCloze(words,fresh){
   if(!words.length){setSt("cloze","勾選的單元裡還沒有單字。先到「單元複習」加單字。",true);return}
-  const key=getKey("cloze"); if(!key) return;
-  genCloze.disabled=true;
-  const chunks=[]; for(let i=0;i<words.length;i+=15) chunks.push(words.slice(i,i+15));
-  const made=[];
-  try{
-    for(let c=0;c<chunks.length;c++){
-      setSt("cloze",`正在出題…（${Math.min((c+1)*15,words.length)} / ${words.length} 個單字）`);
-      const arr=await gemini(clozePrompt(chunks[c]),key);
-      if(Array.isArray(arr)) arr.forEach((q,i)=>{const x=clean(q,chunks[c][i]); if(x) made.push(x)});
+  const ready=[], need=[];
+  for(const w of words){const qs=fresh?[]:bankGet(w); if(qs.length) ready.push(qs[Math.floor(Math.random()*qs.length)]); else need.push(w)}
+  const made=[]; let fail=null;
+  if(need.length){
+    const key=keyEl.value.trim();
+    if(!key) fail={code:"nokey"};
+    else{
+      busyNote=t=>setSt("cloze",t);
+      genCloze.disabled=true;
+      const chunks=[]; for(let i=0;i<need.length;i+=15) chunks.push(need.slice(i,i+15));
+      try{
+        for(let c=0;c<chunks.length;c++){
+          setSt("cloze",`正在請 Gemini 出題…（${Math.min((c+1)*15,need.length)} / ${need.length} 個單字）`+(ready.length?`，另外 ${ready.length} 題已經在題庫裡`:""));
+          /* 題庫已有題目時只試一輪，不讓你乾等 */
+          const arr=ready.length?await geminiCall(clozePrompt(chunks[c]),key):await gemini(clozePrompt(chunks[c]),key);
+          arr.forEach((q,i)=>{const x=clean(q,chunks[c][i]); if(x) made.push(x)});
+        }
+        bankSave(made);
+      }catch(e){fail=e}
+      finally{genCloze.disabled=false}
     }
-    if(!made.length) throw {code:"invalid_json"};
-    runners.cloze.start(shuffle(made),false);
-    const skipped=words.length-made.length;
-    setSt("cloze",`出好 ${made.length} 題了。`+(skipped>0?`有 ${skipped} 個單字沒成功出題。`:""));
-  }catch(e){
-    if(made.length){runners.cloze.start(shuffle(made),false);setSt("cloze",`只出好 ${made.length} 題，其餘失敗：`+errMsg(e),true)}
-    else setSt("cloze",errMsg(e),true);
-  }finally{genCloze.disabled=false}
+  }
+  /* 換新句子失敗時，退回題庫 */
+  if(fresh&&!made.length){for(const w of words){const qs=bankGet(w); if(qs.length) ready.push(qs[Math.floor(Math.random()*qs.length)])}}
+  const all=[...ready,...made];
+  if(!all.length){setSt("cloze",fail?.code==="nokey"?"這些單字還沒有題目，要先設定 Gemini 金鑰才能出題（在「單元複習」頁左下）。":errMsg(fail||{code:"invalid_json"}),true);return}
+  runners.cloze.start(shuffle(all),false);
+  const missing=words.length-all.length;
+  let msg=`共 ${all.length} 題。`;
+  if(missing>0) msg+= fail?.code==="nokey" ? `有 ${missing} 個單字還沒有題目，設定 Gemini 金鑰後就能出。` : `有 ${missing} 個單字這次沒出到題目（${fail?errMsg(fail):"Gemini 回傳的內容不完整"}），先練其他的。`;
+  setSt("cloze",msg,missing>0&&!!fail);
 }
 
 /* ---------- 英翻中 ---------- */
