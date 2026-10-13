@@ -248,13 +248,20 @@ select.n{flex:none;width:100%}
   <!-- 單字詞性 -->
   <section id="p-pos" class="grid" hidden>
     <aside class="panel">
-      <div class="label">要考哪些單元</div>
-      <div id="sel-pos" class="checks"></div>
-      <div class="row"><button class="linkbtn" type="button" data-all="pos">全選</button><button class="linkbtn" type="button" data-none="pos">全不選</button></div>
+      <div class="label">出題範圍</div>
+      <div class="seg" role="group" aria-label="出題範圍">
+        <button type="button" data-src="toeic">多益常見單字</button>
+        <button type="button" data-src="mine">我的單元</button>
+      </div>
+      <div id="pos-units" style="display:flex;flex-direction:column;gap:8px">
+        <div class="label">要考哪些單元</div>
+        <div id="sel-pos" class="checks"></div>
+        <div class="row"><button class="linkbtn" type="button" data-all="pos">全選</button><button class="linkbtn" type="button" data-none="pos">全不選</button></div>
+      </div>
       <label class="label" for="n-pos">題數</label>
       <select id="n-pos" class="n"><option value="10">10 題</option><option value="20">20 題</option><option value="30">30 題</option><option value="999">全部</option></select>
       <button id="gen-pos" class="btn primary" type="button">開始</button>
-      <p class="hint">看你的單字和中文，選它是名詞、動詞、形容詞還是副詞。</p>
+      <p class="hint" id="pos-hint"></p>
       <p id="st-pos" class="status" role="status"></p>
     </aside>
     <section id="stage-pos" class="card" aria-live="polite"></section>
@@ -288,7 +295,7 @@ select.n{flex:none;width:100%}
     <section id="stage-form" class="card" aria-live="polite"></section>
   </section>
 
-  <p class="hint" style="text-align:center">版本 10/14-9</p>
+  <p class="hint" style="text-align:center">版本 10/14-10</p>
 </div>
 
 <script>
@@ -1012,7 +1019,9 @@ function suffixTip(word,pos){
 function posOf(word){
   const k=word.toLowerCase();
   const mine=loadJSON("vc-pos",{})[k]; if(mine) return mine;
-  const b=bankGet(word)[0]; return b?normPos(b.pos):null;
+  const b=bankGet(word)[0]; if(b) return normPos(b.pos);
+  const t=TOEIC_POS.find(q=>q.word===k); if(t) return t.answer;
+  const ex=EXAMPLE.find(q=>q.word===k); return ex?normPos(ex.pos):null;
 }
 async function fillPos(entries,key){
   const got=loadJSON("vc-pos",{});
@@ -1029,6 +1038,7 @@ ${chunk.map(e=>e.zh?`${e.word} (${e.zh})`:e.word).join("\n")}`,key,[],0.1,false,
 }
 const genPos=$("#gen-pos");
 genPos.onclick=async()=>{
+  if(posSrc==="toeic"){startToeicPos();return}
   const {us,entries}=pickEntries("pos");
   if(!us.length){setSt("pos","請先勾選至少一個單元。",true);return}
   if(!entries.length){setSt("pos","勾選的單元裡還沒有單字。先到「單元複習」加單字。",true);return}
@@ -1048,7 +1058,33 @@ genPos.onclick=async()=>{
   runners.pos.start(items,false);
   setSt("pos",(note?note+" ":"")+`共 ${items.length} 題。`,!!note);
 };
+/* ---------- 多益常見單字詞性（不用 Gemini） ---------- */
+const TOEIC_POS_RAW={
+"n.":"invoice 發票|receipt 收據|itinerary 行程|agenda 議程|warranty 保固|inventory 庫存|shipment 貨物；出貨|applicant 應徵者|employer 雇主|supervisor 主管|colleague 同事|revenue 營收|expense 費用|merger 合併|subsidiary 子公司|headquarters 總部|facility 設施|equipment 設備|maintenance 維修保養|renovation 整修|reservation 預約|accommodation 住宿|venue 場地|deadline 截止期限|proposal 提案|brochure 小冊子|qualification 資格|candidate 候選人|promotion 升遷；促銷|retirement 退休|regulation 規定|attendance 出席人數|registration 報名|subscription 訂閱|departure 出發|destination 目的地|luggage 行李|negotiation 談判|competitor 競爭者|supplier 供應商|manufacturer 製造商|productivity 生產力",
+"v.":"postpone 延後|cancel 取消|reimburse 報銷|negotiate 談判|implement 實施|hire 雇用|resign 辭職|recruit 招募|deliver 遞送|submit 提交|approve 批准|renovate 整修|expand 擴大|reduce 減少|confirm 確認|notify 通知|inquire 詢問|register 註冊|attend 出席|organize 籌辦|evaluate 評估|analyze 分析|enhance 提升|acquire 收購；取得|relocate 搬遷|accommodate 容納|comply 遵守|retain 保留|distribute 分發|inspect 檢查|verify 核實|anticipate 預期|appoint 任命|prioritize 優先處理",
+"adj.":"available 可用的；有空的|mandatory 強制的|eligible 有資格的|efficient 有效率的|reliable 可靠的|affordable 負擔得起的|temporary 暫時的|permanent 永久的|annual 每年的|previous 先前的|upcoming 即將到來的|complimentary 免費的|extensive 廣泛的|sufficient 足夠的|considerable 相當大的|punctual 準時的|flexible 有彈性的|durable 耐用的|accurate 正確的|convenient 方便的|competitive 有競爭力的|financial 財務的|beneficial 有益的|reasonable 合理的|qualified 合格的|valid 有效的|experienced 有經驗的|numerous 許多的|vacant 空著的|outstanding 傑出的；未付的|subsequent 後續的|comprehensive 全面的",
+"adv.":"approximately 大約|immediately 立刻|currently 目前|previously 先前|recently 最近|frequently 經常|promptly 迅速地；準時地|temporarily 暫時地|primarily 主要地|consistently 一貫地|separately 分開地|regularly 定期地|eventually 最終|nearly 幾乎|shortly 很快；不久|unfortunately 不幸地|accordingly 相應地|thoroughly 徹底地|significantly 顯著地|mostly 大多|extremely 極度地|especially 特別是|gradually 逐漸地|briefly 簡短地|initially 最初|increasingly 越來越|carefully 小心地|directly 直接地|exclusively 專門地|fairly 相當；公平地|rarely 很少|soon 很快"
+};
+const TOEIC_POS=[];
+for(const [pos,list] of Object.entries(TOEIC_POS_RAW)) for(const item of list.split("|")){const i=item.indexOf(" "); TOEIC_POS.push({word:item.slice(0,i),zh:item.slice(i+1),answer:pos,options:POS4})}
+let posSrc=load("vc-pos-src")==="mine"?"mine":"toeic";
+function drawPosSrc(){
+  document.querySelectorAll("[data-src]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.src===posSrc));
+  $("#pos-units").hidden=posSrc!=="mine";
+  $("#pos-hint").textContent=posSrc==="mine"
+    ?"看你單元裡的單字和中文，選它是名詞、動詞、形容詞還是副詞。"
+    :`從內建的 ${TOEIC_POS.length} 個多益常見單字隨機出題，選它是名詞、動詞、形容詞還是副詞。`;
+}
+document.querySelectorAll("[data-src]").forEach(b=>b.onclick=()=>{posSrc=b.dataset.src;store("vc-pos-src",posSrc);drawPosSrc()});
+function startToeicPos(){
+  const n=Number($("#n-pos").value)||10;
+  const items=shuffle(TOEIC_POS).slice(0,n);
+  runners.pos.start(items,false);
+  setSt("pos",`多益常見單字，共 ${items.length} 題。`);
+}
 function startPosExample(){
+  drawPosSrc();
+  if(posSrc==="toeic"){startToeicPos();return}
   runners.pos.start(shuffle(EXAMPLE).map(q=>({word:q.word,zh:q.meaning,answer:normPos(q.pos),options:POS4})),true);
   setSt("pos","右邊是範例題目。勾選你的單元後按「開始」。");
 }
