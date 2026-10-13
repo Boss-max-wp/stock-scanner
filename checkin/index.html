@@ -452,7 +452,7 @@ body{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
       <label class="q">😊 今天開心的事<textarea id="happy" rows="2"></textarea></label>
       <label class="q">💬 想跟對方分享的<textarea id="share" rows="2"></textarea></label>
       <label class="q">🧱 卡住的地方<textarea id="stuck" rows="2"></textarea></label>
-      <label class="q">🔧 覺得可以改善什麼<textarea id="improve" rows="2"></textarea></label>
+      <label class="q">🌱 可以再進步的地方<textarea id="improve" rows="2"></textarea></label>
     </div>
     <div class="scorebox">今天給自己幾分？<div class="scores" id="scores"></div></div>
     <div id="weekhint" class="warn" hidden></div>
@@ -755,7 +755,7 @@ function renderPartner(){
     if(wl.length)h+=`<div class="sec">本週目標</div>`+wl.map(row).join('');
     h+=`</div>`;
   }
-  h+=`<div class="refl">`+[['happy','😊 今天開心的事'],['share','💬 想跟對方分享的'],['stuck','🧱 卡住的地方'],['improve','🔧 覺得可以改善什麼']].map(([k,l])=>`<div class="q">${l}<div class="robox ${c?.[k]?'':'none'}">${c?.[k]?esc(c[k]):'還沒寫'}</div></div>`).join('')+`</div>`;
+  h+=`<div class="refl">`+[['happy','😊 今天開心的事'],['share','💬 想跟對方分享的'],['stuck','🧱 卡住的地方'],['improve','🌱 可以再進步的地方']].map(([k,l])=>`<div class="q">${l}<div class="robox ${c?.[k]?'':'none'}">${c?.[k]?esc(c[k]):'還沒寫'}</div></div>`).join('')+`</div>`;
   h+=`<div class="scorebox">今天給自己幾分？<div class="scores ro-scores">${Array.from({length:10},(_,i)=>`<span class="${c?.score===i+1?'on':''}">${i+1}</span>`).join('')}</div></div>`;
   h+=`<div><button class="hug" id="hugbtn" ${hugged||!S.me?'disabled':''}>${hugged?'已送出抱抱 🤗':'送她一個抱抱 🤗'}</button></div>`;
   el.innerHTML=h;
@@ -1084,7 +1084,7 @@ S.draft={items:[],happy:'',share:'',stuck:'',improve:'',score:0};setDate(TODAY);
 document.getElementById('page-history').appendChild(document.getElementById('logoutbtn').parentNode);</script>
 <script>
 // Home-screen apps can keep showing a cached copy; check for a newer build whenever the app is opened.
-window.__BUILD='1791917734';
+window.__BUILD='1791917890';
 async function checkUpdate(){try{const t=await (await fetch('./?nocache='+Date.now(),{cache:'no-store'})).text();const m=t.match(/__BUILD='(\d+)'/);
   if(m&&m[1]!==window.__BUILD)location.replace('./?v='+m[1]);}catch(e){}}
 checkUpdate();document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});
