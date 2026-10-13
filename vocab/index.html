@@ -83,6 +83,7 @@ textarea:focus,input:focus,button:focus-visible{outline:2px solid var(--accent);
 .cheat{display:flex;flex-direction:column;gap:6px;font-size:.88rem}
 .cheat b{font-weight:700}
 .posopts .opt{font-family:var(--f-ui);font-size:1rem}
+.bigword u{text-decoration-color:var(--accent);text-decoration-thickness:3px;text-underline-offset:6px}
 .formopts{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.9rem}
 .formopts span b{font-family:var(--f-read);font-size:1rem}
 .allres{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
@@ -266,6 +267,7 @@ select.n{flex:none;width:100%}
       <div class="seg" role="group" aria-label="出題範圍">
         <button type="button" data-src="toeic">多益常見單字</button>
         <button type="button" data-src="mine">我的單元</button>
+        <button type="button" data-src="ai">Gemini 出題</button>
       </div>
       <div id="pos-units" style="display:flex;flex-direction:column;gap:8px">
         <div class="label">要考哪些單元</div>
@@ -323,7 +325,7 @@ select.n{flex:none;width:100%}
     <section id="stage-form" class="card" aria-live="polite"></section>
   </section>
 
-  <p class="hint" style="text-align:center">版本 10/14-13</p>
+  <p class="hint" style="text-align:center">版本 10/14-14</p>
 </div>
 
 <script>
@@ -838,7 +840,10 @@ function makeRunner(kind){
     const fb=stage.querySelector("#fb-"+kind);
     if(kind==="pos"){
       const tip=suffixTip(q.word,q.answer);
-      fb.innerHTML=`<div class="fb ${ok?"ok":"no"}"><strong>${ok?"答對了":"答錯了"}</strong><span><span class="word">${esc(q.word)}</span> 是<b>${POSNAME[q.answer]}</b>（${esc(q.answer)}）${q.zh?`，意思是「${esc(q.zh)}」`:""}。</span>${tip?`<span class="zh">${esc(tip)}</span>`:""}</div>`;
+      const bw=stage.querySelector(".bigword"); if(bw) bw.innerHTML=markSuffix(q.word);
+      fb.innerHTML=`<div class="fb ${ok?"ok":"no"}"><strong>${ok?"答對了":"答錯了"}</strong>
+        <span>正確答案：<span class="word">${esc(q.word)}</span> 是<b>${POSNAME[q.answer]}（${esc(q.answer)}）</b>${q.zh?`，意思是「${esc(q.zh)}」`:""}。${ok?"":`你選的是${POSNAME[val]||val}。`}</span>
+        <span>${esc(tip)}</span></div>`;
     }else if(kind==="form"){
       fb.innerHTML=`<div class="fb ${ok?"ok":"no"}"><strong>${ok?"答對了":"答錯了"}</strong>
         <span>空格要填<b>${POSNAME[q.need]}</b>：${esc(q.why)}</span>
@@ -1078,22 +1083,27 @@ function normPos(p){
   if(/^v/.test(t)||t==="動詞") return "v.";
   return null;
 }
+/* 字尾規則：[字尾, 通常的詞性, 例字] — 長的字尾放前面 */
+const SUFFIXES=[
+  ["tion","n.","information、reservation"],["sion","n.","decision、expansion"],["ment","n.","payment、agreement"],["ness","n.","business、awareness"],
+  ["ship","n.","leadership、membership"],["ity","n.","ability、facility"],["ance","n.","attendance、maintenance"],["ence","n.","conference、experience"],
+  ["ism","n.","tourism"],["ist","n.","receptionist、specialist"],["age","n.","package、storage"],["ure","n.","procedure、departure"],["ee","n.","employee、attendee"],
+  ["ward","adv.","forward、afterward"],["ly","adv.","quickly、recently"],
+  ["ize","v.","organize、prioritize"],["ise","v.","advertise、revise"],["ify","v.","notify、verify"],["ish","v.","finish、establish"],["ate","v.","coordinate、evaluate"],["en","v.","widen、shorten"],
+  ["able","adj.","available、affordable"],["ible","adj.","flexible、eligible"],["ful","adj.","helpful、successful"],["less","adj.","careless、wireless"],["ive","adj.","expensive、extensive"],
+  ["ous","adj.","numerous、various"],["ory","adj.","mandatory、satisfactory"],["ary","adj.","temporary、necessary"],["ic","adj.","basic、economic"],["al","adj.","annual、financial"],
+  ["ent","adj.","efficient、sufficient"],["ant","adj.","important、relevant"],["ing","adj.","outstanding、upcoming"],["ed","adj.","qualified、experienced"],
+  ["er","n.","manager、employer"],["or","n.","supervisor、competitor"],
+];
+function suffixOf(word){const w=word.toLowerCase(); return SUFFIXES.find(([suf])=>w.length>suf.length+2&&w.endsWith(suf))||null}
+function markSuffix(word){const sf=suffixOf(word); if(!sf) return esc(word); const cut=word.length-sf[0].length; return esc(word.slice(0,cut))+`<u><b>${esc(word.slice(cut))}</b></u>`}
+/* 答題後的字尾說明 */
 function suffixTip(word,pos){
-  const w=word.toLowerCase();
-  const rules=[
-    [/(tion|sion|ment|ness|ity|ance|ence)$/,"n.","結尾是名詞常見的字尾"],
-    [/(ee|or)$/,"n.","結尾 -ee / -or 常是「人」，是名詞"],
-    [/ly$/,"adv.","結尾 -ly 大多是副詞"],
-    [/(ful|ive|able|ible|ous|ic|al|ent|ant)$/,"adj.","結尾是形容詞常見的字尾"],
-    [/(ize|ise|ify)$/,"v.","結尾 -ize / -ify 是動詞常見的字尾"],
-  ];
-  for(const [re,p,txt] of rules){
-    const m=w.match(re); if(!m) continue;
-    if(p===pos) return `小技巧：${txt}（-${m[1]}）。`;
-    return `注意：-${m[1]} 結尾通常是${POSNAME[p]}，但 ${word} 這裡是${POSNAME[pos]}，要特別記。`;
-  }
-  if(/(ing|ed)$/.test(w)&&pos==="adj.") return "小技巧：-ing / -ed 結尾的字常常當形容詞用。";
-  return "";
+  const sf=suffixOf(word);
+  if(!sf) return `結尾沒有明顯的詞性字尾，這個字要直接記：${word} 是${POSNAME[pos]}。`;
+  const [suf,p,ex]=sf;
+  if(p===pos) return `結尾是 -${suf}：-${suf} 結尾通常是${POSNAME[p]}（例如 ${ex}），所以 ${word} 是${POSNAME[pos]}。`;
+  return `結尾是 -${suf}：-${suf} 結尾通常是${POSNAME[p]}（例如 ${ex}），但 ${word} 是例外，這裡是${POSNAME[pos]}，要特別記。`;
 }
 /* 單字的詞性：先看你自己存的、再看題庫 */
 function posOf(word){
@@ -1119,6 +1129,7 @@ ${chunk.map(e=>e.zh?`${e.word} (${e.zh})`:e.word).join("\n")}`,key,[],0.1,false,
 const genPos=$("#gen-pos");
 genPos.onclick=async()=>{
   if(posSrc==="toeic"){startToeicPos();return}
+  if(posSrc==="ai"){startAiPos();return}
   const {us,entries}=pickEntries("pos");
   if(!us.length){setSt("pos","請先勾選至少一個單元。",true);return}
   if(!entries.length){setSt("pos","勾選的單元裡還沒有單字。先到「單元複習」加單字。",true);return}
@@ -1147,24 +1158,55 @@ const TOEIC_POS_RAW={
 };
 const TOEIC_POS=[];
 for(const [pos,list] of Object.entries(TOEIC_POS_RAW)) for(const item of list.split("|")){const i=item.indexOf(" "); TOEIC_POS.push({word:item.slice(0,i),zh:item.slice(i+1),answer:pos,options:POS4})}
-let posSrc=load("vc-pos-src")==="mine"?"mine":"toeic";
+/* Gemini 出過的新單字也存起來，之後「多益常見單字」也會出 */
+function toeicPool(){const extra=loadJSON("vc-toeicpos-extra",[]);return [...TOEIC_POS,...(Array.isArray(extra)?extra:[])]}
+let posSrc=["mine","ai"].includes(load("vc-pos-src"))?load("vc-pos-src"):"toeic";
 function drawPosSrc(){
   document.querySelectorAll("[data-src]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.src===posSrc));
   $("#pos-units").hidden=posSrc!=="mine";
   $("#pos-hint").textContent=posSrc==="mine"
     ?"看你單元裡的單字和中文，選它是名詞、動詞、形容詞還是副詞。"
-    :`從內建的 ${TOEIC_POS.length} 個多益常見單字隨機出題，選它是名詞、動詞、形容詞還是副詞。`;
+    :posSrc==="ai"
+    ?`請 Gemini 出你還沒做過的新多益單字（每次最多 30 個）。出過的單字會加進題庫，現在題庫共 ${toeicPool().length} 個。`
+    :`從 ${toeicPool().length} 個多益常見單字隨機出題，選它是名詞、動詞、形容詞還是副詞。`;
 }
 document.querySelectorAll("[data-src]").forEach(b=>b.onclick=()=>{posSrc=b.dataset.src;store("vc-pos-src",posSrc);drawPosSrc()});
 function startToeicPos(){
   const n=Number($("#n-pos").value)||10;
-  const {picked:items,note:round}=pickFresh("toeicpos",TOEIC_POS,q=>q.word,n);
+  const {picked:items,note:round}=pickFresh("toeicpos",toeicPool(),q=>q.word,n);
   runners.pos.start(items,false);
   setSt("pos",`多益常見單字，共 ${items.length} 題。${round}`);
 }
+async function startAiPos(){
+  const key=getKey("pos"); if(!key) return;
+  const n=Math.min(Number($("#n-pos").value)||10,30);
+  genPos.disabled=true; busyNote=t=>setSt("pos",t);
+  setSt("pos",`正在請 Gemini 出 ${n} 個新的多益單字…`);
+  try{
+    const known=new Set(toeicPool().map(q=>q.word.toLowerCase()));
+    const want={"n.":0,"v.":0,"adj.":0,"adv.":0}; const per=Math.ceil(n/4);
+    const arr=await gemini(`List ${n+6} useful TOEIC vocabulary words for a Taiwanese learner who is practising parts of speech. Mix them evenly: about ${per} nouns, ${per} verbs, ${per} adjectives and ${per} adverbs. Prefer words whose part of speech is clear (avoid words commonly used as both noun and verb, like "record" or "increase").
+Do NOT use any of these words: ${[...known].join(", ")}.
+For each word give "pos" ("n.", "v.", "adj." or "adv.") and "zh", a short Traditional Chinese (Taiwan) meaning.
+Reply with only a JSON array, like [{"word":"postpone","pos":"v.","zh":"延後"}].`,key,[],0.9,false,{type:"ARRAY",items:{type:"OBJECT",properties:{word:{type:"STRING"},pos:{type:"STRING"},zh:{type:"STRING"}},required:["word","pos","zh"]}});
+    const made=[];
+    for(const it of arr){
+      const w=String(it?.word||"").trim().toLowerCase(), p=normPos(it?.pos), zh=String(it?.zh||"").trim();
+      if(!/^[a-z][a-z-]+$/.test(w)||!p||known.has(w)) continue;
+      known.add(w); made.push({word:w,zh,answer:p,options:POS4});
+    }
+    if(!made.length) throw {code:"invalid_json"};
+    const extra=loadJSON("vc-toeicpos-extra",[]);
+    store("vc-toeicpos-extra",JSON.stringify([...(Array.isArray(extra)?extra:[]),...made].slice(-500)));
+    const items=shuffle(made).slice(0,n);
+    runners.pos.start(items,false); drawPosSrc();
+    setSt("pos",`Gemini 出了 ${items.length} 個新單字，都已經加進題庫（現在共 ${toeicPool().length} 個）。`);
+  }catch(e){setSt("pos",errMsg(e)+" 可以先切到「多益常見單字」，用題庫裡的單字練習。",true)}
+  finally{genPos.disabled=false}
+}
 function startPosExample(){
   drawPosSrc();
-  if(posSrc==="toeic"){startToeicPos();return}
+  if(posSrc!=="mine"){startToeicPos();return}
   runners.pos.start(shuffle(EXAMPLE).map(q=>({word:q.word,zh:q.meaning,answer:normPos(q.pos),options:POS4})),true);
   setSt("pos","右邊是範例題目。勾選你的單元後按「開始」。");
 }
