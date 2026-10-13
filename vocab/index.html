@@ -276,6 +276,20 @@ select.n{flex:none;width:100%}
       <select id="n-pos" class="n"><option value="10">10 題</option><option value="20">20 題</option><option value="30">30 題</option><option value="999">全部</option></select>
       <button id="gen-pos" class="btn primary" type="button">開始</button>
       <p class="hint" id="pos-hint"></p>
+      <details>
+        <summary>詞性小抄（看字尾猜詞性）</summary>
+        <div class="cheat">
+          <span><b>名詞 n.</b>（人、事、物）：-tion、-sion（information）、-ment（payment）、-ness（business）、-ity（ability）、-ance / -ence（attendance）、-er / -or（manager、supervisor）、-ee（employee）、-ship（leadership）</span>
+          <span><b>動詞 v.</b>（動作）：-ize（organize）、-ify（notify）、-en（widen）、-ate（coordinate）</span>
+          <span><b>形容詞 adj.</b>（形容人事物）：-ful（helpful）、-ive（expensive）、-able / -ible（available）、-al（annual）、-ous（numerous）、-ic（basic）、-ent / -ant（efficient）、-ory（mandatory）</span>
+          <span><b>副詞 adv.</b>（形容動作或形容詞）：大多是「形容詞 + ly」（quickly、carefully）</span>
+          <span style="margin-top:4px"><b>小心例外：</b></span>
+          <span>・-ly 結尾但是形容詞：friendly、costly、timely、likely、daily</span>
+          <span>・-ate 有時是形容詞：accurate、private、appropriate</span>
+          <span>・-ing / -ed 結尾常常當形容詞：outstanding、upcoming、experienced、qualified</span>
+          <span>・沒有字尾的字（hire、cancel、venue）只能靠背，多聽多看就會記住</span>
+        </div>
+      </details>
       <p id="st-pos" class="status" role="status"></p>
     </aside>
     <section id="stage-pos" class="card" aria-live="polite"></section>
@@ -309,7 +323,7 @@ select.n{flex:none;width:100%}
     <section id="stage-form" class="card" aria-live="polite"></section>
   </section>
 
-  <p class="hint" style="text-align:center">版本 10/14-12</p>
+  <p class="hint" style="text-align:center">版本 10/14-13</p>
 </div>
 
 <script>
@@ -329,6 +343,24 @@ function loadJSON(k,d){try{const v=JSON.parse(load(k)||"null");return v??d}catch
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 const norm = s => String(s||"").toLowerCase().replace(/[’']/g,"'").replace(/\s+/g," ").trim();
 function shuffle(a){a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+/* 不重複出題：記住這一輪出過哪些，先出沒出過的；全部出過才開始新的一輪 */
+function pickFresh(pool,list,key,n){
+  n=Math.min(n,list.length);
+  const keys=new Set(list.map(key));
+  let seen=new Set(loadJSON("vc-seen-"+pool,[]).filter(k=>keys.has(k)));
+  const fresh=shuffle(list.filter(x=>!seen.has(key(x))));
+  let picked, reset=false;
+  if(fresh.length>=n) picked=fresh.slice(0,n);
+  else{
+    const rest=shuffle(list.filter(x=>seen.has(key(x)))).slice(0,n-fresh.length);
+    picked=[...fresh,...rest]; seen=new Set(); reset=true;
+    rest.forEach(x=>seen.add(key(x)));
+  }
+  fresh.slice(0,n).forEach(x=>seen.add(key(x)));
+  try{localStorage.setItem("vc-seen-"+pool,JSON.stringify([...seen]))}catch(e){}
+  const note=reset?`全部 ${list.length} 題都出過一輪了，這次開始新的一輪。`:`這一輪已經出過 ${seen.size} / ${list.length} 題，還有 ${list.length-seen.size} 題沒出過。`;
+  return {picked:shuffle(picked),note};
+}
 function setSt(id,t,err){const el=$("#st-"+id);el.textContent=t||"";el.classList.toggle("err",!!err);if(t&&el.classList.contains("big")){const r=el.getBoundingClientRect();if(r.top<0||r.bottom>innerHeight)el.scrollIntoView({block:"center"})}}
 const newId=()=>"u"+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 
@@ -902,7 +934,9 @@ genCloze.onclick=()=>{
   const {us,entries}=pickEntries("cloze");
   if(!us.length){setSt("cloze","請先勾選至少一個單元。",true);return}
   const n=Number($("#n-cloze").value)||10;
-  generateCloze(shuffle(entries.map(e=>e.word)).slice(0,Math.min(n,60)));
+  const {picked,note}=pickFresh("cloze",entries.map(e=>e.word),w=>w.toLowerCase(),Math.min(n,60));
+  clozeRoundNote=note;
+  generateCloze(picked);
 };
 /* ---------- 內建題庫：不用 Gemini 就能出的題目（[原形, 答案, 詞性, 中文, 句子, 句子中譯, 3個錯誤選項]） ---------- */
 const BUILTIN_RAW=[
@@ -965,6 +999,7 @@ function bankSave(qs){
   try{localStorage.setItem("vc-bank",JSON.stringify(bank))}catch(e){}
 }
 /* 出填空題：先用題庫裡有的，缺的才問 Gemini；Gemini 塞車時就用題庫的先練 */
+let clozeRoundNote="";
 async function generateCloze(words,fresh){
   if(!words.length){setSt("cloze","勾選的單元裡還沒有單字。先到「單元複習」加單字。",true);return}
   const ready=[], need=[];
@@ -995,7 +1030,7 @@ async function generateCloze(words,fresh){
   if(!all.length){setSt("cloze",fail?.code==="nokey"?"這些單字還沒有題目，要先設定 Gemini 金鑰才能出題（在「單元複習」頁左下）。":errMsg(fail||{code:"invalid_json"}),true);return}
   runners.cloze.start(shuffle(all),false);
   const missing=words.length-all.length;
-  let msg=`共 ${all.length} 題。`;
+  let msg=`共 ${all.length} 題。`+(clozeRoundNote?clozeRoundNote+" ":""); clozeRoundNote="";
   if(missing>0) msg+= fail?.code==="nokey" ? `有 ${missing} 個單字還沒有題目，設定 Gemini 金鑰後就能出。` : `有 ${missing} 個單字這次沒出到題目（${fail?errMsg(fail):"Gemini 回傳的內容不完整"}），先練其他的。`;
   setSt("cloze",msg,missing>0&&!!fail);
 }
@@ -1026,10 +1061,10 @@ genMeaning.onclick=async()=>{
     }else note=`有 ${missing} 個單字沒有中文，這次先跳過。設定 Gemini 金鑰後會自動補上。`;
   }
   const n=Number($("#n-meaning").value)||10;
-  const items=shuffle(buildMeaning(entries)).slice(0,n);
+  const {picked:items,note:round}=pickFresh("meaning",buildMeaning(entries),q=>q.word.toLowerCase(),n);
   if(!items.length){setSt("meaning",note||"沒有可以出題的單字。",true);return}
   runners.meaning.start(items,false);
-  setSt("meaning",(note?note+" ":"")+`共 ${items.length} 題。可以用鍵盤 1–4 作答。`,!!note);
+  setSt("meaning",(note?note+" ":"")+`共 ${items.length} 題。${round}`,!!note);
 };
 
 /* ---------- 詞性共用 ---------- */
@@ -1098,10 +1133,10 @@ genPos.onclick=async()=>{
     }else note=`有 ${missing.length} 個單字還不知道詞性，設定 Gemini 金鑰後會自動查。這次先跳過。`;
   }
   const n=Number($("#n-pos").value)||10;
-  const items=shuffle(entries.map(e=>({word:e.word,zh:e.zh,answer:posOf(e.word),unit:e.unit,options:POS4})).filter(q=>POS4.includes(q.answer))).slice(0,n);
+  const {picked:items,note:round}=pickFresh("posmine",entries.map(e=>({word:e.word,zh:e.zh,answer:posOf(e.word),unit:e.unit,options:POS4})).filter(q=>POS4.includes(q.answer)),q=>q.word.toLowerCase(),n);
   if(!items.length){setSt("pos",note||"沒有可以出題的單字。",true);return}
   runners.pos.start(items,false);
-  setSt("pos",(note?note+" ":"")+`共 ${items.length} 題。`,!!note);
+  setSt("pos",(note?note+" ":"")+`共 ${items.length} 題。${round}`,!!note);
 };
 /* ---------- 多益常見單字詞性（不用 Gemini） ---------- */
 const TOEIC_POS_RAW={
@@ -1123,9 +1158,9 @@ function drawPosSrc(){
 document.querySelectorAll("[data-src]").forEach(b=>b.onclick=()=>{posSrc=b.dataset.src;store("vc-pos-src",posSrc);drawPosSrc()});
 function startToeicPos(){
   const n=Number($("#n-pos").value)||10;
-  const items=shuffle(TOEIC_POS).slice(0,n);
+  const {picked:items,note:round}=pickFresh("toeicpos",TOEIC_POS,q=>q.word,n);
   runners.pos.start(items,false);
-  setSt("pos",`多益常見單字，共 ${items.length} 題。`);
+  setSt("pos",`多益常見單字，共 ${items.length} 題。${round}`);
 }
 function startPosExample(){
   drawPosSrc();
@@ -1172,8 +1207,9 @@ function formBank(){const mine=loadJSON("vc-formbank",[]);return [...FORM_BUILTI
 const nForm=$("#n-form"); {const sv=load("vc-n-form"); if(sv&&[...nForm.options].some(o=>o.value===sv)) nForm.value=sv; nForm.onchange=()=>store("vc-n-form",nForm.value)}
 function startForm(first){
   const n=Number(nForm.value)||10;
-  runners.form.start(shuffle(formBank()).slice(0,n),false);
-  setSt("form",first?`題庫共 ${formBank().length} 題，每次隨機出 ${n} 題。`:`共 ${Math.min(n,formBank().length)} 題。`);
+  const {picked,note}=pickFresh("form",formBank(),q=>q.sentence,n);
+  runners.form.start(picked,false);
+  setSt("form",`共 ${picked.length} 題。${note}`);
 }
 $("#gen-form").onclick=()=>startForm(false);
 $("#more-form").onclick=async()=>{
