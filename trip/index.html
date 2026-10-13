@@ -72,7 +72,11 @@ h1{font-size:24px;font-weight:900;margin:0;letter-spacing:.02em}
 .legbody{padding-block:8px;display:flex;flex-direction:column;gap:6px;min-width:0}
 .ride{font-size:13px;line-height:1.5;overflow-wrap:anywhere}
 .ride .k{display:inline-block;font-size:11px;font-weight:700;color:var(--accent);border:1px solid var(--accent);border-radius:6px;padding:0 5px;margin-right:6px;vertical-align:1px}
-.seg.small button{font-size:12px;padding:3px 8px}
+.seg.small{flex:1 1 100%;display:grid;grid-template-columns:repeat(3,1fr)}
+.seg.small button{font-size:12px;padding:4px 6px;display:flex;flex-direction:column;align-items:center;line-height:1.3}
+.seg.small .ml{font-size:11px;color:var(--muted)}
+.seg.small button[aria-pressed="true"] .ml{color:var(--accent)}
+.seg.small .mt{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
 .add{align-self:flex-start;margin-left:76px}
 .help{background:var(--card);border-radius:12px;padding:12px 14px;font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
 .help b{color:var(--fg)}
@@ -117,7 +121,7 @@ textarea{min-height:56px;resize:vertical}
 
   <div class="help">
     <div><b>怎麼用</b></div>
-    <div>每段路都可以選「大眾運輸／走路／開車」，按「怎麼去」就用那個方式打開 Google 地圖，會顯示路線、要多久、下一班車幾點。「從我這裡出發」是從你手機目前的位置過去。</div>
+    <div>每段路都會顯示大眾運輸、走路、開車各要多久。走路和開車是打開頁面時即時算的；大眾運輸是我依路線估的，不含等車時間。點選其中一種再按「怎麼去」，就會用那個方式打開 Google 地圖，會顯示路線、要多久、下一班車幾點。「從我這裡出發」是從你手機目前的位置過去。</div>
     <div>「預計搭乘」是我依你的行程先寫的建議班次，出發前以 Google 地圖或 JR 時刻表為準。橘色框是時間可能有問題的地方。</div>
     <div>按「編輯」可以改景點、時間、預計搭乘和預設交通方式。行程存在這支手機上。</div>
   </div>
@@ -133,6 +137,7 @@ textarea{min-height:56px;resize:vertical}
     <label>從上一站過來的預設方式
       <select id="f-mode"><option value="transit">大眾運輸</option><option value="walking">走路</option><option value="driving">開車</option></select>
     </label>
+    <label>大眾運輸大約幾分鐘<input id="f-tr" inputmode="numeric" placeholder="例如 25"><span class="hint">走路和開車的時間會自動算</span></label>
     <label>預計搭乘（班次或怎麼走）<input id="f-ride" placeholder="例如 JR 快速 Airport，約 40 分"></label>
     <label>備註<textarea id="f-note"></textarea></label>
     <label>提醒（會用橘色顯示）<input id="f-warn"></label>
@@ -211,7 +216,88 @@ const place=q=>'https://www.google.com/maps/search/?api=1&query='+enc(q);
 const esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const ML={transit:'大眾運輸',walking:'走路',driving:'開車'};
 const legMode=s=>allMode!=='plan'?allMode:(s.pick||s.mode||T);
-const segBtns=(m,i)=>['transit','walking','driving'].map(k=>`<button type="button" data-leg="${i}" data-m="${k}" aria-pressed="${m===k}">${ML[k]}</button>`).join('');
+/* ---- 每段路的時間 ---- */
+// 各地點座標（大約位置）
+const COORD={
+ '函館空港':[41.7700,140.8219],'フレックステイイン函館駅前':[41.7726,140.7290],'金森赤レンガ倉庫':[41.7669,140.7176],
+ 'スナッフルス 金森洋物館店':[41.7672,140.7181],'ラッキーピエロ ベイエリア本店':[41.7662,140.7158],'函館山ロープウェイ 山麓駅':[41.7605,140.7135],
+ '函館朝市 駅二市場':[41.7738,140.7247],'大沼公園駅':[41.9725,140.6687],'沼の家 大沼':[41.9727,140.6694],'滋養軒 函館':[41.7737,140.7322],
+ '函館市熱帯植物園':[41.7695,140.8007],'六花亭 函館漁火通店':[41.7672,140.7800],'五稜郭公園':[41.7969,140.7570],
+ '五島軒 函館カレーEXPRESS 五稜郭タワー店':[41.7944,140.7539],'函館駅':[41.7737,140.7265],'札幌駅':[43.0686,141.3508],
+ 'スープカレー GARAKU':[43.0573,141.3555],'さっぽろテレビ塔':[43.0610,141.3565],'ホテルマイステイズ札幌中島公園':[43.0475,141.3540],
+ '狸小路商店街':[43.0573,141.3530],'とんかつ 恭平 札幌':[43.0565,141.3540],'大通公園':[43.0598,141.3489],'アリンコ アピア店':[43.0675,141.3510],
+ '登別地獄谷':[42.4973,141.1475],'のぼりべつクマ牧場':[42.5017,141.1490],'地球岬展望台':[42.3017,140.9910],
+ 'ベッセルホテルカンパーナすすきの':[43.0545,141.3570],'にぎりめし 札幌':[43.0560,141.3555],'北海道神宮':[43.0545,141.3075],
+ '白い恋人パーク':[43.0890,141.2715],'小樽運河':[43.1990,141.0020],'政寿司 本店 小樽':[43.1935,140.9975],'新千歳空港':[42.7875,141.6800]
+};
+// 大眾運輸估計分鐘（含走到車站），null = 很近，走路就好
+const TR={
+ '函館空港>フレックステイイン函館駅前':25,'フレックステイイン函館駅前>金森赤レンガ倉庫':15,'金森赤レンガ倉庫>スナッフルス 金森洋物館店':null,
+ 'スナッフルス 金森洋物館店>ラッキーピエロ ベイエリア本店':null,'ラッキーピエロ ベイエリア本店>函館山ロープウェイ 山麓駅':15,
+ '函館山ロープウェイ 山麓駅>フレックステイイン函館駅前':20,'フレックステイイン函館駅前>函館朝市 駅二市場':null,
+ '函館朝市 駅二市場>大沼公園駅':35,'大沼公園駅>沼の家 大沼':null,'沼の家 大沼>滋養軒 函館':40,'滋養軒 函館>函館市熱帯植物園':40,
+ '函館市熱帯植物園>六花亭 函館漁火通店':15,'六花亭 函館漁火通店>五稜郭公園':30,'五稜郭公園>五島軒 函館カレーEXPRESS 五稜郭タワー店':null,
+ '五島軒 函館カレーEXPRESS 五稜郭タワー店>フレックステイイン函館駅前':25,'函館朝市 駅二市場>函館駅':null,'函館駅>札幌駅':230,
+ '札幌駅>スープカレー GARAKU':15,'スープカレー GARAKU>さっぽろテレビ塔':null,'さっぽろテレビ塔>ホテルマイステイズ札幌中島公園':12,
+ 'ホテルマイステイズ札幌中島公園>狸小路商店街':12,'狸小路商店街>とんかつ 恭平 札幌':null,'とんかつ 恭平 札幌>大通公園':10,
+ 'ホテルマイステイズ札幌中島公園>アリンコ アピア店':12,'アリンコ アピア店>登別地獄谷':105,'登別地獄谷>のぼりべつクマ牧場':20,
+ 'のぼりべつクマ牧場>地球岬展望台':90,'ホテルマイステイズ札幌中島公園>ベッセルホテルカンパーナすすきの':10,
+ 'ベッセルホテルカンパーナすすきの>にぎりめし 札幌':null,'にぎりめし 札幌>北海道神宮':25,'北海道神宮>白い恋人パーク':25,
+ '白い恋人パーク>小樽運河':75,'小樽運河>政寿司 本店 小樽':null,'ベッセルホテルカンパーナすすきの>新千歳空港':50
+};
+let RC={};try{RC=JSON.parse(localStorage.getItem('trip-route-cache')||'{}')}catch(e){}
+const saveRC=()=>{try{localStorage.setItem('trip-route-cache',JSON.stringify(RC))}catch(e){}};
+const coordOf=q=>COORD[q]||RC['geo:'+q]||null;
+function km(a,b){const R=6371,r=Math.PI/180,dl=(b[0]-a[0])*r,dn=(b[1]-a[1])*r;
+  const x=Math.sin(dl/2)**2+Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(x))}
+function guess(a,b,m){const d=km(a,b);
+  if(m==='walking')return Math.max(1,Math.round(d*1.3/4.5*60));
+  const sp=d<5?22:d<30?35:55;return Math.round(d*1.35/sp*60)+3}
+const fmt=n=>n==null?'':n<60?`${n} 分`:`${Math.floor(n/60)} 小時${n%60?` ${n%60} 分`:''}`;
+function legTime(p,s,m){
+  const pq=p.q||p.name,q=s.q||s.name;
+  if(m==='transit'){
+    const k=pq+'>'+q;
+    if(k in TR)return TR[k]==null?{t:'走路就好'}:{t:'約 '+fmt(TR[k])};
+    if(s.trmin)return{t:'約 '+fmt(+s.trmin)};
+    return{t:'按怎麼去看'};
+  }
+  const a=coordOf(pq),b=coordOf(q);
+  if(!a||!b)return{t:'計算中',need:true};
+  const key=m+':'+a.join(',')+';'+b.join(',');
+  if(RC[key]!=null)return{t:'約 '+fmt(RC[key])};
+  return{t:'約 '+fmt(guess(a,b,m)),key,a,b};
+}
+// 即時用 OpenStreetMap 路線服務算走路／開車（失敗就用直線距離估計）
+const queue=[];let busy=false,seen=new Set();
+function want(job){if(seen.has(job.id))return;seen.add(job.id);queue.push(job);pump()}
+async function pump(){
+  if(busy)return;busy=true;
+  while(queue.length){
+    const j=queue.shift();
+    try{
+      if(j.geo){
+        const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=jp&q='+enc(j.geo));
+        const x=await r.json();if(x[0]){RC['geo:'+j.geo]=[+x[0].lat,+x[0].lon];saveRC();render()}
+        await new Promise(r=>setTimeout(r,1100));
+      }else{
+        const prof=j.m==='walking'?'routed-foot':'routed-car';
+        const u=`https://routing.openstreetmap.de/${prof}/route/v1/driving/${j.a[1]},${j.a[0]};${j.b[1]},${j.b[0]}?overview=false`;
+        const r=await fetch(u);const x=await r.json();
+        if(x.routes&&x.routes[0]){let n=Math.round(x.routes[0].duration/60);
+          if(j.m==='driving')n=Math.round(n*1.15)+2;   // 市區紅綠燈、停車
+          RC[j.key]=Math.max(1,n);saveRC();
+          document.querySelectorAll(`[data-tk="${CSS.escape(j.key)}"]`).forEach(e=>e.textContent='約 '+fmt(RC[j.key]));}
+      }
+    }catch(e){}
+  }
+  busy=false;
+}
+const segBtns=(m,i,p,s)=>['transit','walking','driving'].map(k=>{
+  const r=legTime(p,s,k);
+  if(r.key)want({id:r.key,key:r.key,a:r.a,b:r.b,m:k});
+  if(r.need){[p,s].forEach(x=>{const q=x.q||x.name;if(!coordOf(q))want({id:'geo:'+q,geo:q})})}
+  return `<button type="button" data-leg="${i}" data-m="${k}" aria-pressed="${m===k}"><span class="ml">${ML[k]}</span><span class="mt"${r.key?` data-tk="${r.key}"`:''}>${r.t}</span></button>`}).join('');
 
 function render(){
   document.getElementById('tabs').innerHTML=data.days.map((d,i)=>`<button class="tab" role="tab" aria-selected="${i===cur}" data-i="${i}"><span class="d">${esc(d.date)}</span><span class="w">週${esc(d.week)}</span></button>`).join('');
@@ -223,7 +309,7 @@ function render(){
       const p=d.stops[i-1],pq=p.q||p.name,m=legMode(s);
       h+=`<div class="leg ${m}"><div></div><div class="rail"></div><div class="legbody">
         ${s.ride?`<div class="ride"><span class="k">預計搭乘</span>${esc(s.ride)}</div>`:''}
-        <div class="row"><div class="seg small">${segBtns(m,i)}</div>
+        <div class="row"><div class="seg small">${segBtns(m,i,p,s)}</div>
         <a class="btn primary" target="_blank" rel="noopener" href="${dir(pq,q,m)}">怎麼去 ›</a></div>
       </div></div>`;
     }
@@ -256,7 +342,7 @@ function open(i){
   const s=i>=0?data.days[cur].stops[i]:{};
   $('ftitle').textContent=i>=0?'編輯景點':'新增一站';
   $('f-name').value=s.name||'';$('f-q').value=s.q||'';$('f-time').value=s.time||'';
-  $('f-mode').value=s.pick||s.mode||T;$('f-ride').value=s.ride||'';$('f-note').value=s.note||'';$('f-warn').value=s.warn||'';
+  $('f-mode').value=s.pick||s.mode||T;$('f-ride').value=s.ride||'';$('f-tr').value=s.trmin||'';$('f-note').value=s.note||'';$('f-warn').value=s.warn||'';
   $('f-del').hidden=i<0;$('scrim').hidden=false;
 }
 const close=()=>{$('scrim').hidden=true};
@@ -264,7 +350,7 @@ $('f-cancel').onclick=close;
 $('scrim').addEventListener('click',e=>{if(e.target.id==='scrim')close()});
 $('form').addEventListener('submit',e=>{
   e.preventDefault();
-  const s={name:$('f-name').value.trim(),q:$('f-q').value.trim(),time:$('f-time').value.trim(),mode:$('f-mode').value,ride:$('f-ride').value.trim(),note:$('f-note').value.trim(),warn:$('f-warn').value.trim()};
+  const s={name:$('f-name').value.trim(),q:$('f-q').value.trim(),time:$('f-time').value.trim(),mode:$('f-mode').value,ride:$('f-ride').value.trim(),trmin:$('f-tr').value.replace(/\D/g,''),note:$('f-note').value.trim(),warn:$('f-warn').value.trim()};
   if(!s.name)return;
   const st=data.days[cur].stops;if(editing>=0)st[editing]=s;else st.push(s);
   save();close();render();
