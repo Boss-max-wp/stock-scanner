@@ -78,6 +78,14 @@ details{border-top:1px solid var(--line);padding-top:10px}
 summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
 details[open] summary{margin-bottom:8px}
 .hint a{color:var(--ink)}
+.unitrow{display:flex;gap:8px}
+select{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--bg);color:var(--ink);font:inherit}
+.btn.sm{padding:8px 10px;white-space:nowrap}
+.btn.photo{text-align:center;display:block}
+.btn.photo[aria-disabled="true"]{opacity:.5;pointer-events:none}
+.linkbtn{background:none;border:0;padding:0;color:var(--muted);font:inherit;font-size:.82rem;cursor:pointer;align-self:flex-start;text-decoration:underline}
+.linkbtn.warn{color:var(--bad);font-weight:700}
+.linkbtn[hidden]{display:none}
 body{margin:0;-webkit-text-size-adjust:100%}
 </style>
 </head>
@@ -91,9 +99,18 @@ body{margin:0;-webkit-text-size-adjust:100%}
 
   <div class="grid">
     <aside class="panel">
-      <label class="label" for="words">你的單字（一行一個，或用逗號分開）</label>
-      <textarea id="words" spellcheck="false" placeholder="postpone&#10;budget&#10;reimburse"></textarea>
-      <p class="hint">可以寫成「reimburse 報銷」，中文會被忽略。片語如 take over 也可以。一次最多 40 個。</p>
+      <label class="label" for="unit">單元</label>
+      <div class="unitrow">
+        <select id="unit"></select>
+        <button id="addunit" class="btn sm" type="button">＋ 新單元</button>
+      </div>
+      <input id="uname" class="key" aria-label="單元名稱" placeholder="單元名稱，例如 Unit 3 Office">
+      <label class="label" for="words">這個單元的單字（一行一個）</label>
+      <textarea id="words" spellcheck="false" placeholder="postpone 延後&#10;budget 預算&#10;reimburse 報銷"></textarea>
+      <label class="btn photo" for="photo" id="photolabel">拍照 / 選照片，自動抓單字</label>
+      <input id="photo" type="file" accept="image/*" multiple hidden>
+      <p class="hint">拍課本或單字書，抓到的單字會加到這個單元的最後面，記得看一下有沒有抓錯。可以一次選好幾張。後面的中文只是給你看的，出題時會忽略。</p>
+      <button id="delunit" class="linkbtn" type="button">刪除這個單元</button>
       <div class="label">作答方式</div>
       <div class="seg" role="group" aria-label="作答方式">
         <button id="m-type" type="button" aria-pressed="true">自己拼</button>
@@ -131,11 +148,35 @@ let mode = "type", quiz = [], idx = 0, results = [], isExample = true, answered 
 
 function store(k,v){try{localStorage.setItem(k,v)}catch(e){}}
 function load(k){try{return localStorage.getItem(k)}catch(e){return null}}
-try{
-  wordsEl.value = load("vc-words") ?? EXAMPLE.map(q=>q.word).join("\n");
-  if(load("vc-mode")==="choice") setMode("choice");
-}catch(e){}
-wordsEl.addEventListener("input",()=>store("vc-words",wordsEl.value));
+let units=null, cur=load("vc-cur");
+try{units=JSON.parse(load("vc-units")||"null")}catch(e){}
+if(!Array.isArray(units)||!units.length){
+  units=[{id:"u"+Date.now().toString(36),name:"單元 1",words:load("vc-words") ?? EXAMPLE.map(q=>q.word+" "+q.meaning).join("\n")}];
+}
+if(!units.some(u=>u.id===cur)) cur=units[0].id;
+const unitSel=$("#unit"), nameEl=$("#uname"), delBtn=$("#delunit");
+const unit=()=>units.find(u=>u.id===cur);
+function saveUnits(){store("vc-units",JSON.stringify(units));store("vc-cur",cur)}
+function optLabel(u){return `${u.name||"未命名單元"}（${parseWords(u.words).length} 字）`}
+function drawUnits(){
+  unitSel.innerHTML=units.map(u=>`<option value="${u.id}">${esc(optLabel(u))}</option>`).join("");
+  unitSel.value=cur; wordsEl.value=unit().words; nameEl.value=unit().name;
+  delBtn.hidden=units.length<2; delBtn.classList.remove("warn"); delBtn.textContent="刪除這個單元";
+}
+function refreshLabel(){const o=unitSel.querySelector(`option[value="${cur}"]`); if(o) o.textContent=optLabel(unit())}
+unitSel.onchange=()=>{cur=unitSel.value;saveUnits();drawUnits()};
+wordsEl.addEventListener("input",()=>{unit().words=wordsEl.value;saveUnits();refreshLabel()});
+nameEl.addEventListener("input",()=>{unit().name=nameEl.value;saveUnits();refreshLabel()});
+$("#addunit").onclick=()=>{
+  const u={id:"u"+Date.now().toString(36),name:`單元 ${units.length+1}`,words:""};
+  units.push(u); cur=u.id; saveUnits(); drawUnits(); nameEl.focus(); nameEl.select();
+  setStatus("新單元建好了。改個名字，再貼單字或拍照。");
+};
+delBtn.onclick=()=>{
+  if(!delBtn.classList.contains("warn")){delBtn.classList.add("warn");delBtn.textContent=`確定刪除「${unit().name}」？再按一次`;return}
+  units=units.filter(u=>u.id!==cur); cur=units[0].id; saveUnits(); drawUnits(); setStatus("單元已刪除。");
+};
+if(load("vc-mode")==="choice") setMode("choice");
 
 function setMode(m){
   mode=m; store("vc-mode",m);
@@ -148,14 +189,14 @@ $("#m-choice").onclick=()=>setMode("choice");
 
 function parseWords(text){
   const out=[], seen=new Set();
-  for(const part of text.split(/[\n,;，、；]+/)){
+  for(const part of String(text).split(/[\n,;，、；]+/)){
     const m=part.trim().match(/^[A-Za-z][A-Za-z'\- ]*[A-Za-z]|^[A-Za-z]/);
     if(!m) continue;
     const w=m[0].replace(/\s+/g," ").trim();
     const key=w.toLowerCase();
     if(!seen.has(key)){seen.add(key);out.push(w)}
   }
-  return out.slice(0,40);
+  return out;
 }
 const norm = s => String(s||"").toLowerCase().replace(/[’']/g,"'").replace(/\s+/g," ").trim();
 function shuffle(a){a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
@@ -196,12 +237,12 @@ if(!keyEl.value) $("#keybox").open=true;
 keyEl.addEventListener("input",()=>store("vc-key",keyEl.value.trim()));
 const MODELS=["gemini-3.5-flash-lite","gemini-3.8-flash"];
 
-async function gemini(text,key){
+async function gemini(text,key,images=[],temperature=0.9){
   let last;
   for(const model of MODELS){
     const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,{
       method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":key},
-      body:JSON.stringify({contents:[{role:"user",parts:[{text}]}],generationConfig:{responseMimeType:"application/json",temperature:0.9}})
+      body:JSON.stringify({contents:[{role:"user",parts:[...images.map(data=>({inlineData:{mimeType:"image/jpeg",data}})),{text}]}],generationConfig:{responseMimeType:"application/json",temperature}})
     }).catch(()=>null);
     if(!r){last={code:"network"};continue}
     const j=await r.json().catch(()=>({}));
@@ -228,11 +269,17 @@ const ERR = {
   network:"連不上 Google，請檢查網路後再試。",
 };
 
-genBtn.onclick = async () => {
-  const words = parseWords(wordsEl.value);
-  if(!words.length){setStatus("請先輸入至少一個英文單字。",true);return}
+function needKey(){
   const key=keyEl.value.trim();
-  if(!key){$("#keybox").open=true;keyEl.focus();setStatus("請先貼上 Gemini 金鑰（說明在下方）。",true);return}
+  if(!key){$("#keybox").open=true;keyEl.focus();setStatus("請先貼上 Gemini 金鑰（說明在下方）。",true)}
+  return key;
+}
+genBtn.onclick = () => generate(parseWords(wordsEl.value));
+async function generate(words){
+  if(!words.length){setStatus("這個單元還沒有單字。先貼上單字，或拍照抓單字。",true);return}
+  const key=needKey(); if(!key) return;
+  let note="";
+  if(words.length>60){words=shuffle(words).slice(0,60);note="單字超過 60 個，這次隨機挑 60 個。"}
   genBtn.disabled=true;
   const chunks=[]; for(let i=0;i<words.length;i+=15) chunks.push(words.slice(i,i+15));
   const made=[];
@@ -245,13 +292,65 @@ genBtn.onclick = async () => {
     if(!made.length) throw {code:"invalid_json"};
     const skipped = words.length-made.length;
     startQuiz(shuffle(made),false);
-    setStatus(`出好 ${made.length} 題了。`+(skipped>0?`有 ${skipped} 個單字沒成功出題。`:""));
+    setStatus(note+`出好 ${made.length} 題了。`+(skipped>0?`有 ${skipped} 個單字沒成功出題。`:""));
   }catch(e){
     const m=ERR[e?.code]||"出題失敗，請再按一次「出題」。";
     if(made.length){startQuiz(shuffle(made),false);setStatus(`只出好 ${made.length} 題，其餘失敗：`+m,true)}
     else setStatus(m,true);
   }finally{genBtn.disabled=false}
+}
+
+const PHOTO_PROMPT=`This photo shows a page from an English textbook, vocabulary book or word list used by a Taiwanese learner preparing for the TOEIC.
+Find the English vocabulary words and phrases the page is teaching: headwords, bold or highlighted words, word lists, glossary entries. Skip page numbers, instructions, people's names, and ordinary words that only appear inside example sentences. Keep phrases (e.g. "take over") together, in dictionary form as printed.
+If a Chinese meaning is printed next to a word, use it; otherwise give a short Traditional Chinese (Taiwan) meaning.
+Reply with only a JSON array in page order, like [{"word":"postpone","zh":"延後"}]. Reply [] if no vocabulary is visible.`;
+
+async function shrink(file){
+  const url=URL.createObjectURL(file);
+  try{
+    const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=url});
+    const k=Math.min(1,1600/Math.max(img.naturalWidth,img.naturalHeight));
+    const c=document.createElement("canvas");
+    c.width=Math.round(img.naturalWidth*k); c.height=Math.round(img.naturalHeight*k);
+    c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+    return c.toDataURL("image/jpeg",0.85).split(",")[1];
+  }finally{URL.revokeObjectURL(url)}
+}
+
+const photoEl=$("#photo"), photoLabel=$("#photolabel");
+photoEl.onchange=async()=>{
+  const files=[...photoEl.files]; photoEl.value="";
+  if(!files.length) return;
+  const key=needKey(); if(!key) return;
+  const u=unit();
+  photoLabel.setAttribute("aria-disabled","true"); genBtn.disabled=true;
+  let added=0, dup=0, failed=0;
+  try{
+    for(let i=0;i<files.length;i++){
+      setStatus(`正在讀第 ${i+1} / ${files.length} 張照片…`);
+      let data;
+      try{data=await shrink(files[i])}catch(e){failed++;continue}
+      let arr;
+      try{arr=await gemini(PHOTO_PROMPT,key,[data],0.2)}
+      catch(e){if(["bad_key","forbidden","rate_limited","network","model"].includes(e?.code)) throw e; failed++; continue}
+      if(!Array.isArray(arr)) {failed++;continue}
+      const have=new Set(parseWords(u.words).map(w=>w.toLowerCase()));
+      const lines=[];
+      for(const it of arr){
+        const w=parseWords(String(it?.word||""))[0]; if(!w) continue;
+        if(have.has(w.toLowerCase())){dup++;continue}
+        have.add(w.toLowerCase()); lines.push(it.zh?`${w} ${String(it.zh).trim()}`:w); added++;
+      }
+      if(lines.length){u.words=(u.words.trim()?u.words.replace(/\s*$/,"\n"):"")+lines.join("\n");saveUnits();if(unit()===u){wordsEl.value=u.words;refreshLabel()}}
+    }
+    let msg=added?`從照片抓到 ${added} 個新單字，已加到「${u.name}」。請檢查一下有沒有抓錯。`:"照片裡沒有找到新的單字。";
+    if(dup) msg+=`另有 ${dup} 個已經在清單裡。`;
+    if(failed) msg+=`有 ${failed} 張照片讀取失敗，可以換一張比較清楚的再試。`;
+    setStatus(msg,!added&&failed>0);
+  }catch(e){setStatus((ERR[e?.code]||"讀照片失敗，請再試一次。")+(added?`（已先加入 ${added} 個單字）`:""),true)}
+  finally{photoLabel.removeAttribute("aria-disabled");genBtn.disabled=false}
 };
+
 function setStatus(t,err){statusEl.textContent=t;statusEl.classList.toggle("err",!!err)}
 
 function startQuiz(qs,example){quiz=qs;idx=0;results=[];isExample=example;render()}
@@ -340,10 +439,11 @@ function finish(){
   $("#again").onclick=()=>startQuiz(shuffle(quiz),isExample);
   if(wrong.length){
     $("#redo").onclick=()=>startQuiz(shuffle(wrong.map(r=>r.q)),isExample);
-    $("#newwrong").onclick=()=>{wordsEl.value=wrong.map(r=>r.q.word).join("\n");store("vc-words",wordsEl.value);genBtn.click()};
+    $("#newwrong").onclick=()=>generate(wrong.map(r=>r.q.word));
   }
 }
 
+drawUnits();
 startQuiz(shuffle(EXAMPLE),true);
 setStatus("右邊是範例題目。換成你的單字後按「出題」。");
 </script>
