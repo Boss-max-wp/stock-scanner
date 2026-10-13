@@ -178,15 +178,15 @@ textarea{min-height:56px;resize:vertical}
 <script>
 const KEY='hokkaido-trip-v2';
 const T='transit',W='walking',D='driving';
-const PLAN={days:[
+const PLAN={rev:2,days:[
  {date:'12/3',week:'四',title:'抵達函館・夜景',city:'函館',stops:[
-  {name:'函館機場',q:'函館空港',time:'16:30'},
-  {name:'Flex Stay Inn 函館站前',q:'フレックステイイン函館駅前',time:'17:28',note:'放行李',mode:T,ride:'函館機場巴士（空港シャトルバス）往「函館駅前」，約 20 分；行李多可搭計程車約 20 分'},
-  {name:'金森紅磚倉庫',q:'金森赤レンガ倉庫',time:'17:58',mode:T,ride:'市電 函館駅前 → 十字街，下車走約 5 分；或直接走路約 15 分'},
-  {name:'函館洋菓子 Snaffles 金森洋物館',q:'スナッフルス 金森洋物館店',time:'18:59',mode:W,ride:'在倉庫群裡，走路 1 分'},
-  {name:'幸運小丑漢堡 灣區本店',q:'ラッキーピエロ ベイエリア本店',time:'19:03',mode:W,ride:'走路約 4 分'},
-  {name:'函館山纜車 山頂展望台',q:'函館山ロープウェイ 山麓駅',time:'20:26',mode:W,ride:'走到纜車山麓站約 10–15 分（上坡，雪天小心）＋ 纜車約 3 分上山；累了可叫計程車',warn:'冬季纜車大約營業到 21:00，最後上山約 20:30。你排 20:26 到、停留 1.5 小時會來不及，建議把夜景提前到 19:00 左右，漢堡改到看完夜景再吃。'},
-  {name:'Flex Stay Inn 函館站前',q:'フレックステイイン函館駅前',time:'22:25',mode:T,ride:'纜車下山 → 走到「十字街」→ 市電往函館駅前約 5 分；或計程車約 10 分'}]},
+  {name:'函館機場',q:'函館空港',time:'16:30',note:'國際線入境＋領行李大約 30 分到 1 小時'},
+  {name:'Flex Stay Inn 函館站前',q:'フレックステイイン函館駅前',time:'17:45',note:'放行李，快速出發',mode:T,ride:'函館機場巴士（空港シャトルバス）往「函館駅前」，約 20 分；趕時間可搭計程車約 20 分'},
+  {name:'金森紅磚倉庫',q:'金森赤レンガ倉庫',time:'18:00',note:'聖誕夢幻節往年每天 18:00 點燈＋煙火，晚到樹也會一直亮著',mode:W,ride:'走路約 15 分；或市電 函館駅前 → 十字街，下車走約 5 分'},
+  {name:'函館洋菓子 Snaffles 金森洋物館',q:'スナッフルス 金森洋物館店',time:'18:20',note:'先買起司蛋糕，這家大約 19:00 關門',mode:W,ride:'在倉庫群裡，走路 1 分'},
+  {name:'函館山纜車 山頂展望台',q:'函館山ロープウェイ 山麓駅',time:'18:45',note:'上山看夜景到 19:45 左右。風大時纜車會停駛，出門前確認',mode:W,ride:'走到纜車山麓站約 10–15 分（上坡，雪天小心）＋ 纜車約 3 分上山'},
+  {name:'幸運小丑漢堡 灣區本店',q:'ラッキーピエロ ベイエリア本店',time:'20:15',note:'晚餐，這家開得比較晚',mode:W,ride:'纜車下山後走下坡約 15 分'},
+  {name:'Flex Stay Inn 函館站前',q:'フレックステイイン函館駅前',time:'21:30',mode:T,ride:'走路約 15 分；或從「十字街」搭市電往函館駅前約 5 分'}]},
  {date:'12/4',week:'五',title:'大沼・湯之川・五稜郭',city:'函館',stops:[
   {name:'Flex Stay Inn 函館站前',q:'フレックステイイン函館駅前',time:'08:00'},
   {name:'函館朝市 駅二市場',q:'函館朝市 駅二市場',time:'08:35',mode:W,ride:'走路約 5 分'},
@@ -231,6 +231,9 @@ const PLAN={days:[
 let data,cur=0,editing=null,allMode='plan';
 const clone=o=>JSON.parse(JSON.stringify(o));
 try{const s=localStorage.getItem(KEY);data=s?JSON.parse(s):clone(PLAN)}catch(e){data=clone(PLAN)}
+// 一次性更新：套用新的 12/3 行程（保留其他天的修改）
+if((data.rev||1)<2){const k=data.days.findIndex(d=>d.date==='12/3');const nd=clone(PLAN.days[0]);
+  if(k>=0)data.days[k]=nd;else data.days.unshift(nd);data.rev=2;try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){}}
 try{cur=+(localStorage.getItem(KEY+'-tab')||0)}catch(e){}
 if(!(cur>=0&&cur<data.days.length))cur=0;
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){}};
@@ -258,7 +261,7 @@ const COORD={
 const TR={
  '函館空港>フレックステイイン函館駅前':25,'フレックステイイン函館駅前>金森赤レンガ倉庫':15,'金森赤レンガ倉庫>スナッフルス 金森洋物館店':null,
  'スナッフルス 金森洋物館店>ラッキーピエロ ベイエリア本店':null,'ラッキーピエロ ベイエリア本店>函館山ロープウェイ 山麓駅':15,
- '函館山ロープウェイ 山麓駅>フレックステイイン函館駅前':20,'フレックステイイン函館駅前>函館朝市 駅二市場':null,
+ '函館山ロープウェイ 山麓駅>フレックステイイン函館駅前':20,'スナッフルス 金森洋物館店>函館山ロープウェイ 山麓駅':15,'函館山ロープウェイ 山麓駅>ラッキーピエロ ベイエリア本店':15,'ラッキーピエロ ベイエリア本店>フレックステイイン函館駅前':15,'フレックステイイン函館駅前>函館朝市 駅二市場':null,
  '函館朝市 駅二市場>大沼公園駅':35,'大沼公園駅>沼の家 大沼':null,'沼の家 大沼>滋養軒 函館':40,'滋養軒 函館>函館市熱帯植物園':40,
  '函館市熱帯植物園>六花亭 函館漁火通店':15,'六花亭 函館漁火通店>五稜郭公園':30,'五稜郭公園>五島軒 函館カレーEXPRESS 五稜郭タワー店':null,
  '五島軒 函館カレーEXPRESS 五稜郭タワー店>フレックステイイン函館駅前':25,'函館朝市 駅二市場>函館駅':null,'函館駅>札幌駅':230,
