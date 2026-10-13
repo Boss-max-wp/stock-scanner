@@ -74,6 +74,14 @@ textarea:focus,input:focus,button:focus-visible{outline:2px solid var(--accent);
 .wrong{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
 .wrong li{border-bottom:1px solid var(--line);padding-bottom:8px;display:flex;gap:10px;flex-wrap:wrap;align-items:baseline}
 .example{font-size:.8rem;color:var(--muted)}
+.allres{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.allres li{display:grid;grid-template-columns:auto auto minmax(0,1fr);gap:4px 10px;padding:10px 0;border-bottom:1px solid var(--line);align-items:baseline}
+.allres .no{font-family:var(--f-mono);font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;min-width:2ch;text-align:right}
+.allres .mk{font-weight:700}
+.allres .mk.ok{color:var(--good)} .allres .mk.no{color:var(--bad)}
+.allres .line{display:flex;gap:10px;flex-wrap:wrap;align-items:baseline;min-width:0}
+.allres .ex{grid-column:3;font-size:.88rem;color:var(--muted);overflow-wrap:anywhere}
+.allres .ex b{color:var(--ink);font-weight:600}
 kbd{font-family:var(--f-mono);font-size:.75rem;border:1px solid var(--line);border-radius:4px;padding:0 4px}
 @media (prefers-reduced-motion:reduce){.bar i{transition:none}}
 input.key{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--bg);color:var(--ink);font-family:var(--f-mono);font-size:.85rem}
@@ -228,7 +236,7 @@ select.n{flex:none;width:100%}
     </aside>
     <section id="stage-meaning" class="card" aria-live="polite"></section>
   </section>
-  <p class="hint" style="text-align:center">版本 10/14-7</p>
+  <p class="hint" style="text-align:center">版本 10/14-8</p>
 </div>
 
 <script>
@@ -703,7 +711,11 @@ function makeRunner(kind){
         ${wrong.length?'<button class="btn" data-act="redo" type="button">只練錯的</button>':""}
         <button class="btn" data-act="again" type="button">整份再做一次</button>
         ${wrong.length&&kind==="cloze"?'<button class="btn primary" data-act="fresh" type="button">錯的單字換新句子</button>':""}
-      </div>`;
+      </div>
+      <div class="label">這次考的所有單字和中文</div>
+      <ol class="allres">${S.results.map((r,i)=>`<li><span class="no">${i+1}</span><span class="mk ${r.ok?"ok":"no"}" aria-label="${r.ok?"答對":"答錯"}">${r.ok?"✓":"✗"}</span>
+        <span class="line"><span class="word">${esc(r.q.word)}</span><span>${esc(mean(r))}</span></span>
+        ${kind==="cloze"?`<span class="ex">${esc(r.q.sentence).replace("____",`<b>${esc(r.q.answer)}</b>`)}<br>${esc(r.q.zh)}</span>`:""}</li>`).join("")}</ol>`;
     stage.querySelector('[data-act="again"]').onclick=()=>start(shuffle(S.items),S.example);
     if(wrong.length){
       stage.querySelector('[data-act="redo"]').onclick=()=>start(shuffle(wrong.map(r=>r.q)),S.example);
