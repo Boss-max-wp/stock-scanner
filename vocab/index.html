@@ -102,7 +102,8 @@ body{margin:0;-webkit-text-size-adjust:100%}
 input.uname{font-family:var(--f-read);font-size:1.5rem;font-weight:600;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--ink);padding:2px 0;width:100%;border-radius:0}
 .seg.small button{padding:5px 10px;font-size:.85rem}
 .vocab{list-style:none;margin:0;padding:0}
-.vocab li{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(0,1.2fr);gap:12px;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer;align-items:center;border-radius:6px;transition:background .2s}
+.vocab .no{font-family:var(--f-mono);font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;min-width:2ch;text-align:right}
+.vocab li{display:grid;grid-template-columns:auto auto minmax(0,1fr) minmax(0,1.2fr);gap:12px;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer;align-items:center;border-radius:6px;transition:background .2s}
 .vocab li.speaking{background:var(--accent-soft)}
 .say{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--paper);color:var(--ink);display:grid;place-items:center;cursor:pointer;padding:0}
 .say:hover{border-color:var(--muted)}
@@ -186,6 +187,7 @@ select.n{flex:none;width:100%}
           <button type="button" data-read="en">只念英文</button>
         </div>
         <select id="rate" aria-label="念的速度"><option value="0.7">慢速</option><option value="0.9">正常</option><option value="1.1">快速</option></select>
+        <select id="gap" aria-label="單字之間停幾秒"><option value="0">不停頓</option><option value="1">間隔 1 秒</option><option value="3">間隔 3 秒</option><option value="5">間隔 5 秒</option></select>
       </div>
       <ul id="vocab" class="vocab"></ul>
       <p id="maskhint" class="hint">點一下那一行，就會顯示被遮住的部分。</p>
@@ -226,7 +228,7 @@ select.n{flex:none;width:100%}
     </aside>
     <section id="stage-meaning" class="card" aria-live="polite"></section>
   </section>
-  <p class="hint" style="text-align:center">版本 10/14-5</p>
+  <p class="hint" style="text-align:center">版本 10/14-6</p>
 </div>
 
 <script>
@@ -290,7 +292,7 @@ function drawVocab(){
   const es=parseEntries(unit().words);
   $("#ucount").textContent=`${es.length} 個單字`;
   stopSpeaking();
-  $("#vocab").innerHTML = es.length ? es.map((e,i)=>`<li data-i="${i}">${TTS_OK?`<button class="say" type="button" aria-label="念 ${esc(e.word)}">${SPEAKER}</button>`:"<span></span>"}<span class="en ${mask==="en"?"hide":""}">${esc(e.word)}</span><span class="zh ${e.zh?"":"none"} ${mask==="zh"&&e.zh?"hide":""}">${e.zh?esc(e.zh):"（還沒有中文）"}</span></li>`).join("")
+  $("#vocab").innerHTML = es.length ? es.map((e,i)=>`<li data-i="${i}"><span class="no">${i+1}</span>${TTS_OK?`<button class="say" type="button" aria-label="念 ${esc(e.word)}">${SPEAKER}</button>`:"<span></span>"}<span class="en ${mask==="en"?"hide":""}">${esc(e.word)}</span><span class="zh ${e.zh?"":"none"} ${mask==="zh"&&e.zh?"hide":""}">${e.zh?esc(e.zh):"（還沒有中文）"}</span></li>`).join("")
     : `<li class="empty">這個單元還沒有單字。按「拍照 / 選照片加單字」，或「編輯單字」自己打。</li>`;
   $("#maskhint").hidden = mask==="none" || !es.length;
   document.querySelectorAll("[data-mask]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.mask===mask));
@@ -324,24 +326,37 @@ function pickVoice(lang){
 let readMode=load("vc-read")==="en"?"en":"both";
 const rateEl=$("#rate"); rateEl.value=["0.7","0.9","1.1"].includes(load("vc-rate"))?load("vc-rate"):"0.9";
 rateEl.onchange=()=>store("vc-rate",rateEl.value);
+const gapEl=$("#gap"); gapEl.value=["0","1","3","5"].includes(load("vc-gap"))?load("vc-gap"):"3";
+gapEl.onchange=()=>store("vc-gap",gapEl.value);
+let playToken=0, gapTimer=null;
 let playing=false;
 function mark(i){document.querySelectorAll("#vocab li.speaking").forEach(x=>x.classList.remove("speaking")); if(i==null) return; const li=document.querySelector(`#vocab li[data-i="${i}"]`); if(li){li.classList.add("speaking"); if(playing) li.scrollIntoView({block:"nearest",behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"})}}
 function utter(text,lang){const u=new SpeechSynthesisUtterance(text);u.lang=lang;const v=pickVoice(lang);if(v)u.voice=v;u.rate=Number(rateEl.value)||0.9;return u}
-function stopSpeaking(){ if(!TTS_OK) return; playing=false; try{speechSynthesis.cancel()}catch(e){} mark(null); const b=$("#playall"); if(b) b.textContent="全部念一遍"; }
+function stopSpeaking(){ if(!TTS_OK) return; playing=false; playToken++; clearTimeout(gapTimer); try{speechSynthesis.cancel()}catch(e){} mark(null); const b=$("#playall"); if(b) b.textContent="全部念一遍"; }
 function speak(list,all){
   stopSpeaking();
   if(!list.length) return;
   playing=all;
   if(all) $("#playall").textContent="停止";
-  const queue=[];
-  list.forEach(({e,i})=>{
-    const a=utter(e.word,"en-US"); a.onstart=()=>mark(i); queue.push(a);
-    if(readMode==="both"&&e.zh){queue.push(utter(e.zh.replace(/[；;／/]/g,"，"),"zh-TW"))}
-  });
-  const last=queue[queue.length-1];
-  const done=()=>{ if(last.__done) return; last.__done=true; playing=false; mark(null); $("#playall").textContent="全部念一遍"; };
-  last.onend=done; last.onerror=done;
-  queue.forEach(u=>speechSynthesis.speak(u));
+  const token=playToken;
+  const finish=()=>{ if(token!==playToken) return; playing=false; mark(null); $("#playall").textContent="全部念一遍"; };
+  /* 一次念一個單字（英文＋中文），念完停幾秒再念下一個 */
+  const step=k=>{
+    if(token!==playToken) return;
+    if(k>=list.length){finish();return}
+    const {e,i}=list[k];
+    const parts=[utter(e.word,"en-US")];
+    if(readMode==="both"&&e.zh) parts.push(utter(e.zh.replace(/[；;／/]/g,"，"),"zh-TW"));
+    parts[0].onstart=()=>{ if(token===playToken) mark(i) };
+    const last=parts[parts.length-1];
+    let moved=false;
+    const next=()=>{ if(moved||token!==playToken) return; moved=true;
+      const gap=all?Number(gapEl.value)||0:0;
+      gapTimer=setTimeout(()=>step(k+1),gap*1000); };
+    last.onend=next; last.onerror=next;
+    parts.forEach(u=>speechSynthesis.speak(u));
+  };
+  step(0);
 }
 $("#playall").onclick=()=>{
   if(playing){stopSpeaking();return}
