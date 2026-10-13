@@ -86,7 +86,33 @@ select{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;padding
 .linkbtn{background:none;border:0;padding:0;color:var(--muted);font:inherit;font-size:.82rem;cursor:pointer;align-self:flex-start;text-decoration:underline}
 .linkbtn.warn{color:var(--bad);font-weight:700}
 .linkbtn[hidden]{display:none}
+[hidden]{display:none!important}
 body{margin:0;-webkit-text-size-adjust:100%}
+.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;gap:4px;padding-block:8px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tabs button{flex:0 0 auto;border:0;background:transparent;font:inherit;font-weight:500;padding:8px 14px;border-radius:8px;color:var(--muted);cursor:pointer}
+.tabs button[aria-current="page"]{background:var(--ink);color:var(--paper)}
+.unitlist{display:flex;flex-direction:column;gap:6px}
+.unititem{display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;width:100%}
+.unititem[aria-current="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.unititem span:first-child{min-width:0;overflow-wrap:anywhere}
+.count{font-family:var(--f-mono);font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+input.uname{font-family:var(--f-read);font-size:1.5rem;font-weight:600;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--ink);padding:2px 0;width:100%;border-radius:0}
+.seg.small button{padding:5px 10px;font-size:.85rem}
+.vocab{list-style:none;margin:0;padding:0}
+.vocab li{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:14px;padding:10px 4px;border-bottom:1px solid var(--line);cursor:pointer;align-items:baseline}
+.vocab li.empty{display:block;cursor:default;color:var(--muted);border:0}
+.vocab .en{font-family:var(--f-read);font-size:1.15rem;font-weight:600;overflow-wrap:anywhere}
+.vocab .zh{overflow-wrap:anywhere}
+.vocab .zh.none{color:var(--muted);font-size:.85rem}
+.vocab .hide{color:transparent;background:var(--line);border-radius:4px;user-select:none}
+.vocab li.show .hide{color:inherit;background:none}
+.checks{display:flex;flex-direction:column;gap:6px;max-height:280px;overflow:auto}
+.check{display:flex;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer}
+.check input{accent-color:var(--accent);width:18px;height:18px;flex:none}
+.check span:nth-child(2){flex:1;min-width:0;overflow-wrap:anywhere}
+.bigword{font-family:var(--f-read);font-size:2.6rem;font-weight:600;margin:0;line-height:1.2;overflow-wrap:anywhere}
+.opt.zh{font-family:var(--f-ui);font-size:1rem}
+select.n{flex:none;width:100%}
 </style>
 </head>
 <body>
@@ -94,42 +120,92 @@ body{margin:0;-webkit-text-size-adjust:100%}
 <div class="wrap">
   <header>
     <h1><span>單字填空機</span></h1>
-    <p>貼上英文單字，自動產生多益風格的填空題。</p>
+    <p>多益單字：分單元複習，再用填空題和英翻中練習。</p>
   </header>
 
-  <div class="grid">
+  <nav class="tabs" aria-label="頁面">
+    <button type="button" data-page="units">單元複習</button>
+    <button type="button" data-page="cloze">填空題</button>
+    <button type="button" data-page="meaning">英翻中</button>
+  </nav>
+
+  <!-- 單元 -->
+  <section id="p-units" class="grid">
     <aside class="panel">
-      <label class="label" for="unit">單元</label>
-      <div class="unitrow">
-        <select id="unit"></select>
-        <button id="addunit" class="btn sm" type="button">＋ 新單元</button>
-      </div>
-      <input id="uname" class="key" aria-label="單元名稱" placeholder="單元名稱，例如 Unit 3 Office">
-      <label class="label" for="words">這個單元的單字（一行一個）</label>
-      <textarea id="words" spellcheck="false" placeholder="postpone 延後&#10;budget 預算&#10;reimburse 報銷"></textarea>
-      <label class="btn photo" for="photo" id="photolabel">拍照 / 選照片，自動抓單字</label>
-      <input id="photo" type="file" accept="image/*" multiple hidden>
-      <p class="hint">拍課本或單字書，抓到的單字會加到這個單元的最後面，記得看一下有沒有抓錯。可以一次選好幾張。後面的中文只是給你看的，出題時會忽略。</p>
-      <button id="delunit" class="linkbtn" type="button">刪除這個單元</button>
-      <div class="label">作答方式</div>
-      <div class="seg" role="group" aria-label="作答方式">
-        <button id="m-type" type="button" aria-pressed="true">自己拼</button>
-        <button id="m-choice" type="button" aria-pressed="false">四選一</button>
-      </div>
-      <button id="gen" class="btn primary" type="button">出題</button>
-      <p id="status" class="status" role="status"></p>
+      <div class="label">我的單元</div>
+      <div id="unitlist" class="unitlist"></div>
+      <button id="addunit" class="btn" type="button">＋ 新單元</button>
       <details id="keybox">
         <summary>Gemini 金鑰設定</summary>
         <div style="display:flex;flex-direction:column;gap:8px">
           <label class="label" for="key">Gemini API 金鑰</label>
           <input id="key" class="key" type="password" autocomplete="off" spellcheck="false" placeholder="AIza…">
-          <p class="hint">出題用 Google 的 Gemini（免費）。到 <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> 用 Google 帳號登入、按「建立 API 金鑰」，複製貼在這裡。金鑰只存在這台裝置的瀏覽器，不會上傳到網站。</p>
+          <p class="hint">拍照抓單字、出填空題、補中文都會用到 Google 的 Gemini（免費）。到 <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> 用 Google 帳號登入、按「建立 API 金鑰」，複製貼在這裡。金鑰只存在這台裝置的瀏覽器。</p>
         </div>
       </details>
     </aside>
 
-    <section id="stage" class="card" aria-live="polite"></section>
-  </div>
+    <div class="card">
+      <input id="uname" class="uname" aria-label="單元名稱" placeholder="單元名稱，例如 Unit 3 Office">
+      <div class="meta">
+        <span id="ucount" class="count"></span>
+        <div class="seg small" role="group" aria-label="複習方式">
+          <button type="button" data-mask="none">全部顯示</button>
+          <button type="button" data-mask="zh">遮中文</button>
+          <button type="button" data-mask="en">遮英文</button>
+        </div>
+      </div>
+      <ul id="vocab" class="vocab"></ul>
+      <p id="maskhint" class="hint">點一下那一行，就會顯示被遮住的部分。</p>
+      <div class="row">
+        <label class="btn photo" for="photo" id="photolabel">拍照 / 選照片加單字</label>
+        <input id="photo" type="file" accept="image/*" multiple hidden>
+        <button id="editbtn" class="btn" type="button">編輯單字</button>
+        <button id="fillzh" class="btn" type="button" hidden>補上缺的中文</button>
+      </div>
+      <div id="editbox" hidden style="display:flex;flex-direction:column;gap:8px">
+        <label class="label" for="words">一行一個單字，後面可以接中文，例如「postpone 延後」</label>
+        <textarea id="words" spellcheck="false" placeholder="postpone 延後&#10;budget 預算&#10;reimburse 報銷"></textarea>
+        <button id="editdone" class="btn primary" type="button" style="align-self:flex-start">完成</button>
+      </div>
+      <p id="st-units" class="status" role="status"></p>
+      <button id="delunit" class="linkbtn" type="button">刪除這個單元</button>
+    </div>
+  </section>
+
+  <!-- 填空題 -->
+  <section id="p-cloze" class="grid" hidden>
+    <aside class="panel">
+      <div class="label">要考哪些單元</div>
+      <div id="sel-cloze" class="checks"></div>
+      <div class="row"><button class="linkbtn" type="button" data-all="cloze">全選</button><button class="linkbtn" type="button" data-none="cloze">全不選</button></div>
+      <label class="label" for="n-cloze">題數</label>
+      <select id="n-cloze" class="n"><option value="10">10 題</option><option value="20">20 題</option><option value="30">30 題</option><option value="60">全部（最多 60 題）</option></select>
+      <div class="label">作答方式</div>
+      <div class="seg" role="group" aria-label="作答方式">
+        <button id="m-choice" type="button" aria-pressed="true">四選一</button>
+        <button id="m-type" type="button" aria-pressed="false">自己拼</button>
+      </div>
+      <button id="gen-cloze" class="btn primary" type="button">出題</button>
+      <p id="st-cloze" class="status" role="status"></p>
+    </aside>
+    <section id="stage-cloze" class="card" aria-live="polite"></section>
+  </section>
+
+  <!-- 英翻中 -->
+  <section id="p-meaning" class="grid" hidden>
+    <aside class="panel">
+      <div class="label">要考哪些單元</div>
+      <div id="sel-meaning" class="checks"></div>
+      <div class="row"><button class="linkbtn" type="button" data-all="meaning">全選</button><button class="linkbtn" type="button" data-none="meaning">全不選</button></div>
+      <label class="label" for="n-meaning">題數</label>
+      <select id="n-meaning" class="n"><option value="10">10 題</option><option value="20">20 題</option><option value="30">30 題</option><option value="999">全部</option></select>
+      <button id="gen-meaning" class="btn primary" type="button">開始</button>
+      <p class="hint">看英文，從四個中文意思選出正確的。用的是單元裡的中文；沒有中文的單字會先用 Gemini 補上。</p>
+      <p id="st-meaning" class="status" role="status"></p>
+    </aside>
+    <section id="stage-meaning" class="card" aria-live="polite"></section>
+  </section>
 </div>
 
 <script>
@@ -143,100 +219,91 @@ const EXAMPLE = [
 ];
 
 const $ = s => document.querySelector(s);
-const stage = $("#stage"), statusEl = $("#status"), wordsEl = $("#words"), genBtn = $("#gen");
-let mode = "type", quiz = [], idx = 0, results = [], isExample = true, answered = false, hintUsed = false;
-
 function store(k,v){try{localStorage.setItem(k,v)}catch(e){}}
 function load(k){try{return localStorage.getItem(k)}catch(e){return null}}
-let units=null, cur=load("vc-cur");
-try{units=JSON.parse(load("vc-units")||"null")}catch(e){}
-if(!Array.isArray(units)||!units.length){
-  units=[{id:"u"+Date.now().toString(36),name:"單元 1",words:load("vc-words") ?? EXAMPLE.map(q=>q.word+" "+q.meaning).join("\n")}];
-}
-if(!units.some(u=>u.id===cur)) cur=units[0].id;
-const unitSel=$("#unit"), nameEl=$("#uname"), delBtn=$("#delunit");
-const unit=()=>units.find(u=>u.id===cur);
-function saveUnits(){store("vc-units",JSON.stringify(units));store("vc-cur",cur)}
-function optLabel(u){return `${u.name||"未命名單元"}（${parseWords(u.words).length} 字）`}
-function drawUnits(){
-  unitSel.innerHTML=units.map(u=>`<option value="${u.id}">${esc(optLabel(u))}</option>`).join("");
-  unitSel.value=cur; wordsEl.value=unit().words; nameEl.value=unit().name;
-  delBtn.hidden=units.length<2; delBtn.classList.remove("warn"); delBtn.textContent="刪除這個單元";
-}
-function refreshLabel(){const o=unitSel.querySelector(`option[value="${cur}"]`); if(o) o.textContent=optLabel(unit())}
-unitSel.onchange=()=>{cur=unitSel.value;saveUnits();drawUnits()};
-wordsEl.addEventListener("input",()=>{unit().words=wordsEl.value;saveUnits();refreshLabel()});
-nameEl.addEventListener("input",()=>{unit().name=nameEl.value;saveUnits();refreshLabel()});
-$("#addunit").onclick=()=>{
-  const u={id:"u"+Date.now().toString(36),name:`單元 ${units.length+1}`,words:""};
-  units.push(u); cur=u.id; saveUnits(); drawUnits(); nameEl.focus(); nameEl.select();
-  setStatus("新單元建好了。改個名字，再貼單字或拍照。");
-};
-delBtn.onclick=()=>{
-  if(!delBtn.classList.contains("warn")){delBtn.classList.add("warn");delBtn.textContent=`確定刪除「${unit().name}」？再按一次`;return}
-  units=units.filter(u=>u.id!==cur); cur=units[0].id; saveUnits(); drawUnits(); setStatus("單元已刪除。");
-};
-if(load("vc-mode")==="choice") setMode("choice");
+function loadJSON(k,d){try{const v=JSON.parse(load(k)||"null");return v??d}catch(e){return d}}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+const norm = s => String(s||"").toLowerCase().replace(/[’']/g,"'").replace(/\s+/g," ").trim();
+function shuffle(a){a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function setSt(id,t,err){const el=$("#st-"+id);el.textContent=t||"";el.classList.toggle("err",!!err)}
+const newId=()=>"u"+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 
-function setMode(m){
-  mode=m; store("vc-mode",m);
-  $("#m-type").setAttribute("aria-pressed",m==="type");
-  $("#m-choice").setAttribute("aria-pressed",m==="choice");
-  if(quiz.length && idx<quiz.length && !answered) render();
-}
-$("#m-type").onclick=()=>setMode("type");
-$("#m-choice").onclick=()=>setMode("choice");
-
-function parseWords(text){
+/* ---------- 單字解析：一行「英文 中文」 ---------- */
+const CJK=/[\u3400-\u9fff\u3000-\u303f\uff00-\uffef]/;
+function parseEntries(text){
   const out=[], seen=new Set();
-  for(const part of String(text).split(/[\n,;，、；]+/)){
-    const m=part.trim().match(/^[A-Za-z][A-Za-z'\- ]*[A-Za-z]|^[A-Za-z]/);
-    if(!m) continue;
-    const w=m[0].replace(/\s+/g," ").trim();
-    const key=w.toLowerCase();
-    if(!seen.has(key)){seen.add(key);out.push(w)}
+  for(const line of String(text||"").split(/\n+/)){
+    const parts = CJK.test(line) ? [line] : line.split(/[,;]+/);
+    for(const part of parts){
+      const t=part.trim();
+      const m=t.match(/^[A-Za-z][A-Za-z'\- ]*[A-Za-z]|^[A-Za-z]/);
+      if(!m) continue;
+      const word=m[0].replace(/\s+/g," ").trim(), key=word.toLowerCase();
+      if(seen.has(key)) continue;
+      seen.add(key);
+      const zh=t.slice(m[0].length).replace(/^[\s:：=\-–—]+/,"").trim();
+      out.push({word,zh});
+    }
   }
   return out;
 }
-const norm = s => String(s||"").toLowerCase().replace(/[’']/g,"'").replace(/\s+/g," ").trim();
-function shuffle(a){a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
-function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+const parseWords = t => parseEntries(t).map(e=>e.word);
 
-function clean(q, word){
-  if(!q || typeof q!=="object") return null;
-  let answer=String(q.answer||word||"").trim(), sentence=String(q.sentence||"");
-  if(!answer||!sentence) return null;
-  if(!/_{2,}/.test(sentence)){
-    const re=new RegExp("\\b"+answer.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b","i");
-    if(!re.test(sentence)) return null;
-    sentence=sentence.replace(re,"____");
-  }
-  sentence=sentence.replace(/_{2,}/,"____");
-  let options=Array.isArray(q.options)?q.options.map(String).filter(Boolean):[];
-  if(!options.some(o=>norm(o)===norm(answer))) options=[answer,...options];
-  options=[...new Map(options.map(o=>[norm(o),o])).values()].slice(0,4);
-  return {word:String(q.word||word),answer,sentence,options,pos:String(q.pos||""),meaning:String(q.meaning||""),zh:String(q.zh||"")};
+/* ---------- 單元 ---------- */
+let units=loadJSON("vc-units",null);
+if(!Array.isArray(units)||!units.length){
+  const legacy=load("vc-words");
+  units=[{id:newId(),name:legacy?"單元 1":"範例單元",words:legacy ?? EXAMPLE.map(q=>q.word+" "+q.meaning).join("\n")}];
 }
+let cur=load("vc-cur"); if(!units.some(u=>u.id===cur)) cur=units[0].id;
+let mask=load("vc-mask")||"none";
+const unit=()=>units.find(u=>u.id===cur);
+const unitById=id=>units.find(u=>u.id===id);
+function saveUnits(){store("vc-units",JSON.stringify(units));store("vc-cur",cur)}
 
-function prompt(words){
-  return `You write TOEIC-style vocabulary fill-in-the-blank questions for a Taiwanese learner.
-For EACH word or phrase below, write ONE natural English sentence (12-24 words) in a workplace, business, travel or daily-life context typical of the TOEIC exam. The sentence must clearly need that word; use an inflected form (e.g. -ed, -s, -ing) when grammar requires it.
-
-Reply with only a JSON array, one object per word, in the same order:
-{"word": the word as given, "answer": the exact form used in the sentence, "sentence": the sentence with that form replaced by "____" (four underscores, exactly once), "pos": part of speech like "n.", "v.", "adj.", "adv.", "phr.", "meaning": short meaning in Traditional Chinese (Taiwan), "zh": the full sentence translated into Traditional Chinese (Taiwan), "options": 4 strings — the answer plus 3 wrong choices in the same grammatical form that do NOT fit the sentence (prefer other words from this list)}
-
-Example: {"word":"postpone","answer":"postponed","sentence":"The meeting was ____ until Friday because the manager was sick.","pos":"v.","meaning":"延後","zh":"因為經理生病，會議延到週五。","options":["postponed","reimbursed","negotiated","attended"]}
-
-Words:
-${words.join("\n")}`;
+const nameEl=$("#uname"), wordsEl=$("#words"), delBtn=$("#delunit");
+function drawUnitList(){
+  $("#unitlist").innerHTML=units.map(u=>`<button type="button" class="btn unititem" data-id="${u.id}" aria-current="${u.id===cur}"><span>${esc(u.name||"未命名單元")}</span><span class="count">${parseEntries(u.words).length} 字</span></button>`).join("");
 }
+function drawVocab(){
+  const es=parseEntries(unit().words);
+  $("#ucount").textContent=`${es.length} 個單字`;
+  $("#vocab").innerHTML = es.length ? es.map(e=>`<li><span class="en ${mask==="en"?"hide":""}">${esc(e.word)}</span><span class="zh ${e.zh?"":"none"} ${mask==="zh"&&e.zh?"hide":""}">${e.zh?esc(e.zh):"（還沒有中文）"}</span></li>`).join("")
+    : `<li class="empty">這個單元還沒有單字。按「拍照 / 選照片加單字」，或「編輯單字」自己打。</li>`;
+  $("#maskhint").hidden = mask==="none" || !es.length;
+  document.querySelectorAll("[data-mask]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.mask===mask));
+  $("#fillzh").hidden = !es.some(e=>!e.zh);
+}
+function drawUnit(){
+  drawUnitList();
+  nameEl.value=unit().name;
+  if(document.activeElement!==wordsEl) wordsEl.value=unit().words;
+  drawVocab();
+  delBtn.hidden=units.length<2; delBtn.classList.remove("warn"); delBtn.textContent="刪除這個單元";
+}
+$("#unitlist").onclick=e=>{const b=e.target.closest(".unititem"); if(!b) return; cur=b.dataset.id; saveUnits(); $("#editbox").hidden=true; setSt("units",""); drawUnit()};
+$("#vocab").onclick=e=>{const li=e.target.closest("li"); if(li&&!li.classList.contains("empty")) li.classList.toggle("show")};
+document.querySelectorAll("[data-mask]").forEach(b=>b.onclick=()=>{mask=b.dataset.mask;store("vc-mask",mask);drawVocab()});
+nameEl.addEventListener("input",()=>{unit().name=nameEl.value;saveUnits();drawUnitList()});
+wordsEl.addEventListener("input",()=>{unit().words=wordsEl.value;saveUnits();drawUnitList();drawVocab()});
+$("#editbtn").onclick=()=>{const box=$("#editbox");box.hidden=!box.hidden;if(!box.hidden){wordsEl.value=unit().words;wordsEl.focus()}};
+$("#editdone").onclick=()=>{$("#editbox").hidden=true};
+$("#addunit").onclick=()=>{
+  const u={id:newId(),name:`單元 ${units.length+1}`,words:""};
+  units.push(u); cur=u.id; saveUnits(); drawUnit(); nameEl.focus(); nameEl.select();
+  setSt("units","新單元建好了。先改名字，再拍照或編輯單字。");
+};
+delBtn.onclick=()=>{
+  if(!delBtn.classList.contains("warn")){delBtn.classList.add("warn");delBtn.textContent=`確定刪除「${unit().name}」？再按一次`;return}
+  const gone=unit().name; units=units.filter(u=>u.id!==cur); cur=units[0].id; saveUnits(); drawUnit(); setSt("units",`「${gone}」已刪除。`);
+};
 
+/* ---------- Gemini ---------- */
 const keyEl=$("#key");
 keyEl.value=load("vc-key")||"";
 if(!keyEl.value) $("#keybox").open=true;
 keyEl.addEventListener("input",()=>store("vc-key",keyEl.value.trim()));
 const MODELS=["gemini-3.5-flash-lite","gemini-3.8-flash"];
-
 async function gemini(text,key,images=[],temperature=0.9){
   let last;
   for(const model of MODELS){
@@ -259,52 +326,60 @@ async function gemini(text,key,images=[],temperature=0.9){
   }
   throw last||{code:"upstream"};
 }
-
-const ERR = {
-  bad_key:"Gemini 金鑰不正確，請到下方「Gemini 金鑰設定」重新貼一次。",
+const ERR={
+  bad_key:"Gemini 金鑰不正確，請到「單元複習」頁左下的「Gemini 金鑰設定」重新貼一次。",
   forbidden:"這組金鑰沒有權限使用 Gemini，請到 AI Studio 重新建立一組。",
   rate_limited:"免費額度這一分鐘或今天用完了，等一下再試。",
-  invalid_json:"這次回傳的格式不對，請再按一次「出題」。",
+  invalid_json:"這次回傳的格式不對，請再試一次。",
   model:"Gemini 的模型名稱變了，請跟 Claude 說要更新。",
   network:"連不上 Google，請檢查網路後再試。",
 };
-
-function needKey(){
+const errMsg=e=>ERR[e?.code]||"Gemini 出了點問題，請再試一次。";
+function getKey(page){
   const key=keyEl.value.trim();
-  if(!key){$("#keybox").open=true;keyEl.focus();setStatus("請先貼上 Gemini 金鑰（說明在下方）。",true)}
+  if(!key){
+    setSt(page,"這個功能要先設定 Gemini 金鑰。請到「單元複習」頁左下的「Gemini 金鑰設定」貼上。",true);
+    if(page==="units"){$("#keybox").open=true;keyEl.focus()}
+  }
   return key;
 }
-genBtn.onclick = () => generate(parseWords(wordsEl.value));
-async function generate(words){
-  if(!words.length){setStatus("這個單元還沒有單字。先貼上單字，或拍照抓單字。",true);return}
-  const key=needKey(); if(!key) return;
-  let note="";
-  if(words.length>60){words=shuffle(words).slice(0,60);note="單字超過 60 個，這次隨機挑 60 個。"}
-  genBtn.disabled=true;
-  const chunks=[]; for(let i=0;i<words.length;i+=15) chunks.push(words.slice(i,i+15));
-  const made=[];
-  try{
-    for(let c=0;c<chunks.length;c++){
-      setStatus(`正在出題…（${Math.min((c+1)*15,words.length)} / ${words.length} 個單字）`);
-      const arr = await gemini(prompt(chunks[c]),key);
-      if(Array.isArray(arr)) arr.forEach((q,i)=>{const x=clean(q,chunks[c][i]); if(x) made.push(x)});
-    }
-    if(!made.length) throw {code:"invalid_json"};
-    const skipped = words.length-made.length;
-    startQuiz(shuffle(made),false);
-    setStatus(note+`出好 ${made.length} 題了。`+(skipped>0?`有 ${skipped} 個單字沒成功出題。`:""));
-  }catch(e){
-    const m=ERR[e?.code]||"出題失敗，請再按一次「出題」。";
-    if(made.length){startQuiz(shuffle(made),false);setStatus(`只出好 ${made.length} 題，其餘失敗：`+m,true)}
-    else setStatus(m,true);
-  }finally{genBtn.disabled=false}
-}
 
+/* 補中文：把缺中文的單字交給 Gemini，寫回單元 */
+async function fillMeanings(unitList,key,page){
+  const missing=[...new Set(unitList.flatMap(u=>parseEntries(u.words).filter(e=>!e.zh).map(e=>e.word)))];
+  if(!missing.length) return 0;
+  const got=new Map();
+  for(let i=0;i<missing.length;i+=40){
+    setSt(page,`正在補中文意思…（${Math.min(i+40,missing.length)} / ${missing.length}）`);
+    const chunk=missing.slice(i,i+40);
+    const arr=await gemini(`Give a short Traditional Chinese (Taiwan) meaning for each English word or phrase below, as used in TOEIC / business English. Keep each meaning under 12 characters; use ；to separate two senses.
+Reply with only a JSON array in the same order, like [{"word":"postpone","zh":"延後"}].
+
+${chunk.join("\n")}`,key,[],0.2);
+    if(Array.isArray(arr)) arr.forEach((it,k)=>{const zh=String(it?.zh||"").trim(); if(zh) got.set(norm(it?.word||chunk[k]),zh)});
+  }
+  let n=0;
+  for(const u of unitList){
+    const es=parseEntries(u.words);
+    if(!es.some(e=>!e.zh&&got.has(norm(e.word)))) continue;
+    u.words=es.map(e=>{if(!e.zh&&got.has(norm(e.word))){n++;return `${e.word} ${got.get(norm(e.word))}`}return e.zh?`${e.word} ${e.zh}`:e.word}).join("\n");
+  }
+  saveUnits();
+  return n;
+}
+$("#fillzh").onclick=async()=>{
+  const key=getKey("units"); if(!key) return;
+  const b=$("#fillzh"); b.disabled=true;
+  try{const n=await fillMeanings([unit()],key,"units"); setSt("units",`補好 ${n} 個中文意思，請看一下對不對。`); drawUnit()}
+  catch(e){setSt("units",errMsg(e),true)}
+  finally{b.disabled=false}
+};
+
+/* 拍照抓單字 */
 const PHOTO_PROMPT=`This photo shows a page from an English textbook, vocabulary book or word list used by a Taiwanese learner preparing for the TOEIC.
 Find the English vocabulary words and phrases the page is teaching: headwords, bold or highlighted words, word lists, glossary entries. Skip page numbers, instructions, people's names, and ordinary words that only appear inside example sentences. Keep phrases (e.g. "take over") together, in dictionary form as printed.
 If a Chinese meaning is printed next to a word, use it; otherwise give a short Traditional Chinese (Taiwan) meaning.
 Reply with only a JSON array in page order, like [{"word":"postpone","zh":"延後"}]. Reply [] if no vocabulary is visible.`;
-
 async function shrink(file){
   const url=URL.createObjectURL(file);
   try{
@@ -316,24 +391,23 @@ async function shrink(file){
     return c.toDataURL("image/jpeg",0.85).split(",")[1];
   }finally{URL.revokeObjectURL(url)}
 }
-
 const photoEl=$("#photo"), photoLabel=$("#photolabel");
 photoEl.onchange=async()=>{
   const files=[...photoEl.files]; photoEl.value="";
   if(!files.length) return;
-  const key=needKey(); if(!key) return;
+  const key=getKey("units"); if(!key) return;
   const u=unit();
-  photoLabel.setAttribute("aria-disabled","true"); genBtn.disabled=true;
+  photoLabel.setAttribute("aria-disabled","true");
   let added=0, dup=0, failed=0;
   try{
     for(let i=0;i<files.length;i++){
-      setStatus(`正在讀第 ${i+1} / ${files.length} 張照片…`);
+      setSt("units",`正在讀第 ${i+1} / ${files.length} 張照片…`);
       let data;
       try{data=await shrink(files[i])}catch(e){failed++;continue}
       let arr;
       try{arr=await gemini(PHOTO_PROMPT,key,[data],0.2)}
       catch(e){if(["bad_key","forbidden","rate_limited","network","model"].includes(e?.code)) throw e; failed++; continue}
-      if(!Array.isArray(arr)) {failed++;continue}
+      if(!Array.isArray(arr)){failed++;continue}
       const have=new Set(parseWords(u.words).map(w=>w.toLowerCase()));
       const lines=[];
       for(const it of arr){
@@ -341,112 +415,257 @@ photoEl.onchange=async()=>{
         if(have.has(w.toLowerCase())){dup++;continue}
         have.add(w.toLowerCase()); lines.push(it.zh?`${w} ${String(it.zh).trim()}`:w); added++;
       }
-      if(lines.length){u.words=(u.words.trim()?u.words.replace(/\s*$/,"\n"):"")+lines.join("\n");saveUnits();if(unit()===u){wordsEl.value=u.words;refreshLabel()}}
+      if(lines.length){u.words=(u.words.trim()?u.words.replace(/\s*$/,"\n"):"")+lines.join("\n");saveUnits();if(unit()===u) drawUnit()}
     }
-    let msg=added?`從照片抓到 ${added} 個新單字，已加到「${u.name}」。請檢查一下有沒有抓錯。`:"照片裡沒有找到新的單字。";
+    let msg=added?`從照片抓到 ${added} 個新單字，已加到「${u.name}」。請檢查一下有沒有抓錯，錯的可以按「編輯單字」改。`:"照片裡沒有找到新的單字。";
     if(dup) msg+=`另有 ${dup} 個已經在清單裡。`;
     if(failed) msg+=`有 ${failed} 張照片讀取失敗，可以換一張比較清楚的再試。`;
-    setStatus(msg,!added&&failed>0);
-  }catch(e){setStatus((ERR[e?.code]||"讀照片失敗，請再試一次。")+(added?`（已先加入 ${added} 個單字）`:""),true)}
-  finally{photoLabel.removeAttribute("aria-disabled");genBtn.disabled=false}
+    setSt("units",msg,!added&&failed>0);
+  }catch(e){setSt("units",errMsg(e)+(added?`（已先加入 ${added} 個單字）`:""),true)}
+  finally{photoLabel.removeAttribute("aria-disabled");drawUnit()}
 };
 
-function setStatus(t,err){statusEl.textContent=t;statusEl.classList.toggle("err",!!err)}
+/* ---------- 選單元 ---------- */
+function selected(kind){
+  let ids=loadJSON("vc-sel-"+kind,null);
+  if(!Array.isArray(ids)) ids=[cur];
+  return ids.filter(id=>unitById(id));
+}
+function drawChecks(kind){
+  const ids=new Set(selected(kind));
+  $("#sel-"+kind).innerHTML=units.map(u=>`<label class="check"><input type="checkbox" value="${u.id}" ${ids.has(u.id)?"checked":""}><span>${esc(u.name||"未命名單元")}</span><span class="count">${parseEntries(u.words).length} 字</span></label>`).join("");
+}
+function saveChecks(kind){store("vc-sel-"+kind,JSON.stringify([...document.querySelectorAll(`#sel-${kind} input:checked`)].map(i=>i.value)))}
+["cloze","meaning"].forEach(kind=>{
+  $("#sel-"+kind).addEventListener("change",()=>saveChecks(kind));
+  document.querySelector(`[data-all="${kind}"]`).onclick=()=>{document.querySelectorAll(`#sel-${kind} input`).forEach(i=>i.checked=true);saveChecks(kind)};
+  document.querySelector(`[data-none="${kind}"]`).onclick=()=>{document.querySelectorAll(`#sel-${kind} input`).forEach(i=>i.checked=false);saveChecks(kind)};
+  const n=$("#n-"+kind); const sv=load("vc-n-"+kind); if(sv&&[...n.options].some(o=>o.value===sv)) n.value=sv;
+  n.onchange=()=>store("vc-n-"+kind,n.value);
+});
+function pickEntries(kind){
+  const us=selected(kind).map(unitById);
+  const seen=new Set(), out=[];
+  for(const u of us) for(const e of parseEntries(u.words)){const k=e.word.toLowerCase(); if(!seen.has(k)){seen.add(k);out.push({...e,unit:u.name})}}
+  return {us,entries:out};
+}
 
-function startQuiz(qs,example){quiz=qs;idx=0;results=[];isExample=example;render()}
-
-function render(){
-  answered=false; hintUsed=false;
-  const q=quiz[idx];
-  const pct = (idx/quiz.length)*100;
-  const parts=q.sentence.split("____");
-  const blank = mode==="type"
-    ? `<input class="blank" id="ans" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="填入答案" style="width:${Math.max(7,q.answer.length+2)}ch">`
-    : `<span class="gap" id="gap">&nbsp;</span>`;
-  stage.innerHTML=`
-    <div class="meta"><span class="qno">第 ${idx+1} / ${quiz.length} 題</span>
-      <span>${isExample?'<span class="example">範例題目 · </span>':""}<span class="badge">${esc(q.pos)}</span></span></div>
-    <div class="bar"><i style="width:${pct}%"></i></div>
-    <p class="sentence">${esc(parts[0])}${blank}${esc(parts.slice(1).join("____"))}</p>
-    ${mode==="choice"?`<div class="opts">${shuffle(q.options).map((o,i)=>`<button class="btn opt" data-v="${esc(o)}" type="button"><b>${"ABCD"[i]}</b>${esc(o)}</button>`).join("")}</div>`:""}
-    <div id="fb"></div>
-    <div class="actions">
-      <button class="btn" id="hint" type="button">提示</button>
-      ${mode==="type"?'<button class="btn primary" id="go" type="button">送出</button>':""}
-    </div>`;
-  $("#hint").onclick=showHint;
-  if(mode==="type"){
-    const inp=$("#ans"); inp.focus({preventScroll:true});
-    inp.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();answered?next():check(inp.value)}});
-    $("#go").onclick=()=>answered?next():check(inp.value);
-  }else{
-    stage.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{if(!answered) check(b.dataset.v,b)});
+/* ---------- 題目進行（兩種題型共用） ---------- */
+let clozeMode=load("vc-mode")==="type"?"type":"choice";
+function makeRunner(kind){
+  const stage=$("#stage-"+kind);
+  const S={items:[],idx:0,results:[],example:false,answered:false};
+  function start(items,example){S.items=items;S.idx=0;S.results=[];S.example=example;render()}
+  function head(){
+    const q=S.items[S.idx];
+    return `<div class="meta"><span class="qno">第 ${S.idx+1} / ${S.items.length} 題</span>
+      <span>${S.example?'<span class="example">範例題目 · </span>':""}${q.pos?`<span class="badge">${esc(q.pos)}</span>`:q.unit?`<span class="example">${esc(q.unit)}</span>`:""}</span></div>
+      <div class="bar"><i style="width:${S.idx/S.items.length*100}%"></i></div>`;
   }
-}
-
-function showHint(){
-  if(answered) return;
-  hintUsed=true;
-  const q=quiz[idx];
-  $("#fb").innerHTML=`<div class="fb tip"><span>開頭是 <strong>${esc(q.answer[0])}</strong>，共 ${q.answer.replace(/\s/g,"").length} 個字母 · 意思：${esc(q.meaning)}</span></div>`;
-}
-
-function check(val,btn){
-  const q=quiz[idx];
-  if(mode==="type" && !String(val).trim()) return;
-  answered=true;
-  const ok = norm(val)===norm(q.answer);
-  const close = !ok && norm(val)===norm(q.word);
-  results.push({q,ok,given:val});
-  if(mode==="type"){
-    const inp=$("#ans"); inp.classList.add(ok?"ok":"no"); inp.readOnly=true;
-    $("#go").textContent= idx+1<quiz.length?"下一題":"看結果";
-    $("#go").focus({preventScroll:true});
-  }else{
-    $("#gap").textContent=q.answer;
-    stage.querySelectorAll(".opt").forEach(b=>{b.disabled=true;if(norm(b.dataset.v)===norm(q.answer))b.classList.add("ok")});
-    if(!ok&&btn) btn.classList.add("no");
-    const nb=document.createElement("button");nb.className="btn primary";nb.type="button";nb.textContent=idx+1<quiz.length?"下一題":"看結果";nb.onclick=next;
-    $(".actions").append(nb); nb.focus({preventScroll:true});
+  function render(){
+    S.answered=false;
+    const q=S.items[S.idx];
+    if(kind==="meaning"){
+      stage.innerHTML=head()+`<div class="label">這個字是什麼意思？</div><p class="bigword" lang="en">${esc(q.word)}</p>
+        <div class="opts">${shuffle(q.options).map((o,i)=>`<button class="btn opt zh" data-v="${esc(o)}" type="button"><b>${i+1}</b>${esc(o)}</button>`).join("")}</div>
+        <div id="fb-${kind}"></div><div class="actions"></div>`;
+    }else{
+      const parts=q.sentence.split("____");
+      const blank=clozeMode==="type"
+        ? `<input class="blank" id="ans" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="填入答案" style="width:${Math.max(7,q.answer.length+2)}ch">`
+        : `<span class="gap" id="gap">&nbsp;</span>`;
+      stage.innerHTML=head()+`<p class="sentence" lang="en">${esc(parts[0])}${blank}${esc(parts.slice(1).join("____"))}</p>
+        ${clozeMode==="choice"?`<div class="opts">${shuffle(q.options).map((o,i)=>`<button class="btn opt" data-v="${esc(o)}" type="button"><b>${"ABCD"[i]}</b>${esc(o)}</button>`).join("")}</div>`:""}
+        <div id="fb-${kind}"></div>
+        <div class="actions"><button class="btn" id="hint" type="button">提示</button>${clozeMode==="type"?'<button class="btn primary" id="go" type="button">送出</button>':""}</div>`;
+      stage.querySelector("#hint").onclick=()=>{ if(S.answered) return;
+        stage.querySelector("#fb-cloze").innerHTML=`<div class="fb tip"><span>開頭是 <strong>${esc(q.answer[0])}</strong>，共 ${q.answer.replace(/\s/g,"").length} 個字母 · 意思：${esc(q.meaning)}</span></div>`};
+      if(clozeMode==="type"){
+        const inp=stage.querySelector("#ans"); inp.focus({preventScroll:true});
+        inp.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();S.answered?next():check(inp.value)}});
+        stage.querySelector("#go").onclick=()=>S.answered?next():check(inp.value);
+      }
+    }
+    stage.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{if(!S.answered) check(b.dataset.v,b)});
   }
-  $("#hint").hidden=true;
-  const head = ok?"答對了":close?"差一點：要注意詞形變化":"答錯了";
-  $("#fb").innerHTML=`<div class="fb ${ok?"ok":"no"}">
-    <strong>${head}</strong>
-    <span>正確答案：<span class="word">${esc(q.answer)}</span>${norm(q.answer)!==norm(q.word)?`（原形 ${esc(q.word)}）`:""} · ${esc(q.pos)} ${esc(q.meaning)}</span>
-    <span class="zh">${esc(q.zh)}</span></div>`;
+  function check(val,btn){
+    const q=S.items[S.idx];
+    if(kind==="cloze"&&clozeMode==="type"&&!String(val).trim()) return;
+    S.answered=true;
+    const right = kind==="meaning"?q.zh:q.answer;
+    const ok = norm(val)===norm(right);
+    S.results.push({q,ok,given:val});
+    const nextLabel=S.idx+1<S.items.length?"下一題":"看結果";
+    if(kind==="cloze"&&clozeMode==="type"){
+      const inp=stage.querySelector("#ans"); inp.classList.add(ok?"ok":"no"); inp.readOnly=true;
+      const go=stage.querySelector("#go"); go.textContent=nextLabel; go.focus({preventScroll:true});
+    }else{
+      if(kind==="cloze") stage.querySelector("#gap").textContent=q.answer;
+      stage.querySelectorAll(".opt").forEach(b=>{b.disabled=true;if(norm(b.dataset.v)===norm(right))b.classList.add("ok")});
+      if(!ok&&btn) btn.classList.add("no");
+      const nb=document.createElement("button");nb.className="btn primary";nb.type="button";nb.textContent=nextLabel;nb.onclick=next;
+      stage.querySelector(".actions").append(nb); nb.focus({preventScroll:true});
+    }
+    const h=stage.querySelector("#hint"); if(h) h.hidden=true;
+    const fb=stage.querySelector("#fb-"+kind);
+    if(kind==="meaning"){
+      fb.innerHTML=`<div class="fb ${ok?"ok":"no"}"><strong>${ok?"答對了":"答錯了"}</strong><span><span class="word">${esc(q.word)}</span>：${esc(q.zh)}</span></div>`;
+    }else{
+      const close=!ok&&norm(val)===norm(q.word);
+      fb.innerHTML=`<div class="fb ${ok?"ok":"no"}"><strong>${ok?"答對了":close?"差一點：要注意詞形變化":"答錯了"}</strong>
+        <span>正確答案：<span class="word">${esc(q.answer)}</span>${norm(q.answer)!==norm(q.word)?`（原形 ${esc(q.word)}）`:""} · ${esc(q.pos)} ${esc(q.meaning)}</span>
+        <span class="zh">${esc(q.zh)}</span></div>`;
+    }
+  }
+  function next(){S.idx++; S.idx<S.items.length?render():finish()}
+  function finish(){
+    const right=S.results.filter(r=>r.ok).length, wrong=S.results.filter(r=>!r.ok);
+    const mean=r=>kind==="meaning"?r.q.zh:`${r.q.pos} ${r.q.meaning}`;
+    stage.innerHTML=`<div class="meta"><span>${S.example?"範例題目練習結果":"練習結果"}</span></div>
+      <div class="bar"><i style="width:100%"></i></div>
+      <div><div class="score">${right} / ${S.results.length}</div><p class="hint">答對率 ${Math.round(right/S.results.length*100)}%</p></div>
+      ${wrong.length?`<div class="label">要再複習的單字</div><ul class="wrong">${wrong.map(r=>`<li><span class="word">${esc(r.q.word)}</span><span>${esc(mean(r))}</span><span class="hint">你選：${esc(r.given)}</span></li>`).join("")}</ul>`:'<p>全部答對，可以換其他單元了。</p>'}
+      <div class="actions">
+        ${wrong.length?'<button class="btn" data-act="redo" type="button">只練錯的</button>':""}
+        <button class="btn" data-act="again" type="button">整份再做一次</button>
+        ${wrong.length&&kind==="cloze"?'<button class="btn primary" data-act="fresh" type="button">錯的單字換新句子</button>':""}
+      </div>`;
+    stage.querySelector('[data-act="again"]').onclick=()=>start(shuffle(S.items),S.example);
+    if(wrong.length){
+      stage.querySelector('[data-act="redo"]').onclick=()=>start(shuffle(wrong.map(r=>r.q)),S.example);
+      const f=stage.querySelector('[data-act="fresh"]'); if(f) f.onclick=()=>generateCloze(wrong.map(r=>r.q.word));
+    }
+  }
+  function onKey(e){
+    if(e.target.matches("input,textarea,select")) return;
+    if(e.key==="Enter"&&S.answered){const b=stage.querySelector(".actions .primary");if(b){e.preventDefault();b.click()}return}
+    const opts=[...stage.querySelectorAll(".opt:not(:disabled)")];
+    const i="1234".indexOf(e.key)>=0?"1234".indexOf(e.key):"abcd".indexOf(e.key.toLowerCase());
+    if(e.key.length===1&&i>=0&&opts[i]){e.preventDefault();opts[i].click()}
+  }
+  return {start,render,S,onKey};
 }
+const runners={cloze:makeRunner("cloze"),meaning:makeRunner("meaning")};
 
-function next(){ idx++; idx<quiz.length?render():finish() }
+/* ---------- 填空題 ---------- */
+function setMode(m){
+  clozeMode=m; store("vc-mode",m);
+  $("#m-type").setAttribute("aria-pressed",m==="type");
+  $("#m-choice").setAttribute("aria-pressed",m==="choice");
+  const S=runners.cloze.S; if(S.items.length&&S.idx<S.items.length&&!S.answered) runners.cloze.render();
+}
+$("#m-type").onclick=()=>setMode("type");
+$("#m-choice").onclick=()=>setMode("choice");
 
-function finish(){
-  const right=results.filter(r=>r.ok).length, wrong=results.filter(r=>!r.ok);
+function clean(q,word){
+  if(!q||typeof q!=="object") return null;
+  let answer=String(q.answer||word||"").trim(), sentence=String(q.sentence||"");
+  if(!answer||!sentence) return null;
+  if(!/_{2,}/.test(sentence)){
+    const re=new RegExp("\\b"+answer.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b","i");
+    if(!re.test(sentence)) return null;
+    sentence=sentence.replace(re,"____");
+  }
+  sentence=sentence.replace(/_{2,}/,"____");
+  let options=Array.isArray(q.options)?q.options.map(String).filter(Boolean):[];
+  if(!options.some(o=>norm(o)===norm(answer))) options=[answer,...options];
+  options=[...new Map(options.map(o=>[norm(o),o])).values()].slice(0,4);
+  return {word:String(q.word||word),answer,sentence,options,pos:String(q.pos||""),meaning:String(q.meaning||""),zh:String(q.zh||"")};
+}
+function clozePrompt(words){
+  return `You write TOEIC-style vocabulary fill-in-the-blank questions for a Taiwanese learner.
+For EACH word or phrase below, write ONE natural English sentence (12-24 words) in a workplace, business, travel or daily-life context typical of the TOEIC exam. The sentence must clearly need that word; use an inflected form (e.g. -ed, -s, -ing) when grammar requires it.
+
+Reply with only a JSON array, one object per word, in the same order:
+{"word": the word as given, "answer": the exact form used in the sentence, "sentence": the sentence with that form replaced by "____" (four underscores, exactly once), "pos": part of speech like "n.", "v.", "adj.", "adv.", "phr.", "meaning": short meaning in Traditional Chinese (Taiwan), "zh": the full sentence translated into Traditional Chinese (Taiwan), "options": 4 strings — the answer plus 3 wrong choices in the same grammatical form that do NOT fit the sentence (prefer other words from this list)}
+
+Example: {"word":"postpone","answer":"postponed","sentence":"The meeting was ____ until Friday because the manager was sick.","pos":"v.","meaning":"延後","zh":"因為經理生病，會議延到週五。","options":["postponed","reimbursed","negotiated","attended"]}
+
+Words:
+${words.join("\n")}`;
+}
+const genCloze=$("#gen-cloze");
+genCloze.onclick=()=>{
+  const {us,entries}=pickEntries("cloze");
+  if(!us.length){setSt("cloze","請先勾選至少一個單元。",true);return}
+  const n=Number($("#n-cloze").value)||10;
+  generateCloze(shuffle(entries.map(e=>e.word)).slice(0,Math.min(n,60)));
+};
+async function generateCloze(words){
+  if(!words.length){setSt("cloze","勾選的單元裡還沒有單字。先到「單元複習」加單字。",true);return}
+  const key=getKey("cloze"); if(!key) return;
+  genCloze.disabled=true;
+  const chunks=[]; for(let i=0;i<words.length;i+=15) chunks.push(words.slice(i,i+15));
+  const made=[];
   try{
-    const saved=JSON.parse(load("vc-wrong")||"[]");
-    const merged=[...new Set([...saved,...wrong.map(r=>r.q.word)])].filter(w=>!results.some(r=>r.ok&&r.q.word===w)).slice(-100);
-    store("vc-wrong",JSON.stringify(merged));
-  }catch(e){}
-  stage.innerHTML=`
-    <div class="meta"><span>${isExample?"範例題目練習結果":"練習結果"}</span></div>
-    <div class="bar"><i style="width:100%"></i></div>
-    <div><div class="score">${right} / ${results.length}</div><p class="hint">答對率 ${Math.round(right/results.length*100)}%</p></div>
-    ${wrong.length?`<div class="label">要再複習的單字</div><ul class="wrong">${wrong.map(r=>`<li><span class="word">${esc(r.q.word)}</span><span>${esc(r.q.pos)} ${esc(r.q.meaning)}</span><span class="hint">你填：${esc(r.given)}</span></li>`).join("")}</ul>`:'<p>全部答對，可以換一批新單字了。</p>'}
-    <div class="actions">
-      ${wrong.length?'<button class="btn" id="redo" type="button">只練錯的（同一句）</button>':""}
-      <button class="btn" id="again" type="button">整份再做一次</button>
-      ${wrong.length?'<button class="btn primary" id="newwrong" type="button">錯的單字換新句子</button>':""}
-    </div>`;
-  $("#again").onclick=()=>startQuiz(shuffle(quiz),isExample);
-  if(wrong.length){
-    $("#redo").onclick=()=>startQuiz(shuffle(wrong.map(r=>r.q)),isExample);
-    $("#newwrong").onclick=()=>generate(wrong.map(r=>r.q.word));
-  }
+    for(let c=0;c<chunks.length;c++){
+      setSt("cloze",`正在出題…（${Math.min((c+1)*15,words.length)} / ${words.length} 個單字）`);
+      const arr=await gemini(clozePrompt(chunks[c]),key);
+      if(Array.isArray(arr)) arr.forEach((q,i)=>{const x=clean(q,chunks[c][i]); if(x) made.push(x)});
+    }
+    if(!made.length) throw {code:"invalid_json"};
+    runners.cloze.start(shuffle(made),false);
+    const skipped=words.length-made.length;
+    setSt("cloze",`出好 ${made.length} 題了。`+(skipped>0?`有 ${skipped} 個單字沒成功出題。`:""));
+  }catch(e){
+    if(made.length){runners.cloze.start(shuffle(made),false);setSt("cloze",`只出好 ${made.length} 題，其餘失敗：`+errMsg(e),true)}
+    else setSt("cloze",errMsg(e),true);
+  }finally{genCloze.disabled=false}
 }
 
-drawUnits();
-startQuiz(shuffle(EXAMPLE),true);
-setStatus("右邊是範例題目。換成你的單字後按「出題」。");
-</script>
+/* ---------- 英翻中 ---------- */
+const FILLER=["延後","預算","報銷","強制的","談判","存貨","發票","行程","出席","合約","供應商","部門","申請","維修","退款","折扣","會議","升職","面試","通知","延長","確認","取消","建議","安排"];
+function buildMeaning(entries){
+  const pool=[...new Set(units.flatMap(u=>parseEntries(u.words).map(e=>e.zh)).filter(Boolean).concat(FILLER))];
+  return entries.filter(e=>e.zh).map(e=>{
+    const others=shuffle(pool.filter(z=>norm(z)!==norm(e.zh))).slice(0,3);
+    return {word:e.word,zh:e.zh,unit:e.unit,options:[e.zh,...others]};
+  });
+}
+const genMeaning=$("#gen-meaning");
+genMeaning.onclick=async()=>{
+  let {us,entries}=pickEntries("meaning");
+  if(!us.length){setSt("meaning","請先勾選至少一個單元。",true);return}
+  if(!entries.length){setSt("meaning","勾選的單元裡還沒有單字。先到「單元複習」加單字。",true);return}
+  let note="";
+  const missing=entries.filter(e=>!e.zh).length;
+  if(missing){
+    const key=keyEl.value.trim();
+    if(key){
+      genMeaning.disabled=true;
+      try{await fillMeanings(us,key,"meaning"); ({entries}=pickEntries("meaning"))}
+      catch(e){note=`有 ${missing} 個單字沒有中文，這次先跳過（${errMsg(e)}）`}
+      finally{genMeaning.disabled=false}
+    }else note=`有 ${missing} 個單字沒有中文，這次先跳過。設定 Gemini 金鑰後會自動補上。`;
+  }
+  const n=Number($("#n-meaning").value)||10;
+  const items=shuffle(buildMeaning(entries)).slice(0,n);
+  if(!items.length){setSt("meaning",note||"沒有可以出題的單字。",true);return}
+  runners.meaning.start(items,false);
+  setSt("meaning",(note?note+" ":"")+`共 ${items.length} 題。可以用鍵盤 1–4 作答。`,!!note);
+};
 
+/* ---------- 分頁 ---------- */
+const PAGES=["units","cloze","meaning"];
+let page="units";
+function show(p){
+  if(!PAGES.includes(p)) p="units";
+  page=p; store("vc-page",p);
+  PAGES.forEach(x=>$("#p-"+x).hidden=x!==p);
+  document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-current",b.dataset.page===p?"page":"false"));
+  if(p==="units") drawUnit(); else drawChecks(p);
+  if(location.hash!=="#"+p) history.replaceState(null,"","#"+p);
+}
+document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>show(b.dataset.page));
+window.addEventListener("hashchange",()=>show(location.hash.slice(1)));
+document.addEventListener("keydown",e=>{if(page!=="units") runners[page].onKey(e)});
+
+setMode(clozeMode);
+runners.cloze.start(shuffle(EXAMPLE),true);
+setSt("cloze","右邊是範例題目。勾選你的單元後按「出題」。");
+runners.meaning.start(shuffle(EXAMPLE).map(q=>({word:q.word,zh:q.meaning,options:[q.meaning,...shuffle(EXAMPLE.filter(x=>x!==q).map(x=>x.meaning)).slice(0,3)]})),true);
+setSt("meaning","右邊是範例題目。勾選你的單元後按「開始」。");
+show(location.hash.slice(1)||load("vc-page")||"units");
+</script>
 </body>
 </html>
