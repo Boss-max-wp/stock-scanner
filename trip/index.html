@@ -78,6 +78,9 @@ h1{font-size:24px;font-weight:900;margin:0;letter-spacing:.02em}
 .seg.small button[aria-pressed="true"] .ml{color:var(--accent)}
 .seg.small .mt{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
 .add{align-self:flex-start;margin-left:76px}
+.tbtn{font:inherit;color:inherit;background:transparent;border:0;border-bottom:1px dashed var(--line);padding:0 0 1px;cursor:pointer;white-space:nowrap}
+.tbtn:empty{min-width:30px}
+.time input{font-family:var(--mono);font-size:13px;width:74px;padding:2px 2px;margin-left:-30px;position:relative;z-index:3}
 .daytitle{display:flex;justify-content:space-between;align-items:flex-end;gap:8px}
 .daytitle>div{min-width:0}
 .mv{display:inline-flex;gap:2px}
@@ -125,12 +128,6 @@ textarea{min-height:56px;resize:vertical}
   <nav class="tabs" role="tablist" id="tabs"></nav>
   <section id="day"></section>
 
-  <div class="help">
-    <div><b>怎麼用</b></div>
-    <div>每段路都會顯示大眾運輸、走路、開車各要多久。走路和開車是打開頁面時即時算的；大眾運輸是我依路線估的，不含等車時間。點選其中一種再按「怎麼去」，就會用那個方式打開 Google 地圖，會顯示路線、要多久、下一班車幾點。「從我這裡出發」是從你手機目前的位置過去。</div>
-    <div>「預計搭乘」是我依你的行程先寫的建議班次，出發前以 Google 地圖或 JR 時刻表為準。橘色框是時間可能有問題的地方。</div>
-    <div><b>調整行程</b>：景點旁的 ↑ ↓ 可以換順序；按「編輯」可以改內容、搬到別天或指定位置。日期旁的「編輯這天」可以改日期、標題、插入或刪除一天；日期列最後的「＋」是加一天。行程存在這支手機上。</div>
-  </div>
   <div class="tools"><button class="btn ghost" id="reset">還原成原本的行程</button></div>
 </div>
 
@@ -344,7 +341,7 @@ function render(){
       </div></div>`;
     }
     const m=legMode(s);
-    h+=`<div class="stop"><div class="time">${esc(s.time)||'—'}</div><div class="rail"><span class="dot"></span></div>
+    h+=`<div class="stop"><div class="time"><button type="button" class="tbtn" data-time="${i}" aria-label="改時間">${esc(s.time)||'＋時間'}</button></div><div class="rail"><span class="dot"></span></div>
       <div class="body"><div class="name"><span>${esc(s.name)}</span><span class="mv"><button class="btn ghost" data-up="${i}" aria-label="往上" ${i===0?'disabled':''}>↑</button><button class="btn ghost" data-down="${i}" aria-label="往下" ${i===d.stops.length-1?'disabled':''}>↓</button><button class="btn ghost" data-edit="${i}">編輯</button></span></div>
       ${s.note?`<div class="note">${esc(s.note)}</div>`:''}
       ${s.warn?`<div class="warn">${esc(s.warn)}</div>`:''}
@@ -367,6 +364,14 @@ $('day').addEventListener('click',e=>{
   if(up||dn){const st=data.days[cur].stops,i=+(up||dn).dataset[up?'up':'down'],j=up?i-1:i+1;
     if(j<0||j>=st.length)return;[st[i],st[j]]=[st[j],st[i]];save();render();return}
   if(e.target.id==='editday'){openDay();return}
+  const tb=e.target.closest('[data-time]');
+  if(tb){const i=+tb.dataset.time,s=data.days[cur].stops[i],box=tb.parentNode;
+    box.innerHTML=`<input type="time" id="tin" value="${/^\d{1,2}:\d{2}$/.test(s.time||'')?s.time.padStart(5,'0'):''}">`;
+    const inp=box.firstChild;inp.focus();try{inp.showPicker&&inp.showPicker()}catch(_){}
+    const upd=()=>{s.time=inp.value||'';save()};
+    inp.addEventListener('change',upd);
+    inp.addEventListener('keydown',ev=>{if(ev.key==='Enter')inp.blur()});
+    inp.addEventListener('blur',()=>{upd();render()});return}
   const ed=e.target.closest('[data-edit]');if(ed){open(+ed.dataset.edit);return}
   if(e.target.id==='addstop')open(-1);
 });
