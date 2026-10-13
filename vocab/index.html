@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>單字填空機</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: exam answer sheet — word list on the left, one question card on the right; stacks on phones */
+:root{
+  --bg:#EEF1F4; --paper:#FFFFFF; --ink:#1B2433; --muted:#5E6878; --line:#D3D9E1;
+  --accent:#E2A400; --accent-soft:#FFF3CC; --good:#1F7A50; --good-soft:#E3F4EA; --bad:#B8382F; --bad-soft:#FBE7E5;
+  --f-read:"Newsreader", Georgia, "Times New Roman", serif;
+  --f-ui:"Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12161D; --paper:#1A2029; --ink:#E6EAF0; --muted:#9AA4B2; --line:#2D3642;
+  --accent:#F2B92B; --accent-soft:#3A3014; --good:#5CCB95; --good-soft:#163226; --bad:#F2786E; --bad-soft:#3A1E1C; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12161D; --paper:#1A2029; --ink:#E6EAF0; --muted:#9AA4B2; --line:#2D3642;
+  --accent:#F2B92B; --accent-soft:#3A3014; --good:#5CCB95; --good-soft:#163226; --bad:#F2786E; --bad-soft:#3A1E1C; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:15px;line-height:1.6}
+.wrap{max-width:1080px;margin:0 auto;padding-inline:16px;padding-block:28px 48px;display:flex;flex-direction:column;gap:22px}
+header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+h1{font-family:var(--f-read);font-weight:600;font-size:2rem;margin:0;letter-spacing:-.01em}
+h1 span{background:linear-gradient(transparent 62%,var(--accent) 62%);padding-inline:2px}
+header p{margin:0;color:var(--muted)}
+.grid{display:grid;grid-template-columns:minmax(0,320px) minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:760px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.label{font-size:.78rem;letter-spacing:.08em;color:var(--muted);font-weight:500}
+textarea{width:100%;min-height:200px;resize:vertical;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--bg);color:var(--ink);font-family:var(--f-mono);font-size:.92rem;line-height:1.7}
+textarea:focus,input:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.hint{font-size:.82rem;color:var(--muted);margin:0}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{flex:1;border:0;background:transparent;color:var(--muted);padding:8px;font:inherit;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.btn{border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:8px;padding:10px 14px;font:inherit;font-weight:500;cursor:pointer}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#1B2433;font-weight:700}
+.btn:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.status{font-size:.85rem;color:var(--muted);min-height:1.4em;margin:0}
+.status.err{color:var(--bad)}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:22px 24px;display:flex;flex-direction:column;gap:18px;min-width:0}
+.meta{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-size:.85rem;color:var(--muted)}
+.qno{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.badge{font-size:.75rem;padding:2px 8px;border-radius:99px;background:var(--accent-soft);color:var(--ink)}
+.bar{height:4px;background:var(--line);border-radius:4px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);transition:width .3s}
+.sentence{font-family:var(--f-read);font-size:1.45rem;line-height:1.75;margin:0;overflow-wrap:anywhere}
+.blank{font-family:var(--f-mono);font-size:1.05rem;border:0;border-bottom:2px solid var(--ink);background:transparent;color:var(--ink);padding:0 4px;width:9ch;text-align:center;border-radius:0}
+.blank.ok{border-color:var(--good);color:var(--good)}
+.blank.no{border-color:var(--bad);color:var(--bad)}
+.gap{display:inline-block;min-width:7ch;border-bottom:2px solid var(--ink);text-align:center;font-family:var(--f-mono);font-size:1.05rem}
+.opts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+@media (max-width:460px){.opts{grid-template-columns:minmax(0,1fr)}}
+.opt{text-align:left;font-family:var(--f-read);font-size:1.1rem;padding:10px 14px}
+.opt b{font-family:var(--f-mono);font-size:.8rem;color:var(--muted);margin-right:8px}
+.opt.ok{background:var(--good-soft);border-color:var(--good)}
+.opt.no{background:var(--bad-soft);border-color:var(--bad)}
+.fb{border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.fb.ok{background:var(--good-soft)} .fb.no{background:var(--bad-soft)} .fb.tip{background:var(--accent-soft)}
+.fb strong{font-size:1rem}
+.fb .zh{color:var(--muted);font-size:.92rem}
+.word{font-family:var(--f-read);font-weight:600;font-size:1.05rem}
+.actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.score{font-family:var(--f-read);font-size:3rem;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
+.wrong{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.wrong li{border-bottom:1px solid var(--line);padding-bottom:8px;display:flex;gap:10px;flex-wrap:wrap;align-items:baseline}
+.example{font-size:.8rem;color:var(--muted)}
+kbd{font-family:var(--f-mono);font-size:.75rem;border:1px solid var(--line);border-radius:4px;padding:0 4px}
+@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+input.key{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--bg);color:var(--ink);font-family:var(--f-mono);font-size:.85rem}
+details{border-top:1px solid var(--line);padding-top:10px}
+summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
+details[open] summary{margin-bottom:8px}
+.hint a{color:var(--ink)}
+body{margin:0;-webkit-text-size-adjust:100%}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1><span>單字填空機</span></h1>
+    <p>貼上英文單字，自動產生多益風格的填空題。</p>
+  </header>
+
+  <div class="grid">
+    <aside class="panel">
+      <label class="label" for="words">你的單字（一行一個，或用逗號分開）</label>
+      <textarea id="words" spellcheck="false" placeholder="postpone&#10;budget&#10;reimburse"></textarea>
+      <p class="hint">可以寫成「reimburse 報銷」，中文會被忽略。片語如 take over 也可以。一次最多 40 個。</p>
+      <div class="label">作答方式</div>
+      <div class="seg" role="group" aria-label="作答方式">
+        <button id="m-type" type="button" aria-pressed="true">自己拼</button>
+        <button id="m-choice" type="button" aria-pressed="false">四選一</button>
+      </div>
+      <button id="gen" class="btn primary" type="button">出題</button>
+      <p id="status" class="status" role="status"></p>
+      <details id="keybox">
+        <summary>Gemini 金鑰設定</summary>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <label class="label" for="key">Gemini API 金鑰</label>
+          <input id="key" class="key" type="password" autocomplete="off" spellcheck="false" placeholder="AIza…">
+          <p class="hint">出題用 Google 的 Gemini（免費）。到 <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> 用 Google 帳號登入、按「建立 API 金鑰」，複製貼在這裡。金鑰只存在這台裝置的瀏覽器，不會上傳到網站。</p>
+        </div>
+      </details>
+    </aside>
+
+    <section id="stage" class="card" aria-live="polite"></section>
+  </div>
+</div>
+
+<script>
+const EXAMPLE = [
+ {word:"postpone",answer:"postponed",pos:"v.",meaning:"延後",sentence:"Due to the heavy rain, the outdoor company picnic has been ____ until next Saturday.",zh:"由於大雨，公司戶外野餐已延到下週六。",options:["postponed","reimbursed","negotiated","budgeted"]},
+ {word:"budget",answer:"budget",pos:"n.",meaning:"預算",sentence:"The marketing team must keep all campaign expenses within the approved ____ for this quarter.",zh:"行銷團隊必須把所有活動支出控制在本季核准的預算內。",options:["budget","inventory","agenda","receipt"]},
+ {word:"reimburse",answer:"reimbursed",pos:"v.",meaning:"報銷；償還",sentence:"Employees will be ____ for travel expenses once they submit their receipts to accounting.",zh:"員工把收據交給會計後，差旅費就會獲得報銷。",options:["reimbursed","postponed","assigned","refunded"]},
+ {word:"mandatory",answer:"mandatory",pos:"adj.",meaning:"強制的；必須的",sentence:"Attendance at Friday's safety training session is ____ for all warehouse staff.",zh:"所有倉庫人員都必須參加週五的安全訓練。",options:["mandatory","optional","temporary","punctual"]},
+ {word:"negotiate",answer:"negotiate",pos:"v.",meaning:"談判；協商",sentence:"Ms. Chen hopes to ____ a lower price with the supplier before signing the new contract.",zh:"陳小姐希望在簽新合約前和供應商談到更低的價格。",options:["negotiate","postpone","purchase","announce"]},
+ {word:"inventory",answer:"inventory",pos:"n.",meaning:"存貨；庫存清單",sentence:"The store closes early on the last day of each month so staff can count the ____.",zh:"這家店每月最後一天提早打烊，讓員工盤點存貨。",options:["inventory","invoice","budget","itinerary"]}
+];
+
+const $ = s => document.querySelector(s);
+const stage = $("#stage"), statusEl = $("#status"), wordsEl = $("#words"), genBtn = $("#gen");
+let mode = "type", quiz = [], idx = 0, results = [], isExample = true, answered = false, hintUsed = false;
+
+function store(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+function load(k){try{return localStorage.getItem(k)}catch(e){return null}}
+try{
+  wordsEl.value = load("vc-words") ?? EXAMPLE.map(q=>q.word).join("\n");
+  if(load("vc-mode")==="choice") setMode("choice");
+}catch(e){}
+wordsEl.addEventListener("input",()=>store("vc-words",wordsEl.value));
+
+function setMode(m){
+  mode=m; store("vc-mode",m);
+  $("#m-type").setAttribute("aria-pressed",m==="type");
+  $("#m-choice").setAttribute("aria-pressed",m==="choice");
+  if(quiz.length && idx<quiz.length && !answered) render();
+}
+$("#m-type").onclick=()=>setMode("type");
+$("#m-choice").onclick=()=>setMode("choice");
+
+function parseWords(text){
+  const out=[], seen=new Set();
+  for(const part of text.split(/[\n,;，、；]+/)){
+    const m=part.trim().match(/^[A-Za-z][A-Za-z'\- ]*[A-Za-z]|^[A-Za-z]/);
+    if(!m) continue;
+    const w=m[0].replace(/\s+/g," ").trim();
+    const key=w.toLowerCase();
+    if(!seen.has(key)){seen.add(key);out.push(w)}
+  }
+  return out.slice(0,40);
+}
+const norm = s => String(s||"").toLowerCase().replace(/[’']/g,"'").replace(/\s+/g," ").trim();
+function shuffle(a){a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+
+function clean(q, word){
+  if(!q || typeof q!=="object") return null;
+  let answer=String(q.answer||word||"").trim(), sentence=String(q.sentence||"");
+  if(!answer||!sentence) return null;
+  if(!/_{2,}/.test(sentence)){
+    const re=new RegExp("\\b"+answer.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b","i");
+    if(!re.test(sentence)) return null;
+    sentence=sentence.replace(re,"____");
+  }
+  sentence=sentence.replace(/_{2,}/,"____");
+  let options=Array.isArray(q.options)?q.options.map(String).filter(Boolean):[];
+  if(!options.some(o=>norm(o)===norm(answer))) options=[answer,...options];
+  options=[...new Map(options.map(o=>[norm(o),o])).values()].slice(0,4);
+  return {word:String(q.word||word),answer,sentence,options,pos:String(q.pos||""),meaning:String(q.meaning||""),zh:String(q.zh||"")};
+}
+
+function prompt(words){
+  return `You write TOEIC-style vocabulary fill-in-the-blank questions for a Taiwanese learner.
+For EACH word or phrase below, write ONE natural English sentence (12-24 words) in a workplace, business, travel or daily-life context typical of the TOEIC exam. The sentence must clearly need that word; use an inflected form (e.g. -ed, -s, -ing) when grammar requires it.
+
+Reply with only a JSON array, one object per word, in the same order:
+{"word": the word as given, "answer": the exact form used in the sentence, "sentence": the sentence with that form replaced by "____" (four underscores, exactly once), "pos": part of speech like "n.", "v.", "adj.", "adv.", "phr.", "meaning": short meaning in Traditional Chinese (Taiwan), "zh": the full sentence translated into Traditional Chinese (Taiwan), "options": 4 strings — the answer plus 3 wrong choices in the same grammatical form that do NOT fit the sentence (prefer other words from this list)}
+
+Example: {"word":"postpone","answer":"postponed","sentence":"The meeting was ____ until Friday because the manager was sick.","pos":"v.","meaning":"延後","zh":"因為經理生病，會議延到週五。","options":["postponed","reimbursed","negotiated","attended"]}
+
+Words:
+${words.join("\n")}`;
+}
+
+const keyEl=$("#key");
+keyEl.value=load("vc-key")||"";
+if(!keyEl.value) $("#keybox").open=true;
+keyEl.addEventListener("input",()=>store("vc-key",keyEl.value.trim()));
+const MODELS=["gemini-3.5-flash-lite","gemini-3.8-flash"];
+
+async function gemini(text,key){
+  let last;
+  for(const model of MODELS){
+    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,{
+      method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":key},
+      body:JSON.stringify({contents:[{role:"user",parts:[{text}]}],generationConfig:{responseMimeType:"application/json",temperature:0.9}})
+    }).catch(()=>null);
+    if(!r){last={code:"network"};continue}
+    const j=await r.json().catch(()=>({}));
+    if(r.ok){
+      const out=(j.candidates?.[0]?.content?.parts||[]).map(p=>p.text||"").join("");
+      try{return JSON.parse(out)}catch(e){const m=out.match(/\[[\s\S]*\]/);if(m)try{return JSON.parse(m[0])}catch(_){} throw {code:"invalid_json"}}
+    }
+    const msg=JSON.stringify(j);
+    if(r.status===404){last={code:"model"};continue}
+    if(/API_KEY_INVALID|API key not valid/i.test(msg)) throw {code:"bad_key"};
+    if(r.status===429) throw {code:"rate_limited"};
+    if(r.status===403) throw {code:"forbidden"};
+    last={code:"upstream",status:r.status};
+  }
+  throw last||{code:"upstream"};
+}
+
+const ERR = {
+  bad_key:"Gemini 金鑰不正確，請到下方「Gemini 金鑰設定」重新貼一次。",
+  forbidden:"這組金鑰沒有權限使用 Gemini，請到 AI Studio 重新建立一組。",
+  rate_limited:"免費額度這一分鐘或今天用完了，等一下再試。",
+  invalid_json:"這次回傳的格式不對，請再按一次「出題」。",
+  model:"Gemini 的模型名稱變了，請跟 Claude 說要更新。",
+  network:"連不上 Google，請檢查網路後再試。",
+};
+
+genBtn.onclick = async () => {
+  const words = parseWords(wordsEl.value);
+  if(!words.length){setStatus("請先輸入至少一個英文單字。",true);return}
+  const key=keyEl.value.trim();
+  if(!key){$("#keybox").open=true;keyEl.focus();setStatus("請先貼上 Gemini 金鑰（說明在下方）。",true);return}
+  genBtn.disabled=true;
+  const chunks=[]; for(let i=0;i<words.length;i+=15) chunks.push(words.slice(i,i+15));
+  const made=[];
+  try{
+    for(let c=0;c<chunks.length;c++){
+      setStatus(`正在出題…（${Math.min((c+1)*15,words.length)} / ${words.length} 個單字）`);
+      const arr = await gemini(prompt(chunks[c]),key);
+      if(Array.isArray(arr)) arr.forEach((q,i)=>{const x=clean(q,chunks[c][i]); if(x) made.push(x)});
+    }
+    if(!made.length) throw {code:"invalid_json"};
+    const skipped = words.length-made.length;
+    startQuiz(shuffle(made),false);
+    setStatus(`出好 ${made.length} 題了。`+(skipped>0?`有 ${skipped} 個單字沒成功出題。`:""));
+  }catch(e){
+    const m=ERR[e?.code]||"出題失敗，請再按一次「出題」。";
+    if(made.length){startQuiz(shuffle(made),false);setStatus(`只出好 ${made.length} 題，其餘失敗：`+m,true)}
+    else setStatus(m,true);
+  }finally{genBtn.disabled=false}
+};
+function setStatus(t,err){statusEl.textContent=t;statusEl.classList.toggle("err",!!err)}
+
+function startQuiz(qs,example){quiz=qs;idx=0;results=[];isExample=example;render()}
+
+function render(){
+  answered=false; hintUsed=false;
+  const q=quiz[idx];
+  const pct = (idx/quiz.length)*100;
+  const parts=q.sentence.split("____");
+  const blank = mode==="type"
+    ? `<input class="blank" id="ans" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="填入答案" style="width:${Math.max(7,q.answer.length+2)}ch">`
+    : `<span class="gap" id="gap">&nbsp;</span>`;
+  stage.innerHTML=`
+    <div class="meta"><span class="qno">第 ${idx+1} / ${quiz.length} 題</span>
+      <span>${isExample?'<span class="example">範例題目 · </span>':""}<span class="badge">${esc(q.pos)}</span></span></div>
+    <div class="bar"><i style="width:${pct}%"></i></div>
+    <p class="sentence">${esc(parts[0])}${blank}${esc(parts.slice(1).join("____"))}</p>
+    ${mode==="choice"?`<div class="opts">${shuffle(q.options).map((o,i)=>`<button class="btn opt" data-v="${esc(o)}" type="button"><b>${"ABCD"[i]}</b>${esc(o)}</button>`).join("")}</div>`:""}
+    <div id="fb"></div>
+    <div class="actions">
+      <button class="btn" id="hint" type="button">提示</button>
+      ${mode==="type"?'<button class="btn primary" id="go" type="button">送出</button>':""}
+    </div>`;
+  $("#hint").onclick=showHint;
+  if(mode==="type"){
+    const inp=$("#ans"); inp.focus({preventScroll:true});
+    inp.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();answered?next():check(inp.value)}});
+    $("#go").onclick=()=>answered?next():check(inp.value);
+  }else{
+    stage.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{if(!answered) check(b.dataset.v,b)});
+  }
+}
+
+function showHint(){
+  if(answered) return;
+  hintUsed=true;
+  const q=quiz[idx];
+  $("#fb").innerHTML=`<div class="fb tip"><span>開頭是 <strong>${esc(q.answer[0])}</strong>，共 ${q.answer.replace(/\s/g,"").length} 個字母 · 意思：${esc(q.meaning)}</span></div>`;
+}
+
+function check(val,btn){
+  const q=quiz[idx];
+  if(mode==="type" && !String(val).trim()) return;
+  answered=true;
+  const ok = norm(val)===norm(q.answer);
+  const close = !ok && norm(val)===norm(q.word);
+  results.push({q,ok,given:val});
+  if(mode==="type"){
+    const inp=$("#ans"); inp.classList.add(ok?"ok":"no"); inp.readOnly=true;
+    $("#go").textContent= idx+1<quiz.length?"下一題":"看結果";
+    $("#go").focus({preventScroll:true});
+  }else{
+    $("#gap").textContent=q.answer;
+    stage.querySelectorAll(".opt").forEach(b=>{b.disabled=true;if(norm(b.dataset.v)===norm(q.answer))b.classList.add("ok")});
+    if(!ok&&btn) btn.classList.add("no");
+    const nb=document.createElement("button");nb.className="btn primary";nb.type="button";nb.textContent=idx+1<quiz.length?"下一題":"看結果";nb.onclick=next;
+    $(".actions").append(nb); nb.focus({preventScroll:true});
+  }
+  $("#hint").hidden=true;
+  const head = ok?"答對了":close?"差一點：要注意詞形變化":"答錯了";
+  $("#fb").innerHTML=`<div class="fb ${ok?"ok":"no"}">
+    <strong>${head}</strong>
+    <span>正確答案：<span class="word">${esc(q.answer)}</span>${norm(q.answer)!==norm(q.word)?`（原形 ${esc(q.word)}）`:""} · ${esc(q.pos)} ${esc(q.meaning)}</span>
+    <span class="zh">${esc(q.zh)}</span></div>`;
+}
+
+function next(){ idx++; idx<quiz.length?render():finish() }
+
+function finish(){
+  const right=results.filter(r=>r.ok).length, wrong=results.filter(r=>!r.ok);
+  try{
+    const saved=JSON.parse(load("vc-wrong")||"[]");
+    const merged=[...new Set([...saved,...wrong.map(r=>r.q.word)])].filter(w=>!results.some(r=>r.ok&&r.q.word===w)).slice(-100);
+    store("vc-wrong",JSON.stringify(merged));
+  }catch(e){}
+  stage.innerHTML=`
+    <div class="meta"><span>${isExample?"範例題目練習結果":"練習結果"}</span></div>
+    <div class="bar"><i style="width:100%"></i></div>
+    <div><div class="score">${right} / ${results.length}</div><p class="hint">答對率 ${Math.round(right/results.length*100)}%</p></div>
+    ${wrong.length?`<div class="label">要再複習的單字</div><ul class="wrong">${wrong.map(r=>`<li><span class="word">${esc(r.q.word)}</span><span>${esc(r.q.pos)} ${esc(r.q.meaning)}</span><span class="hint">你填：${esc(r.given)}</span></li>`).join("")}</ul>`:'<p>全部答對，可以換一批新單字了。</p>'}
+    <div class="actions">
+      ${wrong.length?'<button class="btn" id="redo" type="button">只練錯的（同一句）</button>':""}
+      <button class="btn" id="again" type="button">整份再做一次</button>
+      ${wrong.length?'<button class="btn primary" id="newwrong" type="button">錯的單字換新句子</button>':""}
+    </div>`;
+  $("#again").onclick=()=>startQuiz(shuffle(quiz),isExample);
+  if(wrong.length){
+    $("#redo").onclick=()=>startQuiz(shuffle(wrong.map(r=>r.q)),isExample);
+    $("#newwrong").onclick=()=>{wordsEl.value=wrong.map(r=>r.q.word).join("\n");store("vc-words",wordsEl.value);genBtn.click()};
+  }
+}
+
+startQuiz(shuffle(EXAMPLE),true);
+setStatus("右邊是範例題目。換成你的單字後按「出題」。");
+</script>
+
+</body>
+</html>
