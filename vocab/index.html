@@ -118,12 +118,21 @@ body{margin:0;-webkit-text-size-adjust:100%}
 .unititem{display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;width:100%}
 .unititem[aria-current="true"]{border-color:var(--accent);background:var(--accent-soft)}
 .unititem span:first-child{min-width:0;overflow-wrap:anywhere}
+.unitwrap{display:flex;gap:6px;align-items:stretch}
+.unitwrap .unititem{flex:1;min-width:0}
+.heart{border:1px solid transparent;background:transparent;color:var(--muted);width:40px;min-height:36px;border-radius:8px;display:grid;place-items:center;cursor:pointer;padding:0;flex:none}
+.heart svg{width:20px;height:20px}
+.heart:hover{border-color:var(--line)}
+.heart[aria-pressed="true"]{color:#E0475B}
+.heart[aria-pressed="true"] svg path{fill:currentColor}
+.heartfilter[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.check.hearts{border-style:dashed}
 .count{font-family:var(--f-mono);font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
 input.uname{font-family:var(--f-read);font-size:1.5rem;font-weight:600;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--ink);padding:2px 0;width:100%;border-radius:0}
 .seg.small button{padding:5px 10px;font-size:.85rem}
 .vocab{list-style:none;margin:0;padding:0}
 .vocab .no{font-family:var(--f-mono);font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;min-width:2ch;text-align:right}
-.vocab li{display:grid;grid-template-columns:auto auto minmax(0,1fr) minmax(0,1.2fr);gap:12px;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer;align-items:center;border-radius:6px;transition:background .2s}
+.vocab li{display:grid;grid-template-columns:auto auto minmax(0,1fr) minmax(0,1.2fr) auto;gap:12px;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer;align-items:center;border-radius:6px;transition:background .2s}
 .vocab li.speaking{background:var(--accent-soft)}
 .say{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--paper);color:var(--ink);display:grid;place-items:center;cursor:pointer;padding:0}
 .say:hover{border-color:var(--muted)}
@@ -193,7 +202,7 @@ select.n{flex:none;width:100%}
     <div class="card">
       <input id="uname" class="uname" aria-label="單元名稱" placeholder="單元名稱，例如 Unit 3 Office">
       <div class="meta">
-        <span id="ucount" class="count"></span>
+        <span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span id="ucount" class="count"></span><button id="heartfilter" class="btn sm heartfilter" type="button" aria-pressed="false">只看 ♥</button></span>
         <div class="seg small" role="group" aria-label="複習方式">
           <button type="button" data-mask="none">全部顯示</button>
           <button type="button" data-mask="zh">遮中文</button>
@@ -234,6 +243,7 @@ select.n{flex:none;width:100%}
       <div id="sel-cloze" class="checks"></div>
       <div class="row"><button class="linkbtn" type="button" data-all="cloze">全選</button><button class="linkbtn" type="button" data-none="cloze">全不選</button></div>
       <label class="label" for="n-cloze">題數</label>
+      <label class="check hearts"><input type="checkbox" id="hearts-cloze"><span>只考有 ♥ 的單字</span></label>
       <select id="n-cloze" class="n"><option value="10">10 題</option><option value="20">20 題</option><option value="30">30 題</option><option value="60">全部（最多 60 題）</option></select>
       <div class="label">作答方式</div>
       <div class="seg" role="group" aria-label="作答方式">
@@ -253,6 +263,7 @@ select.n{flex:none;width:100%}
       <div id="sel-meaning" class="checks"></div>
       <div class="row"><button class="linkbtn" type="button" data-all="meaning">全選</button><button class="linkbtn" type="button" data-none="meaning">全不選</button></div>
       <label class="label" for="n-meaning">題數</label>
+      <label class="check hearts"><input type="checkbox" id="hearts-meaning"><span>只考有 ♥ 的單字</span></label>
       <select id="n-meaning" class="n"><option value="10">10 題</option><option value="20">20 題</option><option value="30">30 題</option><option value="999">全部</option></select>
       <button id="gen-meaning" class="btn primary" type="button">開始</button>
       <p class="hint">看英文，從四個中文意思選出正確的。用的是單元裡的中文；沒有中文的單字會先用 Gemini 補上。</p>
@@ -275,6 +286,7 @@ select.n{flex:none;width:100%}
         <div class="row"><button class="linkbtn" type="button" data-all="pos">全選</button><button class="linkbtn" type="button" data-none="pos">全不選</button></div>
       </div>
       <label class="label" for="n-pos">題數</label>
+      <label class="check hearts" id="hearts-pos-wrap"><input type="checkbox" id="hearts-pos"><span>只考有 ♥ 的單字</span></label>
       <select id="n-pos" class="n"><option value="10">10 題</option><option value="20">20 題</option><option value="30">30 題</option><option value="999">全部</option></select>
       <button id="gen-pos" class="btn primary" type="button">開始</button>
       <p class="hint" id="pos-hint"></p>
@@ -325,7 +337,7 @@ select.n{flex:none;width:100%}
     <section id="stage-form" class="card" aria-live="polite"></section>
   </section>
 
-  <p class="hint" style="text-align:center">版本 10/14-14</p>
+  <p class="hint" style="text-align:center">版本 10/14-15</p>
 </div>
 
 <script>
@@ -400,14 +412,25 @@ const unitById=id=>units.find(u=>u.id===id);
 function saveUnits(){store("vc-units",JSON.stringify(units));store("vc-cur",cur)}
 
 const nameEl=$("#uname"), wordsEl=$("#words"), delBtn=$("#delunit");
+/* ---------- 愛心記號 ---------- */
+const HEART='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 7.9 3.6 4.5 7 4.5c2 0 3.6 1.1 5 2.9 1.4-1.8 3-2.9 5-2.9 3.4 0 5.6 3.4 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"/></svg>';
+let hearts=new Set(loadJSON("vc-hearts",[])), unitHearts=new Set(loadJSON("vc-unit-hearts",[]));
+let heartOnly=load("vc-heartonly")==="1";
+function saveHearts(){store("vc-hearts",JSON.stringify([...hearts]));store("vc-unit-hearts",JSON.stringify([...unitHearts]))}
+const isHeart=w=>hearts.has(w.toLowerCase());
 function drawUnitList(){
-  $("#unitlist").innerHTML=units.map(u=>`<button type="button" class="btn unititem" data-id="${u.id}" aria-current="${u.id===cur}"><span>${esc(u.name||"未命名單元")}</span><span class="count">${parseEntries(u.words).length} 字</span></button>`).join("");
+  $("#unitlist").innerHTML=units.map(u=>{const on=unitHearts.has(u.id); const hc=parseEntries(u.words).filter(e=>isHeart(e.word)).length;
+    return `<div class="unitwrap"><button type="button" class="btn unititem" data-id="${u.id}" aria-current="${u.id===cur}"><span>${esc(u.name||"未命名單元")}</span><span class="count">${hc?`♥${hc} · `:""}${parseEntries(u.words).length} 字</span></button><button type="button" class="heart" data-uheart="${u.id}" aria-pressed="${on}" aria-label="${on?"取消單元記號":"幫這個單元做記號"}">${HEART}</button></div>`}).join("");
 }
 function drawVocab(){
   const es=parseEntries(unit().words);
-  $("#ucount").textContent=`${es.length} 個單字`;
+  const hc=es.filter(e=>isHeart(e.word)).length;
+  $("#ucount").textContent=`${es.length} 個單字`+(hc?`，♥ ${hc} 個`:"");
+  $("#heartfilter").setAttribute("aria-pressed",heartOnly);
   stopSpeaking();
-  $("#vocab").innerHTML = es.length ? es.map((e,i)=>`<li data-i="${i}"><span class="no">${i+1}</span>${TTS_OK?`<button class="say" type="button" aria-label="念 ${esc(e.word)}">${SPEAKER}</button>`:"<span></span>"}<span class="en ${mask==="en"?"hide":""}">${esc(e.word)}</span><span class="zh ${e.zh?"":"none"} ${mask==="zh"&&e.zh?"hide":""}">${e.zh?esc(e.zh):"（還沒有中文）"}</span></li>`).join("")
+  const shown=es.map((e,i)=>({e,i})).filter(x=>!heartOnly||isHeart(x.e.word));
+  $("#vocab").innerHTML = shown.length ? shown.map(({e,i})=>`<li data-i="${i}"><span class="no">${i+1}</span>${TTS_OK?`<button class="say" type="button" aria-label="念 ${esc(e.word)}">${SPEAKER}</button>`:"<span></span>"}<span class="en ${mask==="en"?"hide":""}">${esc(e.word)}</span><span class="zh ${e.zh?"":"none"} ${mask==="zh"&&e.zh?"hide":""}">${e.zh?esc(e.zh):"（還沒有中文）"}</span><button class="heart" type="button" data-wheart="${esc(e.word)}" aria-pressed="${isHeart(e.word)}" aria-label="${isHeart(e.word)?"取消記號":"做記號"}">${HEART}</button></li>`).join("")
+    : es.length ? `<li class="empty">這個單元還沒有做 ♥ 記號的單字。按每個單字右邊的愛心就能做記號。</li>`
     : `<li class="empty">這個單元還沒有單字。按「拍照 / 選照片加單字」，或「編輯單字」自己打。</li>`;
   $("#maskhint").hidden = mask==="none" || !es.length;
   document.querySelectorAll("[data-mask]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.mask===mask));
@@ -420,9 +443,18 @@ function drawUnit(){
   drawVocab();
   delBtn.hidden=units.length<2; delBtn.classList.remove("warn"); delBtn.textContent="刪除這個單元";
 }
-$("#unitlist").onclick=e=>{const b=e.target.closest(".unititem"); if(!b) return; cur=b.dataset.id; saveUnits(); $("#editbox").hidden=true; setSt("units",""); drawUnit()};
+$("#heartfilter").onclick=()=>{heartOnly=!heartOnly;store("vc-heartonly",heartOnly?"1":"0");drawVocab()};
+$("#unitlist").onclick=e=>{
+  const h=e.target.closest("[data-uheart]");
+  if(h){const id=h.dataset.uheart; unitHearts.has(id)?unitHearts.delete(id):unitHearts.add(id); saveHearts(); drawUnitList(); return}
+  const b=e.target.closest(".unititem"); if(!b) return; cur=b.dataset.id; saveUnits(); $("#editbox").hidden=true; setSt("units",""); drawUnit()};
 $("#vocab").onclick=e=>{
   const li=e.target.closest("li"); if(!li||li.classList.contains("empty")) return;
+  const hb=e.target.closest("[data-wheart]");
+  if(hb){const k=hb.dataset.wheart.toLowerCase(); hearts.has(k)?hearts.delete(k):hearts.add(k); saveHearts();
+    const on=hearts.has(k); hb.setAttribute("aria-pressed",on); hb.setAttribute("aria-label",on?"取消記號":"做記號");
+    drawUnitList(); const es=parseEntries(unit().words), hc=es.filter(x=>isHeart(x.word)).length; $("#ucount").textContent=`${es.length} 個單字`+(hc?`，♥ ${hc} 個`:"");
+    if(heartOnly&&!on) drawVocab(); return}
   if(e.target.closest(".say")){const es=parseEntries(unit().words); speak([es[Number(li.dataset.i)]].map(x=>({e:x,i:Number(li.dataset.i)})),false); return}
   li.classList.toggle("show");
 };
@@ -476,8 +508,9 @@ function speak(list,all){
 $("#playall").onclick=()=>{
   if(playing){stopSpeaking();return}
   const es=parseEntries(unit().words);
-  if(!es.length){setSt("units","這個單元還沒有單字可以念。");return}
-  speak(es.map((e,i)=>({e,i})),true);
+  const list=es.map((e,i)=>({e,i})).filter(x=>!heartOnly||isHeart(x.e.word));
+  if(!list.length){setSt("units",heartOnly?"這個單元還沒有做 ♥ 記號的單字。":"這個單元還沒有單字可以念。");return}
+  speak(list,true);
 };
 document.querySelectorAll("[data-read]").forEach(b=>b.onclick=()=>{readMode=b.dataset.read;store("vc-read",readMode);document.querySelectorAll("[data-read]").forEach(x=>x.setAttribute("aria-pressed",x.dataset.read===readMode))});
 document.querySelectorAll("[data-read]").forEach(x=>x.setAttribute("aria-pressed",x.dataset.read===readMode));
@@ -753,8 +786,9 @@ function selected(kind){
 }
 function drawChecks(kind){
   const ids=new Set(selected(kind));
-  $("#sel-"+kind).innerHTML=units.map(u=>`<label class="check"><input type="checkbox" value="${u.id}" ${ids.has(u.id)?"checked":""}><span>${esc(u.name||"未命名單元")}</span><span class="count">${parseEntries(u.words).length} 字</span></label>`).join("");
+  $("#sel-"+kind).innerHTML=units.map(u=>`<label class="check"><input type="checkbox" value="${u.id}" ${ids.has(u.id)?"checked":""}><span>${unitHearts.has(u.id)?'<span style="color:#E0475B">♥</span> ':""}${esc(u.name||"未命名單元")}</span><span class="count">${parseEntries(u.words).length} 字</span></label>`).join("");
 }
+["cloze","meaning","pos"].forEach(kind=>{const c=$("#hearts-"+kind); c.checked=load("vc-hearts-"+kind)==="1"; c.onchange=()=>store("vc-hearts-"+kind,c.checked?"1":"0")});
 function saveChecks(kind){store("vc-sel-"+kind,JSON.stringify([...document.querySelectorAll(`#sel-${kind} input:checked`)].map(i=>i.value)))}
 ["cloze","meaning","pos"].forEach(kind=>{
   $("#sel-"+kind).addEventListener("change",()=>saveChecks(kind));
@@ -766,7 +800,8 @@ function saveChecks(kind){store("vc-sel-"+kind,JSON.stringify([...document.query
 function pickEntries(kind){
   const us=selected(kind).map(unitById);
   const seen=new Set(), out=[];
-  for(const u of us) for(const e of parseEntries(u.words)){const k=e.word.toLowerCase(); if(!seen.has(k)){seen.add(k);out.push({...e,unit:u.name})}}
+  const only=$("#hearts-"+kind)?.checked;
+  for(const u of us) for(const e of parseEntries(u.words)){const k=e.word.toLowerCase(); if(only&&!hearts.has(k)) continue; if(!seen.has(k)){seen.add(k);out.push({...e,unit:u.name})}}
   return {us,entries:out};
 }
 
@@ -1006,7 +1041,7 @@ function bankSave(qs){
 /* 出填空題：先用題庫裡有的，缺的才問 Gemini；Gemini 塞車時就用題庫的先練 */
 let clozeRoundNote="";
 async function generateCloze(words,fresh){
-  if(!words.length){setSt("cloze","勾選的單元裡還沒有單字。先到「單元複習」加單字。",true);return}
+  if(!words.length){setSt("cloze",$("#hearts-cloze").checked?"勾選的單元裡還沒有做 ♥ 記號的單字。":"勾選的單元裡還沒有單字。先到「單元複習」加單字。",true);return}
   const ready=[], need=[];
   for(const w of words){const qs=fresh?[]:bankGet(w); if(qs.length) ready.push(qs[Math.floor(Math.random()*qs.length)]); else need.push(w)}
   const made=[]; let fail=null;
@@ -1053,7 +1088,7 @@ const genMeaning=$("#gen-meaning");
 genMeaning.onclick=async()=>{
   let {us,entries}=pickEntries("meaning");
   if(!us.length){setSt("meaning","請先勾選至少一個單元。",true);return}
-  if(!entries.length){setSt("meaning","勾選的單元裡還沒有單字。先到「單元複習」加單字。",true);return}
+  if(!entries.length){setSt("meaning",$("#hearts-meaning").checked?"勾選的單元裡還沒有做 ♥ 記號的單字。":"勾選的單元裡還沒有單字。先到「單元複習」加單字。",true);return}
   let note="";
   const missing=entries.filter(e=>!e.zh).length;
   if(missing){
@@ -1132,7 +1167,7 @@ genPos.onclick=async()=>{
   if(posSrc==="ai"){startAiPos();return}
   const {us,entries}=pickEntries("pos");
   if(!us.length){setSt("pos","請先勾選至少一個單元。",true);return}
-  if(!entries.length){setSt("pos","勾選的單元裡還沒有單字。先到「單元複習」加單字。",true);return}
+  if(!entries.length){setSt("pos",$("#hearts-pos").checked?"勾選的單元裡還沒有做 ♥ 記號的單字。":"勾選的單元裡還沒有單字。先到「單元複習」加單字。",true);return}
   let note="";
   const missing=entries.filter(e=>!posOf(e.word));
   if(missing.length){
@@ -1163,7 +1198,7 @@ function toeicPool(){const extra=loadJSON("vc-toeicpos-extra",[]);return [...TOE
 let posSrc=["mine","ai"].includes(load("vc-pos-src"))?load("vc-pos-src"):"toeic";
 function drawPosSrc(){
   document.querySelectorAll("[data-src]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.src===posSrc));
-  $("#pos-units").hidden=posSrc!=="mine";
+  $("#pos-units").hidden=posSrc!=="mine"; $("#hearts-pos-wrap").hidden=posSrc!=="mine";
   $("#pos-hint").textContent=posSrc==="mine"
     ?"看你單元裡的單字和中文，選它是名詞、動詞、形容詞還是副詞。"
     :posSrc==="ai"
