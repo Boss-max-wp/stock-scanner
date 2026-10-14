@@ -131,6 +131,7 @@ body{margin:0;-webkit-text-size-adjust:100%}
 input.uname{font-family:var(--f-read);font-size:1.5rem;font-weight:600;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--ink);padding:2px 0;width:100%;border-radius:0}
 .seg.small button{padding:5px 10px;font-size:.85rem}
 .vocab{list-style:none;margin:0;padding:0}
+.vocab .from{grid-column:3 / span 2;font-size:.75rem;color:var(--muted);margin-top:-6px}
 .vocab .no{font-family:var(--f-mono);font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;min-width:2ch;text-align:right}
 .vocab li{display:grid;grid-template-columns:auto auto minmax(0,1fr) minmax(0,1.2fr) auto;gap:12px;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer;align-items:center;border-radius:6px;transition:background .2s}
 .vocab li.speaking{background:var(--accent-soft)}
@@ -202,7 +203,8 @@ select.n{flex:none;width:100%}
     <div class="card">
       <input id="uname" class="uname" aria-label="單元名稱" placeholder="單元名稱，例如 Unit 3 Office">
       <div class="meta">
-        <span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span id="ucount" class="count"></span><button id="heartfilter" class="btn sm heartfilter" type="button" aria-pressed="false">只看 ♥</button></span>
+        <span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span id="ucount" class="count"></span><button id="heartfilter" class="btn sm heartfilter" type="button" aria-pressed="false">只看 ♥</button>
+          <span class="seg small" id="heartscope" role="group" aria-label="♥ 範圍" hidden><button type="button" data-hs="all">所有單元</button><button type="button" data-hs="unit">只看這個單元</button></span></span>
         <div class="seg small" role="group" aria-label="複習方式">
           <button type="button" data-mask="none">全部顯示</button>
           <button type="button" data-mask="zh">遮中文</button>
@@ -337,7 +339,7 @@ select.n{flex:none;width:100%}
     <section id="stage-form" class="card" aria-live="polite"></section>
   </section>
 
-  <p class="hint" style="text-align:center">版本 10/14-15</p>
+  <p class="hint" style="text-align:center">版本 10/14-16</p>
 </div>
 
 <script>
@@ -422,20 +424,33 @@ function drawUnitList(){
   $("#unitlist").innerHTML=units.map(u=>{const on=unitHearts.has(u.id); const hc=parseEntries(u.words).filter(e=>isHeart(e.word)).length;
     return `<div class="unitwrap"><button type="button" class="btn unititem" data-id="${u.id}" aria-current="${u.id===cur}"><span>${esc(u.name||"未命名單元")}</span><span class="count">${hc?`♥${hc} · `:""}${parseEntries(u.words).length} 字</span></button><button type="button" class="heart" data-uheart="${u.id}" aria-pressed="${on}" aria-label="${on?"取消單元記號":"幫這個單元做記號"}">${HEART}</button></div>`}).join("");
 }
+/* 畫面上目前顯示的單字（念單字、愛心都用這份） */
+let viewRows=[];
+let heartScope=load("vc-heartscope")==="unit"?"unit":"all";
 function drawVocab(){
   const es=parseEntries(unit().words);
   const hc=es.filter(e=>isHeart(e.word)).length;
-  $("#ucount").textContent=`${es.length} 個單字`+(hc?`，♥ ${hc} 個`:"");
+  const allMode=heartOnly&&heartScope==="all";
   $("#heartfilter").setAttribute("aria-pressed",heartOnly);
+  $("#heartscope").hidden=!heartOnly;
+  document.querySelectorAll("[data-hs]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.hs===heartScope));
   stopSpeaking();
-  const shown=es.map((e,i)=>({e,i})).filter(x=>!heartOnly||isHeart(x.e.word));
-  $("#vocab").innerHTML = shown.length ? shown.map(({e,i})=>`<li data-i="${i}"><span class="no">${i+1}</span>${TTS_OK?`<button class="say" type="button" aria-label="念 ${esc(e.word)}">${SPEAKER}</button>`:"<span></span>"}<span class="en ${mask==="en"?"hide":""}">${esc(e.word)}</span><span class="zh ${e.zh?"":"none"} ${mask==="zh"&&e.zh?"hide":""}">${e.zh?esc(e.zh):"（還沒有中文）"}</span><button class="heart" type="button" data-wheart="${esc(e.word)}" aria-pressed="${isHeart(e.word)}" aria-label="${isHeart(e.word)?"取消記號":"做記號"}">${HEART}</button></li>`).join("")
-    : es.length ? `<li class="empty">這個單元還沒有做 ♥ 記號的單字。按每個單字右邊的愛心就能做記號。</li>`
+  if(allMode){
+    const seen=new Set(); viewRows=[];
+    for(const u of units) for(const e of parseEntries(u.words)){const k=e.word.toLowerCase(); if(isHeart(e.word)&&!seen.has(k)){seen.add(k);viewRows.push({e,unit:u.name||"未命名單元"})}}
+    $("#ucount").textContent=`所有單元的 ♥ 單字：${viewRows.length} 個`;
+  }else{
+    viewRows=es.map((e,i)=>({e,no:i+1})).filter(x=>!heartOnly||isHeart(x.e.word));
+    $("#ucount").textContent=`${es.length} 個單字`+(hc?`，♥ ${hc} 個`:"");
+  }
+  $("#vocab").innerHTML = viewRows.length ? viewRows.map(({e,no,unit:un},i)=>`<li data-i="${i}"><span class="no">${no||i+1}</span>${TTS_OK?`<button class="say" type="button" aria-label="念 ${esc(e.word)}">${SPEAKER}</button>`:"<span></span>"}<span class="en ${mask==="en"?"hide":""}">${esc(e.word)}</span><span class="zh ${e.zh?"":"none"} ${mask==="zh"&&e.zh?"hide":""}">${e.zh?esc(e.zh):"（還沒有中文）"}</span><button class="heart" type="button" data-wheart="${esc(e.word)}" aria-pressed="${isHeart(e.word)}" aria-label="${isHeart(e.word)?"取消記號":"做記號"}">${HEART}</button>${un?`<span class="from">${esc(un)}</span>`:""}</li>`).join("")
+    : heartOnly ? `<li class="empty">${allMode?"還沒有任何單元做 ♥ 記號。":"這個單元還沒有做 ♥ 記號的單字。"}按每個單字右邊的愛心就能做記號。</li>`
     : `<li class="empty">這個單元還沒有單字。按「拍照 / 選照片加單字」，或「編輯單字」自己打。</li>`;
-  $("#maskhint").hidden = mask==="none" || !es.length;
+  $("#maskhint").hidden = mask==="none" || !viewRows.length;
   document.querySelectorAll("[data-mask]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.mask===mask));
-  $("#fillzh").hidden = !es.some(e=>!e.zh);
+  $("#fillzh").hidden = allMode || !es.some(e=>!e.zh);
 }
+document.querySelectorAll("[data-hs]").forEach(b=>b.onclick=()=>{heartScope=b.dataset.hs;store("vc-heartscope",heartScope);drawVocab()});
 function drawUnit(){
   drawUnitList();
   nameEl.value=unit().name;
@@ -453,9 +468,11 @@ $("#vocab").onclick=e=>{
   const hb=e.target.closest("[data-wheart]");
   if(hb){const k=hb.dataset.wheart.toLowerCase(); hearts.has(k)?hearts.delete(k):hearts.add(k); saveHearts();
     const on=hearts.has(k); hb.setAttribute("aria-pressed",on); hb.setAttribute("aria-label",on?"取消記號":"做記號");
-    drawUnitList(); const es=parseEntries(unit().words), hc=es.filter(x=>isHeart(x.word)).length; $("#ucount").textContent=`${es.length} 個單字`+(hc?`，♥ ${hc} 個`:"");
-    if(heartOnly&&!on) drawVocab(); return}
-  if(e.target.closest(".say")){const es=parseEntries(unit().words); speak([es[Number(li.dataset.i)]].map(x=>({e:x,i:Number(li.dataset.i)})),false); return}
+    drawUnitList();
+    if(heartOnly&&!on){drawVocab();return}
+    if(!(heartOnly&&heartScope==="all")){const es=parseEntries(unit().words), hc=es.filter(x=>isHeart(x.word)).length; $("#ucount").textContent=`${es.length} 個單字`+(hc?`，♥ ${hc} 個`:"")}
+    return}
+  if(e.target.closest(".say")){const i=Number(li.dataset.i); speak([{e:viewRows[i].e,i}],false); return}
   li.classList.toggle("show");
 };
 
@@ -507,9 +524,8 @@ function speak(list,all){
 }
 $("#playall").onclick=()=>{
   if(playing){stopSpeaking();return}
-  const es=parseEntries(unit().words);
-  const list=es.map((e,i)=>({e,i})).filter(x=>!heartOnly||isHeart(x.e.word));
-  if(!list.length){setSt("units",heartOnly?"這個單元還沒有做 ♥ 記號的單字。":"這個單元還沒有單字可以念。");return}
+  const list=viewRows.map((r,i)=>({e:r.e,i}));
+  if(!list.length){setSt("units",heartOnly?"還沒有做 ♥ 記號的單字。":"這個單元還沒有單字可以念。");return}
   speak(list,true);
 };
 document.querySelectorAll("[data-read]").forEach(b=>b.onclick=()=>{readMode=b.dataset.read;store("vc-read",readMode);document.querySelectorAll("[data-read]").forEach(x=>x.setAttribute("aria-pressed",x.dataset.read===readMode))});
