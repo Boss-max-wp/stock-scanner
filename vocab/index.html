@@ -158,6 +158,9 @@ select.n{flex:none;width:100%}
 </head>
 <body>
 
+<div id="updbar" hidden style="position:sticky;top:env(safe-area-inset-top,0px);z-index:20;margin:0;padding:12px 16px;background:var(--accent);color:#1B2433;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;font-weight:700">
+  <span>有新版本了</span><button id="updbtn" class="btn" type="button" style="padding:6px 14px">按這裡更新</button>
+</div>
 <div class="wrap">
   <header>
     <h1><span>單字填空機</span></h1>
@@ -339,7 +342,7 @@ select.n{flex:none;width:100%}
     <section id="stage-form" class="card" aria-live="polite"></section>
   </section>
 
-  <p class="hint" style="text-align:center">版本 10/14-16</p>
+  <p class="hint" style="text-align:center"><span id="ver">版本 10/14-17</span> · <button id="checkupd" class="linkbtn" type="button" style="font-size:inherit">檢查更新</button></p>
 </div>
 
 <script>
@@ -1352,6 +1355,21 @@ runners.cloze.start(shuffle(EXAMPLE),true);
 setSt("cloze","右邊是範例題目。勾選你的單元後按「出題」。");
 runners.meaning.start(shuffle(EXAMPLE).map(q=>({word:q.word,zh:q.meaning,options:[q.meaning,...shuffle(EXAMPLE.filter(x=>x!==q).map(x=>x.meaning)).slice(0,3)]})),true);
 setSt("meaning","右邊是範例題目。勾選你的單元後按「開始」。");
+/* ---------- 自動檢查新版本（主畫面 App 不會自己更新） ---------- */
+const MY_VERSION=$("#ver").textContent.replace("版本 ","");
+function reloadFresh(){location.replace(location.pathname+"?v="+Date.now()+location.hash)}
+async function checkUpdate(manual){
+  try{
+    const r=await fetch(location.pathname+"?check="+Date.now(),{cache:"no-store"});
+    const t=await r.text(); const m=t.match(/版本 ([0-9/\-]+)/);
+    if(m&&m[1]!==MY_VERSION){$("#updbar").hidden=false; return}
+    if(manual){const b=$("#checkupd"); b.textContent="已經是最新版"; setTimeout(()=>b.textContent="檢查更新",3000)}
+  }catch(e){ if(manual) $("#checkupd").textContent="連不上網路，等一下再試" }
+}
+$("#updbtn").onclick=reloadFresh;
+$("#checkupd").onclick=()=>checkUpdate(true);
+checkUpdate(false);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden) checkUpdate(false)});
 startPosExample();
 startForm(true);
 show(location.hash.slice(1)||load("vc-page")||"units");
