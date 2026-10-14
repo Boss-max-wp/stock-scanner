@@ -129,11 +129,11 @@ body{margin:0;-webkit-text-size-adjust:100%}
 .check.hearts{border-style:dashed}
 .count{font-family:var(--f-mono);font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
 input.uname{font-family:var(--f-read);font-size:1.5rem;font-weight:600;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--ink);padding:2px 0;width:100%;border-radius:0}
-.seg.small button{padding:5px 10px;font-size:.85rem}
-.vocab{list-style:none;margin:0;padding:0}
+.seg.small button{padding:5px 10px;font-size:.85rem;white-space:nowrap}
+.vocab{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:auto auto auto minmax(0,1fr) auto;column-gap:12px}
 .vocab .from{grid-column:3 / span 2;font-size:.75rem;color:var(--muted);margin-top:-6px}
 .vocab .no{font-family:var(--f-mono);font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;min-width:2ch;text-align:right}
-.vocab li{display:grid;grid-template-columns:auto auto minmax(0,1fr) minmax(0,1.2fr) auto;gap:12px;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer;align-items:center;border-radius:6px;transition:background .2s}
+.vocab li{grid-column:1 / -1;display:grid;grid-template-columns:subgrid;row-gap:12px;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer;align-items:center;border-radius:6px;transition:background .2s}
 .vocab li.speaking{background:var(--accent-soft)}
 .say{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--paper);color:var(--ink);display:grid;place-items:center;cursor:pointer;padding:0}
 .say:hover{border-color:var(--muted)}
@@ -141,8 +141,17 @@ input.uname{font-family:var(--f-read);font-size:1.5rem;font-weight:600;border:0;
 .player{align-items:center}
 .player select{width:auto;flex:none}
 @media (prefers-reduced-motion:reduce){.vocab li{transition:none}}
-.vocab li.empty{display:block;cursor:default;color:var(--muted);border:0}
-.vocab .en{font-family:var(--f-read);font-size:1.15rem;font-weight:600;overflow-wrap:anywhere}
+.vocab li.empty{grid-column:1 / -1;display:block;cursor:default;color:var(--muted);border:0}
+.vocab .en{font-family:var(--f-read);font-size:1.15rem;font-weight:600;overflow-wrap:normal;word-break:normal;hyphens:manual}
+@media (max-width:460px){
+  .vocab{column-gap:8px}
+  .vocab li{padding:8px 0}
+  .vocab .en{font-size:1.05rem}
+  .say{width:32px;height:32px}
+  .say svg{width:16px;height:16px}
+  .heart{width:32px}
+  .card{padding:18px 16px}
+}
 .vocab .zh{overflow-wrap:anywhere}
 .vocab .zh.none{color:var(--muted);font-size:.85rem}
 .vocab .hide{color:transparent;background:var(--line);border-radius:4px;user-select:none}
@@ -342,7 +351,7 @@ select.n{flex:none;width:100%}
     <section id="stage-form" class="card" aria-live="polite"></section>
   </section>
 
-  <p class="hint" style="text-align:center"><span id="ver">版本 10/14-17</span> · <button id="checkupd" class="linkbtn" type="button" style="font-size:inherit">檢查更新</button></p>
+  <p class="hint" style="text-align:center"><span id="ver">版本 10/14-18</span> · <button id="checkupd" class="linkbtn" type="button" style="font-size:inherit">檢查更新</button></p>
 </div>
 
 <script>
