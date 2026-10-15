@@ -86,6 +86,12 @@ textarea:focus,input:focus,button:focus-visible{outline:2px solid var(--accent);
 .bigword u{text-decoration-color:var(--accent);text-decoration-thickness:3px;text-underline-offset:6px}
 .formopts{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.9rem}
 .formopts span b{font-family:var(--f-read);font-size:1rem}
+.optzh{list-style:none;margin:4px 0 0;padding:0;display:flex;flex-direction:column;gap:2px;font-size:.92rem}
+.optzh li{display:flex;gap:10px;align-items:baseline}
+.optzh b{font-family:var(--f-read);font-size:1rem;min-width:12ch}
+.optzh li.right b{color:var(--good)}
+.optzh li.picked b{color:var(--bad)}
+.optzh .z{color:var(--muted)}
 .allres{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
 .allres li{display:grid;grid-template-columns:auto auto minmax(0,1fr);gap:4px 10px;padding:10px 0;border-bottom:1px solid var(--line);align-items:baseline}
 .allres .no{font-family:var(--f-mono);font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;min-width:2ch;text-align:right}
@@ -351,7 +357,7 @@ select.n{flex:none;width:100%}
     <section id="stage-form" class="card" aria-live="polite"></section>
   </section>
 
-  <p class="hint" style="text-align:center"><span id="ver">版本 10/14-18</span> · <button id="checkupd" class="linkbtn" type="button" style="font-size:inherit">檢查更新</button></p>
+  <p class="hint" style="text-align:center"><span id="ver">版本 10/15-17</span> · <button id="checkupd" class="linkbtn" type="button" style="font-size:inherit">檢查更新</button></p>
 </div>
 
 <script>
@@ -918,8 +924,10 @@ function makeRunner(kind){
       const close=!ok&&norm(val)===norm(q.word);
       fb.innerHTML=`<div class="fb ${ok?"ok":"no"}"><strong>${ok?"答對了":close?"差一點：要注意詞形變化":"答錯了"}</strong>
         <span>正確答案：<span class="word">${esc(q.answer)}</span>${norm(q.answer)!==norm(q.word)?`（原形 ${esc(q.word)}）`:""} · ${esc(q.pos)} ${esc(q.meaning)}</span>
-        <span class="zh">${esc(q.zh)}</span></div>`;
+        <span class="zh">${esc(q.zh)}</span>
+        ${clozeMode==="choice"?`<ul class="optzh">${[...stage.querySelectorAll(".opt")].map(b=>b.dataset.v).map((o,i)=>{const r=norm(o)===norm(q.answer), p=!ok&&norm(o)===norm(val); return `<li class="${r?"right":p?"picked":""}"><b>${"ABCD"[i]} ${esc(o)}</b><span class="z" data-o="${esc(o)}">${esc(optMeaning(q,o)||"查詢中…")}</span>${r?" ✓":p?" ✗ 你選的":""}</li>`}).join("")}</ul>`:""}</div>`;
     }
+    if(kind==="cloze") fillOptZh(fb);
     /* 作答後馬上把結果捲到看得到的地方 */
     const act=stage.querySelector(".actions");
     if(act){const r=act.getBoundingClientRect(); if(r.bottom>innerHeight||r.top<0) act.scrollIntoView({block:"end",behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"})}
@@ -983,16 +991,50 @@ function clean(q,word){
   let options=Array.isArray(q.options)?q.options.map(String).filter(Boolean):[];
   if(!options.some(o=>norm(o)===norm(answer))) options=[answer,...options];
   options=[...new Map(options.map(o=>[norm(o),o])).values()].slice(0,4);
-  return {word:String(q.word||word),answer,sentence,options,pos:String(q.pos||""),meaning:String(q.meaning||""),zh:String(q.zh||"")};
+  const oz=(q.optZh&&typeof q.optZh==="object")?q.optZh:{}, optZh={};
+  for(const o of options){const k=Object.keys(oz).find(x=>norm(x)===norm(o)); if(k&&oz[k]) optZh[o]=String(oz[k])}
+  return {word:String(q.word||word),answer,sentence,options,pos:String(q.pos||""),meaning:String(q.meaning||""),zh:String(q.zh||""),optZh};
+}
+/* 找選項的中文：先看題目自己帶的，再查你的單字表、題庫 */
+function optMeaning(q,o){
+  if(q.optZh&&q.optZh[o]) return q.optZh[o];
+  const memo=loadJSON("vc-optzh",{}); if(memo[o.toLowerCase().trim()]) return memo[o.toLowerCase().trim()];
+  if(norm(o)===norm(q.answer)&&q.meaning) return q.meaning;
+  const dict={};
+  for(const u of units) for(const e of parseEntries(u.words)) if(e.zh) dict[e.word.toLowerCase()]=e.zh;
+  for(const k in BUILTIN) for(const b of BUILTIN[k]){dict[k]=dict[k]||b.meaning; dict[b.answer.toLowerCase()]=dict[b.answer.toLowerCase()]||b.meaning}
+  const bank=loadJSON("vc-bank",{});
+  for(const k in bank) for(const b of bank[k]){ if(b.meaning){dict[k]=dict[k]||b.meaning; dict[String(b.answer).toLowerCase()]=dict[String(b.answer).toLowerCase()]||b.meaning}
+    if(b.optZh) for(const x in b.optZh) dict[x.toLowerCase()]=dict[x.toLowerCase()]||b.optZh[x]}
+  const w=o.toLowerCase().trim();
+  const tries=[w,w.replace(/ied$/,"y"),w.replace(/ies$/,"y"),w.replace(/ed$/,""),w.replace(/d$/,""),w.replace(/es$/,""),w.replace(/s$/,""),w.replace(/ing$/,""),w.replace(/ing$/,"e"),w.replace(/(.)\1ed$/,"$1"),w.replace(/(.)\1ing$/,"$1")];
+  for(const t of tries) if(dict[t]) return dict[t];
+  return "";
+}
+/* 選項沒有中文時，問 Gemini 一次並記在這台裝置 */
+async function fillOptZh(box){
+  const spans=[...box.querySelectorAll('.optzh .z')].filter(z=>z.textContent==="查詢中…");
+  if(!spans.length) return;
+  const key=keyEl.value.trim();
+  const none=()=>spans.forEach(z=>{if(z.textContent==="查詢中…") z.textContent="（沒有中文）"});
+  if(!key){none();return}
+  const words=spans.map(z=>z.dataset.o);
+  try{
+    const arr=await geminiCall(`Give a short Traditional Chinese (Taiwan) meaning for each English word below, as used in TOEIC. Reply with only a JSON array in the same order, like [{"word":"postponed","zh":"延後"}].\n\n${words.join("\n")}`,key,[],0.2,false,WORD_SCHEMA);
+    const memo=loadJSON("vc-optzh",{});
+    (Array.isArray(arr)?arr:[]).forEach((it,i)=>{const zh=String(it?.zh||"").trim(); if(zh&&words[i]){memo[words[i].toLowerCase().trim()]=zh; spans[i].textContent=zh}});
+    try{localStorage.setItem("vc-optzh",JSON.stringify(memo))}catch(e){}
+  }catch(e){}
+  none();
 }
 function clozePrompt(words){
   return `You write TOEIC-style vocabulary fill-in-the-blank questions for a Taiwanese learner.
 For EACH word or phrase below, write ONE natural English sentence (12-24 words) in a workplace, business, travel or daily-life context typical of the TOEIC exam. The sentence must clearly need that word; use an inflected form (e.g. -ed, -s, -ing) when grammar requires it.
 
 Reply with only a JSON array, one object per word, in the same order:
-{"word": the word as given, "answer": the exact form used in the sentence, "sentence": the sentence with that form replaced by "____" (four underscores, exactly once), "pos": part of speech like "n.", "v.", "adj.", "adv.", "phr.", "meaning": short meaning in Traditional Chinese (Taiwan), "zh": the full sentence translated into Traditional Chinese (Taiwan), "options": 4 strings — the answer plus 3 wrong choices in the same grammatical form that do NOT fit the sentence (prefer other words from this list)}
+{"word": the word as given, "answer": the exact form used in the sentence, "sentence": the sentence with that form replaced by "____" (four underscores, exactly once), "pos": part of speech like "n.", "v.", "adj.", "adv.", "phr.", "meaning": short meaning in Traditional Chinese (Taiwan), "zh": the full sentence translated into Traditional Chinese (Taiwan), "options": 4 strings — the answer plus 3 wrong choices in the same grammatical form that do NOT fit the sentence (prefer other words from this list), "optZh": an object giving a short Traditional Chinese (Taiwan) meaning for each of the 4 options, keyed by the option exactly as written}
 
-Example: {"word":"postpone","answer":"postponed","sentence":"The meeting was ____ until Friday because the manager was sick.","pos":"v.","meaning":"延後","zh":"因為經理生病，會議延到週五。","options":["postponed","reimbursed","negotiated","attended"]}
+Example: {"word":"postpone","answer":"postponed","sentence":"The meeting was ____ until Friday because the manager was sick.","pos":"v.","meaning":"延後","zh":"因為經理生病，會議延到週五。","options":["postponed","reimbursed","negotiated","attended"],"optZh":{"postponed":"延後","reimbursed":"報銷","negotiated":"談判","attended":"出席"}}
 
 Words:
 ${words.join("\n")}`;
