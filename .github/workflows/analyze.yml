@@ -1,0 +1,44 @@
+name: 勝率診斷
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: analyze
+  cancel-in-progress: false
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: 讀取資料快取
+        uses: actions/cache/restore@v4
+        with:
+          path: .cache
+          key: bars-${{ github.run_id }}
+          restore-keys: bars-
+      - name: 分析勝率
+        run: node research/analyze.js
+      - name: 儲存資料快取
+        if: always() && hashFiles('.cache/bars.json') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: .cache
+          key: bars-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: 把結果存回 repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add research/results
+          git commit -m "勝率診斷 $(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M')" || exit 0
+          for i in 1 2 3; do git pull --rebase -q && git push -q && exit 0; sleep 5; done
+          exit 1
