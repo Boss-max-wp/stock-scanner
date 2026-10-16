@@ -942,4 +942,4 @@ async function main() {
   console.log('asOf', asOf, '做多', Lc, '做空', Sc, '紀錄', records.length, '參數', JSON.stringify(params));
 }
 if (require.main === module) main().catch(e => { console.error(e); process.exit(1); });
-module.exports = { loadData, analyzeAll, helpers, mirrorBars, DEFAULTS, DEFAULT_PARAMS, HORIZON, NAMES, PLUGINS, BUILTIN, evaluate, signalsOnDay, fetchAll, cleanD, loadPrev, loadPatternDir };
+module.exports = { isHQ, loadData, analyzeAll, helpers, mirrorBars, DEFAULTS, DEFAULT_PARAMS, HORIZON, NAMES, PLUGINS, BUILTIN, evaluate, signalsOnDay, fetchAll, cleanD, loadPrev, loadPatternDir };

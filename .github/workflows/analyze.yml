@@ -2,6 +2,10 @@ name: 勝率診斷
 
 on:
   workflow_dispatch:
+    inputs:
+      script:
+        description: research 裡要跑的分析（analyze / exits）
+        default: analyze
 
 permissions:
   contents: write
@@ -27,7 +31,7 @@ jobs:
           key: bars-${{ github.run_id }}
           restore-keys: bars-
       - name: 分析勝率
-        run: node research/analyze.js
+        run: node research/${{ inputs.script || 'analyze' }}.js
       - name: 儲存資料快取
         if: always() && hashFiles('.cache/bars.json') != ''
         uses: actions/cache/save@v4
