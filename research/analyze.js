@@ -222,6 +222,44 @@ function sim(b, s, dir, entry, stop, target, hz, opt = {}) {
   const rc = sig.filter(x => x.d >= new Date(Date.parse(sig[sig.length - 1].d) - 90 * 864e5).toISOString().slice(0, 10));
   md += `\n## 7. 最近 3 個月 vs 之前\n\n${HDR}\n${row('之前', sig.filter(x => !rc.includes(x)))}\n${row('最近 3 個月', rc)}\n${row('最近 3 個月・做多', rc.filter(x => x.dir === 'long'))}\n${row('最近 3 個月・做空', rc.filter(x => x.dir === 'short'))}\n`;
 
+  // 8. 深入檢查
+  {
+    const cR = q('risk', train)[1], cRR = q('rr', train)[1];
+    const A = x => x.dir === 'long' && x.risk > cR && x.rr <= cRR;
+    md += `\n## 8. 深入檢查\n\n規則 A＝只做多、停損距離 > ${cR.toFixed(2)}%、風報比 ≤ ${cRR.toFixed(2)}\n\n${HDR}\n`;
+    const L = sig.filter(x => x.dir === 'long');
+    md += [
+      row('全部（訓練）', train), row('全部（驗證）', test),
+      row('只做多（訓練）', train.filter(x => x.dir === 'long')), row('只做多（驗證）', test.filter(x => x.dir === 'long')),
+      row(`只做多＋停損距離>${cR.toFixed(1)}%（驗證）`, test.filter(x => x.dir === 'long' && x.risk > cR)),
+      row(`只做多＋風報比≤${cRR.toFixed(2)}（驗證）`, test.filter(x => x.dir === 'long' && x.rr <= cRR)),
+      row('規則 A（訓練）', train.filter(A)), row('規則 A（驗證）', test.filter(A)),
+      row('規則 A＋大盤在季線上（驗證）', test.filter(x => A(x) && x.mTrend60 > 0)),
+      row('規則 A＋大盤在季線下（驗證）', test.filter(x => A(x) && x.mTrend60 <= 0)),
+      row('只做多・大盤在季線上（全期）', L.filter(x => x.mTrend60 > 0)), row('只做多・大盤在季線下（全期）', L.filter(x => x.mTrend60 <= 0)),
+      row('只做多・大盤20日漲幅≤1.2%（全期）', L.filter(x => x.mRet20 <= 1.2)), row('只做多・大盤20日漲幅>1.2%（全期）', L.filter(x => x.mRet20 > 1.2)),
+      row('做空・大盤在季線下（全期）', sig.filter(x => x.dir === 'short' && x.mTrend60 > 0)), row('做空・大盤在季線上（全期）', sig.filter(x => x.dir === 'short' && x.mTrend60 <= 0)),
+      row('做空・大盤20日跌>4%（全期）', sig.filter(x => x.dir === 'short' && x.mRet20 > 4)),
+    ].join('\n') + '\n';
+    md += `\n**規則 A 各型態（全期）**\n\n${HDR}\n` + Object.keys(types).filter(t => t.endsWith('long')).map(t => row(t, sig.filter(x => A(x) && `${x.type}|${x.dir}` === t))).join('\n') + '\n';
+    md += `\n**每月：全部做多 vs 規則 A**\n\n| 月 | 做多筆數 | 做多達標 | 做多平均 | A 筆數 | A 達標 | A 平均 |\n|---|---|---|---|---|---|---|\n`;
+    for (const [m, l] of Object.entries(mon).sort()) { const a = st(l.filter(x => x.dir === 'long')), b2 = st(l.filter(A)); md += `| ${m} | ${a.n} | ${pct(a.win)} | ${Rf(a.R)} | ${b2.n} | ${pct(b2.win)} | ${Rf(b2.R)} |\n`; }
+    const sc = {}; for (const x of L) { const k = Math.min(9, Math.floor(x.score / 10)); (sc[k] = sc[k] || []).push(x); }
+    md += `\n**分數 vs 結果（只做多）**\n\n${HDR}\n` + Object.keys(sc).sort().map(k => row(`${k * 10}～${k * 10 + 9}`, sc[k])).join('\n') + '\n';
+    out.ruleA = { cR, cRR, train: st(train.filter(A)), test: st(test.filter(A)) };
+  }
+  // 9. 實際紀錄：還沒結束的比例（最近幾週只算到已結束的，會偏向停損）
+  if (prev && prev.records) {
+    const g = {};
+    for (const r of prev.records) {
+      const b = D[r.id]; const i = b ? b.findIndex(x => x.d === r.d) : -1; const e = b ? S.evaluate(r, b, i) : { st: 'unknown' };
+      const t = new Date(r.d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() - (t.getUTCDay() + 6) % 7); const w = t.toISOString().slice(0, 10);
+      const o = g[w] = g[w] || { target: 0, stop: 0, expire: 0, open: 0, unknown: 0, ret: [] }; o[e.st] = (o[e.st] || 0) + 1;
+      if (e.st === 'open') o.ret.push(e.ret);
+    }
+    md += `\n## 9. 實際紀錄：每週還沒結束的筆數\n\n| 週 | 達標 | 停損 | 到期 | 進行中 | 進行中平均報酬 |\n|---|---|---|---|---|---|\n`;
+    for (const [w, o] of Object.entries(g).sort()) md += `| ${w} | ${o.target} | ${o.stop} | ${o.expire} | ${o.open} | ${o.ret.length ? (mean(o.ret) * 100).toFixed(1) + '%' : ''} |\n`;
+  }
   fs.mkdirSync('research/results', { recursive: true });
   fs.writeFileSync('research/results/analysis.md', md);
   fs.writeFileSync('research/results/analysis.json', JSON.stringify(out, null, 1));
