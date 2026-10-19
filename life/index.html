@@ -175,6 +175,13 @@ button:active:not(:disabled):not(.swatch):not(.starb):not(.link){background:var(
 .cand{display:grid;gap:8px;padding:12px;border:1px solid var(--line);border-radius:10px}
 .gigbox{display:grid;gap:8px;padding:12px;border-radius:10px;background:var(--soft);margin:10px 0}
 .chip.live{background:var(--accent);color:var(--accent-ink)}
+.cmp{display:grid;gap:6px;margin-bottom:12px}
+.bar.big{position:relative;height:12px}
+.bar.big b{position:absolute;top:-3px;width:3px;height:18px;background:var(--ink);transform:translateX(-1px)}
+.jobs summary{cursor:pointer;margin:6px 0}
+.joblist{display:grid;gap:6px;margin-top:8px}
+.jobrow{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:8px}
+.jobrow.cur{border:2px solid var(--ink)}
 </style>
 </head>
 <body>
@@ -476,6 +483,8 @@ function newGame(o){
     earned:0,peak:o.cash,history:[],log:[],uid:1,ended:null};
   S.p0={...S.prices};S.c0={...S.cityIdx};
   S.pacct=Math.round(o.salary*.06*12*Math.max(0,o.age-23)*1.15);
+  S.sex=o.sex||"男";S.job=o.job||null;S.bgRich=/金湯匙/.test(o.bg||"");S.parents=mkParents(o.age);
+  S.parents.forEach(p=>{if(!p.alive)p.died=null});
   const L0=o.life||{};
   if(L0.mar==="married"){S.married=true;S.spouse=L0.sp||0}
   if(L0.mar==="dating"){startDating(genCand("原本的交往對象",15));S.partner.love=55}
@@ -502,6 +511,7 @@ function migrate(){if(!S)return;
   S.jobless=S.jobless||0;S.recur=S.recur||[];S.timers=S.timers||[];S.flags=S.flags||{};if(S.pending===undefined)S.pending=null;
   if(S.age0==null)S.age0=25;if(!S.st)S.st={health:75,happy:60,know:50,social:55};S.ymap=S.ymap||{};S.notes=S.notes||[];
   if(S.focus==null)S.focus="rest";if(S.autoPick==null)S.autoPick=true;S.earned=S.earned||0;S.peak=S.peak||netWorth();
+  if(!S.sex)S.sex="男";if(S.job===undefined)S.job=null;if(!S.parents)S.parents=mkParents(age());S.caring=S.caring||0;
   S.retired=!!S.retired;S.pension=S.pension||0;S.lr=S.lr||0;if(S.ended===undefined)S.ended=null;
   S.cands=(S.cands||[]).filter(x=>x&&x.name);S.kids.forEach(k=>{k.ex=k.ex||{};k.base=k.base??null;k.sch=k.sch||{};if(k.pocket==null)k.pocket=k.ex.pocket||0;delete k.ex.school;delete k.ex.cram;delete k.ex.pocket;k.cram=k.cram||0;k.art=k.art||0;k.edu=k.edu||0;k.eduN=k.eduN||0});S.ach=S.ach||{};S.stars=S.stars||S.log.filter(l=>l.star).reverse().map(l=>({id:l.id,age:parseInt(l.life)||S.age0,life:l.life,msg:l.msg}));
   S.cars.forEach(c=>{if(!c.color)c.color=PAINTS[0][1];if(c.t==null)c.t=S.t0;c.loan=c.loan||0;c.pay=c.pay||0});
@@ -555,10 +565,10 @@ function bump(fx){for(const k in fx)S.st[k]=Math.max(0,Math.min(100,S.st[k]+fx[k
 // monthly cash flow pieces
 function flow(){
   const t=tNow();
-  const job=S.retired?0:S.jobless>0?Math.round(Math.min(S.salary,45800*S.pl)*.6):S.salary;
+  const job=S.retired||S.caring?0:S.jobless>0?Math.round(Math.min(S.salary,45800*S.pl)*.6):S.salary;
   const pension=S.retired?S.pension:0;
   const gig=S.retired?(S.gig||0):0,gigNhi=gig>=P(20000)?Math.round(gig*.0211):0;
-  const ins=S.retired||S.jobless>0?0:Math.round(S.salary*.04);
+  const ins=S.retired||S.caring||S.jobless>0?0:Math.round(S.salary*.04);
   const living=budgetTotal(), self=S.houses.some(h=>h.use==="self"), rent=self?0:S.rent;
   const loan=S.houses.reduce((s,h)=>s+(h.loan>0?h.pay:0),0)+S.cars.reduce((s,c)=>s+(c.loan>0?c.pay:0),0);
   const mgmt=S.houses.reduce((s,h)=>{const L=listing(h.lid);return s+(L.mgmt?P(L.ping*70):0)},0);
@@ -597,7 +607,7 @@ function yearly(t){
     S.kids.forEach(k=>{if(k.pocket)k.pocket=Math.round(k.pocket*(1+inf)/50)*50;KID_EX.forEach(([e])=>{if(k.ex[e])k.ex[e]=Math.round(k.ex[e]*(1+inf))});if(k.base!=null)k.base=Math.round(k.base*(1+inf))});
     if(S.retired)S.pension=Math.round(S.pension*(1+inf));
     addLog(S.retired?`新年度：物價漲 ${(inf*100).toFixed(1)}%，生活費變成 ${money(budgetTotal())}`:`新年度：調薪 ${((1.03+extra-1)*100).toFixed(1)}%，月薪 ${money(S.salary)}；物價漲 ${(inf*100).toFixed(1)}%，生活費變成 ${money(budgetTotal())}`,"up")}
-  if(m===2){if(S.jobless<=0&&!S.retired){const b=Math.round(S.salary*1.5);gain(b,"領到年終獎金");S.earned+=b}
+  if(m===2){if(S.jobless<=0&&!S.retired&&!S.caring){const bm=jobOf()?.bonus??1.5,b=Math.round(S.salary*bm);gain(b,`領到年終獎金（${bm} 個月）`);S.earned+=b}
     pay(P(6000)*(S.married?2:1)+P(2000)*S.kids.length,"過年包紅包給爸媽、姪子");bump({happy:2,social:1});
     const kr=S.kids.filter(k=>kidAge(k)<18).length;if(kr)gain(P(3000)*kr,"小孩收到長輩紅包（幫忙存起來）")}
   if(m===4){const tx=S.cars.reduce((s,c)=>s+carOf(c).tax.lic,0);if(tx)pay(tx,"繳汽機車牌照稅")}
@@ -668,7 +678,7 @@ const EVENTS=[
 ];
 // 需要做決定的事件
 const DECISIONS={
-  layoff:{p:.004,cond:()=>has.job(),title:"公司裁員，你被資遣了",text:()=>`公司營運不好，這個月起你失業了。可以領到資遣費 ${money(S.salary*1.5)}。`,
+  layoff:{p:.004,mult:()=>jobOf()?.risk??1,cond:()=>has.job()&&!S.caring,title:"公司裁員，你被資遣了",text:()=>`公司營運不好，這個月起你失業了。可以領到資遣費 ${money(S.salary*1.5)}。`,
     choices:[["休息一下慢慢找（領失業給付，約 2–6 個月後找到工作）",()=>{gain(Math.round(S.salary*1.5),"領資遣費");S.jobless=Math.round(rr(2,6));S.flags.newSal=rr(.95,1.12)+S.st.know/1000;bump({happy:-6});return "開始領失業給付，慢慢找工作"}],
              ["馬上找新工作（下個月就上班，薪水少 10%）",()=>{gain(Math.round(S.salary*1.5),"領資遣費");S.salary=Math.round(S.salary*.9);bump({happy:-3});return `找到新工作，月薪 ${money(S.salary)}`}]],def:1},
   promote:{p:.01,mult:()=>(.5+S.st.know/100)*(S.focus==="work"?2:1),cond:()=>has.job(),title:"主管想升你當組長",text:()=>"加薪 15%，但責任變重、常常加班。",
@@ -683,7 +693,7 @@ const DECISIONS={
     choices:[["匯錢試試看",()=>{pay(P(100000),"匯款給「投資老師」");S.timers.push({t:tNow()+1,k:"scam"});return "匯款出去了……"}],["封鎖並打 165 檢舉",()=>"識破詐騙，封鎖檢舉"]],def:1},
   borrow:{p:.006,cond:()=>S.cash>P(100000),title:"親戚開口跟你借錢",text:()=>`表哥說周轉不靈，想借 ${money(P(50000))}，說一年內會還。`,
     choices:[["借給他",()=>{pay(P(50000),"借錢給表哥");S.timers.push({t:tNow()+12,k:"repay",v:P(50000)});bump({social:2});return "借出去了"}],["婉拒",()=>{bump({social:-2});return "婉拒借錢，有點尷尬"}]],def:1},
-  parent:{p:.003,cond:()=>!S.flags.parentCare&&age()>=35,title:"爸媽生病需要人照顧",text:()=>"醫生說需要有人長期照顧幾個月。",
+  parent:{p:0,cond:()=>false,title:"爸媽生病需要人照顧",text:()=>"醫生說需要有人長期照顧幾個月。",
     choices:[["請看護（每月約 3.5 萬，6 個月）",()=>{S.flags.parentCare=1;S.recur.push({label:"請看護照顧爸媽",amt:P(35000),left:6});bump({happy:-3});return "請了看護"}],
              ["留職停薪自己照顧（3 個月沒有薪水）",()=>{S.flags.parentCare=1;S.recur.push({label:"留職停薪（少領的薪水）",amt:S.salary,left:3});bump({happy:-2,social:3});return "留職停薪照顧爸媽"}]],def:0},
   crash:{p:.008,cond:()=>has.car(),title:"開車發生擦撞",text:()=>"對方車尾凹了一塊，幸好人沒事。",
@@ -812,7 +822,64 @@ const ACH=[["m100","存到第一個 100 萬",()=>netWorth()>=1e6],["m1000","淨�
   ["healthy","健康 90 以上",()=>S.st.health>=90],["happy","幸福 90 以上",()=>S.st.happy>=90],["retire","平安退休",()=>S.retired],["old","活到 90 歲",()=>age()>=90]];
 function divYear(){return Object.entries(S.hold).reduce((s,[id,h])=>{const a=asset(id);return s+h.qty*S.prices[id]*(a.dy||0)*(a.type==="美股"?.7:1)},0)}
 function checkAch(){S.ach=S.ach||{};ACH.forEach(([k,n,f])=>{if(!S.ach[k]&&f()){S.ach[k]=tNow();addLog(`【成就解鎖】${n}`,"up",true)}})}
-function mortality(){const a=age();const q=Math.min(.6,.00006*Math.exp(.087*a))*(1.6-S.st.health/100*1.2);return 1-Math.pow(1-q,1/12)}
+// 真實壽命：依內政部 113 年簡易生命表（平均壽命 男 77.42、女 84.30 歲）校正的死亡率曲線
+const LIFE={男:{a:5.706e-5,e:77.42},女:{a:3.108e-5,e:84.30}};
+const hz=(sex,a,hf=1)=>LIFE[sex==="女"?"女":"男"].a*Math.exp(.088*a)*hf;
+// 健康跟同年齡一般人比：比一般人好就活得比平均久
+const expHealth=a=>Math.max(12,68-.75*(a-20));
+const healthF=()=>Math.exp((expHealth(age())-S.st.health)/30);
+function mortality(){return 1-Math.exp(-hz(S.sex,age(),healthF())/12)}
+function lifeLeft(sex,a,hf){let Sv=1,e=0;for(let x=a;x<120;x++){const q=1-Math.exp(-hz(sex,x,hf));e+=Sv*(1-q/2);Sv*=1-q}return a+e}
+// 職業：勞動部 114 年職類別薪資調查（2025 年 7 月經常性薪資）；年終月數、工時、裁員風險為約略值
+const CAREERS=[
+ ["eng","電機電子工程師",75649,4,-.12,1.2,60],["soft","軟體工程師",75442,2.5,-.1,1.4,55],["nurse","護理師",53166,1.5,-.15,.4,50,"護理師執照"],
+ ["doc","醫師",180007,1.5,-.2,.2,85,"醫學系＋醫師執照"],["law","律師",92923,2,-.12,.6,80,"律師執照"],["cpa","會計師",65569,2,-.1,.5,70,"會計師執照"],
+ ["pharm","藥師",59442,1.5,-.03,.4,65,"藥師執照"],["acct","會計人員",51493,1.5,-.03,.8,40],["sales","業務",51515,2,-.06,1.2,30],
+ ["design","設計師",56669,1.5,-.06,1.2,40],["admin","行政助理",39102,1.5,0,.9,20],["teach","幼教老師",42007,1.5,-.03,.5,40,"教保員資格"],
+ ["gov","公務員",52000,1.5,0,.05,55,"國家考試",1],["driver","大貨車司機",46638,1,-.08,.8,15,"職業駕照"],["cook","廚師",41304,1,-.08,1,20],
+ ["serve","餐飲服務",35582,.5,-.05,1.3,0],["factory","組裝作業員",33479,1.5,-.06,1.3,0],["guard","保全",35495,.5,-.04,.7,0],["hair","美髮美容",33197,.5,-.03,1,15]
+].map(([id,n,pay,bonus,hours,risk,know,lic,est])=>({id,n,pay,bonus,hours,risk,know,lic,est}));
+const jobOf=()=>CAREERS.find(c=>c.id===S.job);
+// 主計總處 2026 年前 7 月經常性薪資中位數（依年齡）
+const AGE_MED=[[25,29825,"未滿 25 歲"],[30,36312,"25–29 歲"],[40,40171,"30–39 歲"],[50,43138,"40–49 歲"],[65,44019,"50–64 歲"],[200,38935,"65 歲以上"]];
+const ageMed=a=>AGE_MED.find(([u])=>a<u);
+const ageF=a=>ageMed(a)[1]/43138;
+function offerPay(c,a,know,pl){return Math.max(Math.round(29500*pl/100)*100,Math.round(c.pay*pl*ageF(a)*(.8+know/250)/100)*100)}
+// 主計總處 110 年家庭財富分配統計：家庭淨資產十分位門檻（萬元，2021 年底）
+const WEALTH_DEC=[143,319,490,677,894,1171,1547,2134,3391];
+const nd=z=>{const t=1/(1+.2316419*Math.abs(z)),d=.3989423*Math.exp(-z*z/2),p=d*t*(.3193815+t*(-.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return z>0?1-p:p};
+function pctSalary(sal,a){const med=ageMed(a)[1]*S.pl;return Math.round(nd(Math.log(Math.max(1,sal)/med)/.45)*100)}
+function pctWealth(nw){const sc=S.pl/.896*1e4,d=WEALTH_DEC.map(x=>x*sc);if(nw<=0)return 3;if(nw<d[0])return Math.round(nw/d[0]*10);
+  for(let i=1;i<d.length;i++)if(nw<d[i])return Math.round(10*i+10*(nw-d[i-1])/(d[i]-d[i-1]));return Math.min(99,Math.round(90+9*Math.log(nw/d[8])/Math.log(3)))}
+function compareCard(){const a=age(),med=ageMed(a),inc=S.retired?(S.gig||0)+S.pension:S.jobless>0?0:S.salary,nw=netWorth(),ps=pctSalary(inc,a),pw=pctWealth(nw);
+  const sexN=S.sex==="女"?"女性":"男性",exp=lifeLeft(S.sex,a,healthF());
+  const bar=(p,c)=>`<div class="bar big"><i style="width:${p}%;background:var(--${c})"></i><b style="left:${p}%"></b></div>`;
+  return `<div class="panel"><h2>跟台灣人比</h2>
+    <div class="cmp"><div class="row" style="justify-content:space-between"><span>月收入</span><b class="num">贏過 ${ps}% 的${med[2]}受僱者</b></div>${bar(ps,"s1")}
+      <span class="note">你：${money(inc)}・同年齡中位數：${money(med[1]*S.pl)}${S.pl!==1?`（換算成 ${S.y} 年物價）`:""}</span></div>
+    <div class="cmp"><div class="row" style="justify-content:space-between"><span>家庭淨資產</span><b class="num">贏過 ${pw}% 的台灣家庭</b></div>${bar(pw,"s3")}
+      <span class="note">你家：${money(nw)}・全台中位數：${money(894e4*S.pl/.896)}・前 10% 門檻：${money(3391e4*S.pl/.896)}</span></div>
+    <div class="cmp"><div class="row" style="justify-content:space-between"><span>預估壽命</span><b class="num">約 ${exp.toFixed(1)} 歲</b></div>
+      <span class="note">台灣${sexN}平均壽命 ${LIFE[S.sex==="女"?"女":"男"].e} 歲。你的健康 ${Math.round(S.st.health)}，同年齡一般人大約 ${Math.round(expHealth(a))}；照現在的狀況，預估可以活到約 ${exp.toFixed(1)} 歲。健康越好活越久。</span></div>
+    <p class="note">資料來源：主計總處 2026 年薪資中位數（依年齡）、主計總處 110 年家庭財富分配統計、內政部 113 年簡易生命表。月收入的百分比是依中位數估算的約略值。</p></div>`}
+// 爸媽
+function mkParents(age0){return [["爸爸","男",rr(26,34)],["媽媽","女",rr(24,31)]].map(([who,sex,gap],i)=>{const a=Math.round(age0+gap);return {id:i,who,sex,age0:a,alive:a<92,care:null,t0:S.t0}})}
+const pAge=p=>p.age0+Math.floor((tNow()-p.t0)/12);
+const CARE=[["foreign","請外籍看護住家裡",26000,"含薪水、仲介、就業安定費，扣掉長照補助後約略值"],["inst","送長照機構",32000,"機構月費約 4.2 萬，扣掉政府每月 1 萬補助"],["day","日照中心＋居家服務",15000,"長照 2.0 補助後自付，白天有人照顧，晚上家人顧"],["self","辭職自己照顧",0,"沒有薪水，照顧到爸媽離開為止"]];
+function parentsMonth(){(S.parents||[]).forEach(p=>{if(!p.alive)return;const a=pAge(p);
+  if(Math.random()<1-Math.exp(-hz(p.sex,a,p.care?1.8:1)/12)){p.alive=false;p.died=tNow();S.recur=S.recur.filter(r=>r.pid!==p.id);
+    if(p.care==="self"){S.caring=Math.max(0,(S.caring||1)-1);if(!S.caring)addLog("回到職場上班了","up")}
+    const fee=P(rr(200000,350000));pay(fee,`${p.who}在 ${a} 歲離開了，辦喪事`,"down");S.log[0].star=true;(S.stars=S.stars||[]).push({id:S.log[0].id,age:age(),life:S.log[0].life,msg:S.log[0].msg});bump({happy:-15});
+    if(Math.random()<.6){const inh=Math.round(P(rr(300000,1)*(S.bgRich?20:3)*rr(0.2,4))/10000)*10000;if(inh>0)gain(inh,`繼承${p.who}留下的財產`)}
+    return}
+  if(!p.care&&a>=72&&!S.pending&&Math.random()<.0025*(a-68)/4){S.pending={id:"parentcare",pid:p.id,text:`${p.who} ${a} 歲，因為中風／失智，生活需要有人照顧。`}}})}
+function chooseCare(pid,i){const p=S.parents.find(x=>x.id===pid),c=CARE[i];p.care=c[0];
+  if(c[0]==="self"){S.caring=(S.caring||0)+1;addLog(`辭職回家照顧${p.who}`,"down",true);bump({happy:-5,social:2})}
+  else{S.recur.push({pid,label:`${p.who}的照顧費（${c[1]}）`,amt:P(c[2]),left:999});addLog(`${p.who}開始${c[1]}，每月 ${money(P(c[2]))}`,"down",true);bump({happy:-3})}}
+function parentsCard(){const L=S.parents||[];if(!L.length)return "";
+  return `<h3 class="h3">爸媽</h3>${L.map(p=>{const a=pAge(p);return `<div class="fam"><span class="t">${p.who}</span><span class="meta">${p.alive?`${a} 歲・${p.care?CARE.find(c=>c[0]===p.care)[1]:"健康"}`:`已過世${p.died!=null?`（你 ${ageAt(p.died)} 歲那年）`:""}`}</span><span class="num ${p.care&&p.care!=="self"?"down":"muted"}">${p.alive&&p.care&&p.care!=="self"?`-${money(P(CARE.find(c=>c[0]===p.care)[2]))}/月`:""}</span></div>`}).join("")}
+    <p class="note">爸媽會跟著時間變老。70 多歲後可能需要人照顧，要決定請看護、送機構、日照或自己照顧；離開時要辦喪事，也可能留下遺產。每月的孝親費在「每月生活預算」裡設定。</p>`}
+function mortality_(){}
 
 let autoNow=false;
 function step(auto){
@@ -827,7 +894,10 @@ function step(auto){
   S.cars.forEach(c=>{c.value=Math.round(c.value*.988);if(c.loan>0){const int=c.loan*CAR_RATE/12;c.loan=Math.max(0,c.loan-(c.pay-int));if(c.loan<1){c.loan=0;addLog(`${carOf(c).name} 的車貸繳清了`,"up")}}});
   // 數值變化
   bump(FOCUS[S.focus].fx);
-  if(age()>=40)bump({health:-.06-(age()-40)*.004});
+  if(jobOf()&&has.job()&&!S.caring)bump({health:jobOf().hours*.4,happy:jobOf().hours*.3});
+  S.st.health+=(75-S.st.health)*.012;
+  parentsMonth();
+  if(age()>=40)bump({health:-.02-(age()-40)*.0015});
   ["happy","know","social"].forEach(k=>S.st[k]+=(60-S.st[k])*.012);
   if(S.budget.fun>=4000*S.pl)bump({happy:.1});
   if(S.cash<0)bump({happy:-.5});
@@ -915,6 +985,7 @@ function advance(n){if(S.ended)return;if(S.pending){tab="home";render();return t
 function decide(i){const pd=S.pending;
   if(pd.id==="reflect"){const txt=(document.getElementById("rf").value||"").trim();S.notes.push({age:pd.age,q:pd.text,a:txt});S.pending=null;
     addLog(`【${pd.age} 歲的人生提問】${pd.text}${txt?`——「${txt}」`:""}`,"",true);save();render();return}
+  if(pd.id==="parentcare"){S.pending=null;chooseCare(pd.pid,i);save();render();return}
   if(pd.id==="school"){const k=S.kids.find(x=>x.uid===pd.kid),st=STAGES.find(x=>x.k===pd.stage);S.pending=null;if(k){k.sch[st.k]=i;
     if(st.k==="uni"&&i===3){k.indep=1;addLog(`${k.name} 決定不升學，直接去工作`,"",true)}else addLog(`${k.name} 讀${st.opts[i][0]}，每月學費約 ${money(P(st.opts[i][1]))}`,"",true)}save();render();return}
   if(pd.id==="focus"){const k=Object.keys(FOCUS)[i];S.focus=k;S.pending=null;addLog(`今年的重心：${FOCUS[k].n}`);save();render();return}
@@ -991,6 +1062,11 @@ function payCarLoan(uid){const c=S.cars.find(x=>x.uid===uid);if(c.loan>S.cash)re
 // 生活
 const val=id=>Math.max(0,Math.round(+document.getElementById(id).value||0));
 function saveBudget(){BUDGET.forEach(([k])=>S.budget[k]=val("b-"+k));S.rent=val("b-rent");addLog(`調整每月生活預算為 ${money(budgetTotal())}，房租 ${money(S.rent)}`);save();render();toast("預算已更新")}
+function applyJob(id){const c=CAREERS.find(x=>x.id===id);S.done=S.done||{};if(S.done["j-"+id]===tNow())return toast("這個月已經應徵過了");S.done["j-"+id]=tNow();
+  if(S.retired||S.caring)return toast(S.retired?"已退休，先到退休試算按「重回職場」":"正在照顧爸媽");
+  const chance=.55+S.st.social/400+(S.st.know-c.know)/200;
+  if(Math.random()<chance){const off=offerPay(c,age(),S.st.know,S.pl),old=S.salary;S.job=id;S.salary=off;S.jobless=0;addLog(`應徵上${c.n}！月薪 ${money(old)} → ${money(off)}`,"up",true);bump({happy:4});toast(`錄取了！月薪 ${money(off)}`)}
+  else{addLog(`應徵${c.n}，這次沒有錄取`,"down");bump({happy:-1});toast("這次沒有錄取，下個月可以再試")}save();render()}
 function saveJob(){const s=val("j-sal");if(s!==S.salary){addLog(`月薪從 ${money(S.salary)} 調整為 ${money(s)}`,s>S.salary?"up":"down");S.salary=s}
   if(S.married){S.spouse=val("j-sp")}save();render();toast("收入已更新")}
 function marry(i){const [n,cost,gift]=WEDDINGS[i],net=P(cost-gift);if(net>S.cash)return toast(`現金不夠，淨支出要 ${money(net)}`);
@@ -1054,8 +1130,8 @@ function houseIcon(type,w=64){const tall=/套房|2房|3房|4房|豪宅|華廈/.t
     :`<rect x="10" y="20" width="44" height="40" fill="#d9c7a8" stroke="var(--ink)" stroke-width="1.5"/>${[0,1,2].map(r=>[0,1,2,3].map(c=>`<rect x="${14+c*10}" y="${24+r*11}" width="6" height="6" fill="var(--glass)" stroke="var(--ink)" stroke-width=".7"/>`).join("")).join("")}<path d="M8,20 L56,20" stroke="var(--ink)" stroke-width="2"/>`}
   </svg>`}
 function familyScene(){const items=[];
-  items.push({w:40,svg:person(0,1,"var(--accent)",false,`${esc(S.name)}，${age()} 歲`)});
-  if(S.married||S.partner)items.push({w:40,svg:person(0,1,"var(--s5)",true,S.married?(S.spouseName||"另一半"):`交往中：${esc(S.partner.name)}`)});
+  items.push({w:40,svg:person(0,1,"var(--accent)",S.sex==="女",`${esc(S.name)}，${age()} 歲`)});
+  if(S.married||S.partner)items.push({w:40,svg:person(0,1,"var(--s5)",S.sex!=="女",S.married?(S.spouseName||"另一半"):`交往中：${esc(S.partner.name)}`)});
   S.kids.forEach((k,i)=>{const a=kidAge(k),sc=Math.min(1,.45+a*.03);items.push({w:40*sc+4,svg:person(0,sc,["var(--s1)","var(--s4)","var(--s3)","var(--s2)"][i%4],i%2===1,`${esc(k.name)}，${a} 歲`)})});
   S.pets.forEach(p=>items.push({w:46,svg:petSVG(0,p.kind,p.name),pet:1}));
   let x=S.houses.length?82:56;
@@ -1110,7 +1186,7 @@ function bindCommon(app){
   app.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render();window.scrollTo(0,0)});
   app.querySelectorAll("[data-act]").forEach(b=>b.onclick=()=>{const [a,x,y]=b.dataset.act.split(":");
     ({trade:()=>trade(x,y),bh:()=>buyHouse(x),sh:()=>sellHouse(+x),bc:()=>buyCar(x),sc:()=>sellCar(+x),pcl:()=>payCarLoan(+x),pl:()=>payLoan(+x),jt:()=>jumpTo(+x),
-      use:()=>setUse(+x),unretire,
+      use:()=>setUse(+x),unretire,apply:()=>applyJob(x),
       gigsave:()=>{const v=val("gig-a"),l=(document.getElementById("gig-l").value||"").trim()||"顧問";const old=S.gig||0;S.gig=v;S.gigLabel=l;
         addLog(v?`退休後當${l}，每月收入 ${money(v)}`:`不再當${S.gigLabel||"顧問"}了`,v>old?"up":"",v&&!old);save();render();toast(v?`${l}收入每月 ${money(v)}`:"已停止")},
       retireask:()=>{if(pending==="retire"){pending=null;retireNow();save();render();toast("退休了！")}else{pending="retire";render();setTimeout(()=>{if(pending==="retire"){pending=null;render()}},4000)}},
@@ -1136,6 +1212,8 @@ function bindCommon(app){
 function decisionCard(){const pd=S.pending;
   if(pd.id==="reflect")return `<div class="decide"><div class="label">${pd.age} 歲・人生提問</div><h2>${pd.text}</h2>
     <textarea id="rf" rows="3" maxlength="200" placeholder="寫下你的回答（可以留白）"></textarea><button class="primary" data-act="dec:0">寫好了，繼續過日子</button></div>`;
+  if(pd.id==="parentcare")return `<div class="decide"><div class="label">${age()} 歲・家人</div><h2>${esc(pd.text)}</h2><p class="note">照顧費每月都會扣，直到${S.parents.find(x=>x.id===pd.pid).who}離開為止。</p>
+    <div class="grid3">${CARE.map((c,i)=>`<button data-act="dec:${i}"><b>${c[1]}</b><br><span class="note">${c[2]?`每月約 ${money(P(c[2]))}・`:""}${c[3]}</span></button>`).join("")}</div></div>`;
   if(pd.id==="school"){const st=STAGES.find(x=>x.k===pd.stage);return `<div class="decide"><div class="label">${age()} 歲・孩子的教育</div><h2>${esc(pd.text)}</h2>
     <p class="note">學校越好，孩子長大後越有機會有好工作、拿孝親費給你，但學費也越高。之後也可以在「生活」頁改。</p>
     <div class="grid3">${st.opts.map((o,i)=>`<button data-act="dec:${i}"><b>${o[0]}</b><br><span class="note">${o[1]?`每月約 ${money(P(o[1]))}`:"不用學費"}</span></button>`).join("")}</div></div>`}
@@ -1165,6 +1243,7 @@ function homeView(){
   <div class="panel"><h2>人生狀態 <span class="chip">${fam}</span></h2>${familyScene()}${statBars(S.st)}
     <div class="qbtns focusbar">${Object.entries(FOCUS).map(([k,v])=>`<button class="cat" data-act="focus:${k}" aria-pressed="${S.focus===k}">${v.n}</button>`).join("")}</div>
     <p class="note">上面是「今年的重心」，隨時都可以換，選中的會變成黑色。${FOCUS[S.focus].d}。健康太低容易生病、壽命變短；知識高比較容易升遷；人際好比較容易接到外快和被挖角；幸福會記錄在人生地圖上。</p></div>
+  ${compareCard()}
   <div class="panel"><h2>資產負債表</h2><table class="ledger">
     <tr><td>現金存款 <span class="note">${S.cash<0?"負數部分以信貸年利率 8% 計息":`活存 ${(SAVE_RATE*100).toFixed(1)}%`}</span></td><td class="num ${S.cash<0?"down":""}">${money(S.cash)}</td></tr>
     <tr><td>股票／ETF／幣／金 市值</td><td class="num">${money(sv)}</td></tr>
@@ -1261,7 +1340,12 @@ function lifeView(){
   ${retireCard()}
   <div class="panel"><h2>工作收入</h2><div class="budget">
     ${S.retired?`<p>已退休，每月領勞保年金 ${money(S.pension)}。</p>`:S.jobless>0?`<p class="down">目前失業中，領失業給付，預計 ${S.jobless} 個月後找到工作。</p>`:""}
-    <div class="field"><label for="j-sal">我的月薪（換工作、升遷、減薪都可以改）</label><input id="j-sal" type="number" min="0" value="${S.salary}"></div>
+    <p>目前工作：<b>${S.caring?"辭職照顧爸媽中":jobOf()?jobOf().n:"自訂"}</b>　月薪 ${money(S.salary)}${jobOf()?`・年終約 ${jobOf().bonus} 個月`:""}</p>
+    <details class="jobs"><summary class="link">找工作、換工作（${CAREERS.length} 種職業，真實薪資）</summary>
+      <p class="note">薪資是勞動部 114 年職類別薪資調查的平均月薪，再依你的年齡（主計總處各年齡薪資中位數）和知識調整。工時長的工作，健康和幸福每個月會慢慢下降；需要證照的工作要知識夠高才會錄取。</p>
+      <div class="joblist">${CAREERS.map(c=>{const off=offerPay(c,age(),S.st.know,S.pl),ok=S.st.know>=c.know;return `<div class="jobrow ${S.job===c.id?"cur":""}"><div><b>${c.n}</b>${c.est?' <span class="chip est">估算</span>':""}<br><span class="note">你能拿約 ${money(off)}／月・年終 ${c.bonus} 個月・${c.hours<=-.1?"工時很長":c.hours<=-.05?"工時偏長":"工時正常"}・裁員風險${c.risk>=1.2?"高":c.risk<=.5?"低":"中"}${c.lic?`・需要${c.lic}`:""}</span></div>
+        ${S.job===c.id?`<span class="chip">現在的工作</span>`:ok?`<button class="buy" data-act="apply:${c.id}" aria-pressed="${(S.done||{})["j-"+c.id]===tNow()}">應徵</button>`:`<span class="note">知識要 ${c.know}（你 ${Math.round(S.st.know)}）</span>`}</div>`}).join("")}</div></details>
+    <div class="field"><label for="j-sal">我的月薪（也可以直接改）</label><input id="j-sal" type="number" min="0" value="${S.salary}"></div>
     ${S.married?`<div class="field"><label for="j-sp">另一半月收入</label><input id="j-sp" type="number" min="0" value="${S.spouse}"></div>`:""}
     <button class="primary" data-act="job">更新收入</button>
     <p class="note">想提早退休、靠股利生活？到下面的「退休試算」看看錢夠不夠。</p>
@@ -1276,6 +1360,7 @@ function lifeView(){
 
   <div class="panel"><h2>家庭</h2>
     ${loveSection()}
+    ${parentsCard()}
     <h3 class="h3">小孩 ${S.kids.length?`<span class="chip">${S.kids.length} 個</span>`:""}</h3>
     ${S.kids.map(k=>{const a=kidAge(k),q=kidParts(k);return `<details class="kid"><summary><span class="t">${esc(k.name)}</span><span class="meta">${a} 歲${q&&q.stage?`・${q.schoolName}`:""}・${when(k.bornT)}出生</span><span class="num ${q?"down":"up"}">${q?`-${money(kidTotal(k))}/月`:k.filial?`+${money(k.filial)}/月`:"已獨立"}</span></summary>
       ${!q?`<p class="note">${esc(k.name)} 已經經濟獨立${k.outcome?`：${k.outcome}`:""}。</p>`:`<div class="budget">
@@ -1398,7 +1483,9 @@ function setupView(){const L=pastLives();return `<div class="setup">
   <p class="muted">設定你的起點，用台灣真實的房價、車價、股價過一輩子。每個月薪水入帳、帳單扣款、市場波動，生活中的大小事、人生抉擇都會發生，直到這一生結束。</p></div>
   <button id="s-rand">隨機一個人生開局</button><p class="note" id="s-bg"></p>
   <div class="field"><label for="s-name">名字</label><input id="s-name" value="我"></div>
-  <div class="field"><label for="s-age">開始時幾歲</label><input id="s-age" type="number" min="15" max="80" value="25"></div>
+  <div class="row"><div class="field" style="flex:1"><label for="s-age">開始時幾歲</label><input id="s-age" type="number" min="15" max="80" value="25"></div>
+    <div class="field" style="flex:1"><label for="s-sex">性別</label><select id="s-sex"><option>男</option><option>女</option></select></div></div>
+  <div class="field"><label for="s-job">職業（選了會自動填入真實的平均月薪）</label><select id="s-job"><option value="">自己填月薪</option>${CAREERS.map(c=>`<option value="${c.id}">${c.n}（平均 ${money(c.pay)}）</option>`).join("")}</select><span class="note" id="s-jobnote"></span></div>
   <div class="field"><label for="s-y">從哪一年哪一月開始</label><div class="row"><select id="s-y" style="flex:1">${Array.from({length:40},(_,i)=>2011+i).map(y=>`<option value="${y}" ${y===2026?"selected":""}>${y} 年</option>`).join("")}</select><select id="s-m" style="flex:1">${Array.from({length:12},(_,i)=>i+1).map(m=>`<option value="${m}" ${m===10?"selected":""}>${m} 月</option>`).join("")}</select></div>
     <span class="note" id="s-hint"></span></div>
   <div class="field"><label for="s-inf">未來每年通膨率（%）</label><input id="s-inf" type="number" step="0.1" value="2"></div>
@@ -1438,6 +1525,12 @@ function bindSetup(){
   const tog=()=>{document.getElementById("r-sp").hidden=document.getElementById("s-mar").value!=="married";document.getElementById("r-house").hidden=!document.getElementById("s-house").value;
     document.getElementById("r-car").hidden=!document.getElementById("s-car").value;document.getElementById("r-pet").hidden=!document.getElementById("s-pet").value};
   ["s-mar","s-house","s-car","s-pet"].forEach(id=>document.getElementById(id).onchange=tog);tog();
+  const jobFill=()=>{const id=document.getElementById("s-job").value,c=CAREERS.find(x=>x.id===id),n=document.getElementById("s-jobnote");if(!c){n.textContent="";return}
+    const y=+document.getElementById("s-y").value,m=+document.getElementById("s-m").value,t=y*12+m-1,inf=(+document.getElementById("s-inf").value||2)/100;
+    const pl=t<NOW_T?cpiAt(t):Math.pow(1+inf,(t-NOW_T)/12),a=+document.getElementById("s-age").value||25,off=offerPay(c,a,50,pl);
+    document.getElementById("s-sal").value=off;n.textContent=`${a} 歲的${c.n}，月薪大約 ${money(off)}（勞動部職類別薪資 × 主計總處年齡別中位數）`};
+  document.getElementById("s-job").onchange=jobFill;["s-y","s-m"].forEach(id=>document.getElementById(id).addEventListener("change",jobFill));
+  document.getElementById("s-age").addEventListener("change",jobFill);
   document.getElementById("s-age").onchange=()=>{if(+document.getElementById("s-age").value>=30)document.querySelector(".lifeset").open=true};
   document.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>{document.querySelectorAll("[data-p]").forEach(x=>x.setAttribute("aria-pressed",x===b));const [c,s]=b.dataset.p.split(",");document.getElementById("s-cash").value=c;document.getElementById("s-sal").value=s;setupBg=""});
   document.getElementById("s-rand").onclick=()=>{const [bg,[c0,c1],[s0,s1]]=pick(BGS);const a=Math.round(rr(22,32));
@@ -1446,7 +1539,7 @@ function bindSetup(){
     const y=Math.round(rr(2011,2035));document.getElementById("s-y").value=y;document.getElementById("s-m").value=Math.ceil(rr(0,12))||1;hint();
     setupBg=bg;document.getElementById("s-bg").textContent=`${a} 歲，${bg}。從 ${y} 年開始。`};
   document.getElementById("s-go").onclick=()=>{const v=id=>Math.max(0,+document.getElementById(id).value||0);
-    newGame({bg:setupBg,age:Math.min(80,Math.max(15,v("s-age")||25)),infl:(+document.getElementById("s-inf").value||0)/100,name:document.getElementById("s-name").value.trim(),y:+document.getElementById("s-y").value,m:+document.getElementById("s-m").value,
+    newGame({sex:document.getElementById("s-sex").value,job:document.getElementById("s-job").value||null,bg:setupBg,age:Math.min(80,Math.max(15,v("s-age")||25)),infl:(+document.getElementById("s-inf").value||0)/100,name:document.getElementById("s-name").value.trim(),y:+document.getElementById("s-y").value,m:+document.getElementById("s-m").value,
       cash:+document.getElementById("s-cash").value||0,salary:v("s-sal"),expense:v("s-exp"),rent:v("s-rent"),
       life:(()=>{const g=id=>document.getElementById(id).value,n=id=>Math.max(0,+g(id)||0);
         return {mar:g("s-mar"),sp:n("s-sp"),kids:g("s-kages").split(/[,，、\s]+/).map(x=>parseInt(x)).filter(x=>x>=0&&x<60).slice(0,6),kn:g("s-kn").split(/[,，、]+/).map(x=>x.trim()).filter(Boolean),
