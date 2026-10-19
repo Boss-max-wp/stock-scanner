@@ -1,0 +1,1482 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="用台灣真實的房價、車價、股價過一輩子的人生資產模擬器">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="人生模擬器">
+<meta name="theme-color" content="#eaf1ee" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1716" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-512.png">
+<title>人生資產模擬器</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@700;900&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
+<style>
+/* Layout: a bank passbook (存摺) — sticky balance header, ledger rows, stamp-red for gains (台股慣例：紅漲綠跌) */
+:root{
+  --paper:#eaf1ee; --card:#fbfdfc; --ink:#12302b; --muted:#5a716c; --line:#cddbd6;
+  --accent:#0f5e57; --accent-ink:#ffffff; --up:#c0281f; --down:#1b7a43; --warn:#a86400; --soft:#dcebe6; --glass:#bcd6e0; --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --skin:#f1c9a5; --hair:#3b2a20;
+  --f-display:"Noto Serif TC","Songti TC","PMingLiU",serif;
+  --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0e1716; --card:#15201e; --ink:#e2eeea; --muted:#8fa49f; --line:#283a36;
+  --accent:#5cc0b2; --accent-ink:#0b1514; --up:#ff6a5c; --down:#4cc37b; --warn:#e8a547; --soft:#1c2c29; --glass:#4a6670; --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --skin:#d9a982; --hair:#1a120c; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#0e1716; --card:#15201e; --ink:#e2eeea; --muted:#8fa49f; --line:#283a36;
+  --accent:#5cc0b2; --accent-ink:#0b1514; --up:#ff6a5c; --down:#4cc37b; --warn:#e8a547; --soft:#1c2c29; --glass:#4a6670; --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --skin:#d9a982; --hair:#1a120c; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 40px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--paper)}
+.wrap{max-width:760px;margin:0 auto}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.up{color:var(--up)} .down{color:var(--down)} .muted{color:var(--muted)}
+button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:8px 12px}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
+button.buy{color:var(--up);border-color:var(--up)} button.sell{color:var(--down);border-color:var(--down)}
+button:disabled{opacity:.4;cursor:not-allowed}
+input,select{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+
+/* header */
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--paper);padding-block:14px 10px;border-bottom:2px solid var(--ink)}
+.hrow{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.label{font-size:12px;letter-spacing:.08em;color:var(--muted)}
+.nw{font-family:var(--f-num);font-size:clamp(26px,7vw,36px);font-weight:600;line-height:1.1}
+.hbtns{display:flex;gap:8px}
+.sub{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;margin-top:6px}
+nav{display:flex;gap:4px;margin-top:12px;overflow-x:auto}
+nav button{border:none;background:none;padding:6px 10px;border-radius:0;color:var(--muted);border-bottom:3px solid transparent;white-space:nowrap}
+nav button[aria-selected="true"]{color:var(--ink);font-weight:700;border-bottom-color:var(--accent)}
+
+section{margin-top:18px;display:grid;gap:14px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
+.panel h2{font-size:18px;margin-bottom:10px}
+.ledger{width:100%;border-collapse:collapse}
+.ledger td{padding:7px 0;border-bottom:1px dashed var(--line);vertical-align:top}
+.ledger td:last-child{text-align:right}
+.ledger tr.total td{border-bottom:none;border-top:2px solid var(--ink);font-weight:700;padding-top:9px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.item{border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--card);display:grid;gap:8px;min-width:0}
+.item .t{font-weight:700}
+.item .meta{font-size:13px;color:var(--muted)}
+.item .price{font-family:var(--f-num);font-size:20px;font-weight:600}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.chip{font-size:11px;padding:2px 8px;border-radius:99px;background:var(--soft);color:var(--muted);letter-spacing:.04em}
+.chip.est{color:var(--warn)}
+.chart{width:100%;height:auto;display:block}
+.log li{padding:6px 0;border-bottom:1px dashed var(--line);font-size:14px;list-style:none}
+.log{padding:0;margin:0;max-height:420px;overflow:auto}
+.stamp{display:inline-block;border:2px solid var(--up);color:var(--up);font-family:var(--f-display);font-weight:900;padding:2px 10px;transform:rotate(-4deg);border-radius:4px;font-size:14px}
+.field{display:grid;gap:4px} .field label{font-size:13px;color:var(--muted)}
+.setup{max-width:440px;margin:40px auto;display:grid;gap:14px}
+.setup h1{font-size:30px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:8px;font-size:14px;max-width:calc(100% - 32px);z-index:20}
+.note{font-size:12px;color:var(--muted)}
+.trade{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center}
+.qbtns{display:flex;gap:4px;flex-wrap:wrap}
+.qbtns button{padding:4px 8px;font-size:12px}
+.cat[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.lock{display:grid;gap:6px;padding:10px;border:1px dashed var(--warn);border-radius:8px;font-size:13px;color:var(--muted)}
+.lock b{color:var(--warn)}
+.jump{display:grid;grid-template-columns:1fr 1fr auto;gap:6px;margin-top:10px}
+@media (prefers-reduced-motion:no-preference){.flash{animation:fl .6s}@keyframes fl{from{background:var(--soft)}to{background:transparent}}}
+.link{border:none;background:none;padding:0 4px;color:var(--accent);text-decoration:underline;font-size:13px}
+.budget{display:grid;gap:10px}
+.brow{display:grid;grid-template-columns:1fr 140px;gap:10px;align-items:center}
+.brow label{font-size:14px}
+.brow.total{border-top:2px solid var(--ink);padding-top:8px;font-weight:700}
+.brow.total b{text-align:right}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.grid3 button{text-align:left;line-height:1.5}
+.h3{font-size:16px;margin:16px 0 8px;display:flex;align-items:center;gap:8px}
+.fam{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:baseline;padding:8px 0;border-bottom:1px dashed var(--line)}
+.fam .meta{font-size:13px;color:var(--muted);min-width:0}
+.carpic{width:100%;max-width:260px;height:auto;display:block;margin:0 auto;background:var(--soft);border-radius:8px}
+.swatches{gap:6px}
+.swatch{width:24px;height:24px;padding:0;border-radius:50%;border:2px solid var(--line)}
+.swatch[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--card),0 0 0 4px var(--accent)}
+@media (max-width:420px){.brow{grid-template-columns:1fr 110px}}
+.decide{margin-top:14px;background:var(--card);border:2px solid var(--warn);border-radius:10px;padding:16px;display:grid;gap:10px}
+.decide h2{font-size:20px}
+.decide p{margin:0}
+.usebox{display:grid;gap:8px;padding:10px;background:var(--soft);border-radius:8px}
+a.photo{color:var(--accent);font-size:13px;text-decoration:underline}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px 16px;margin:6px 0 10px}
+.stat{display:grid;grid-template-columns:3em 1fr 2.2em;gap:8px;align-items:center;font-size:13px}
+.stat b{text-align:right}
+.bar{height:8px;background:var(--soft);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:99px}
+.lmap{display:grid;grid-template-columns:repeat(auto-fill,minmax(34px,1fr));gap:3px}
+.cell{position:relative;aspect-ratio:1;max-width:100%;border-radius:4px;background:color-mix(in srgb,var(--accent) calc(var(--h)*100%),var(--soft));display:flex;align-items:flex-end;padding:2px 3px;font-size:10px;color:var(--ink)}
+.cell span{background:var(--card);border-radius:3px;padding:0 2px;opacity:.85}
+.cell i{position:absolute;top:1px;right:3px;font-style:normal;color:var(--warn);font-size:12px}
+textarea{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;resize:vertical}
+details.kid{border-bottom:1px dashed var(--line);padding:6px 0}
+details.kid summary{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:baseline;cursor:pointer;list-style:none}
+details.kid summary::-webkit-details-marker{display:none}
+details.kid summary .meta{font-size:13px;color:var(--muted)}
+details.kid .budget{margin-top:10px}
+.log li{display:flex;gap:8px;align-items:flex-start}
+.starb{border:none;background:none;padding:0 2px;font-size:16px;color:var(--muted);line-height:1.4}
+.starb[aria-pressed="true"]{color:var(--warn)}
+.ending{max-width:640px;margin:24px auto;display:grid;gap:14px}
+.ending h1{font-size:30px}
+.cause{font-family:var(--f-display);font-size:18px;margin:0;color:var(--muted)}
+#bspeed{width:auto;padding:8px 6px}
+.hbtns{flex-wrap:wrap}
+.grid3 button[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+button[aria-pressed="true"],.cat[aria-pressed="true"],.grid3 button[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink);box-shadow:none}
+button[aria-pressed="true"] .note{color:var(--paper);opacity:.8}
+.swatch[aria-pressed="true"]{background-clip:padding-box}
+.starb[aria-pressed="true"]{background:none;color:var(--warn)}
+.focusbar{margin:4px 0 6px}
+.recap{border-color:var(--accent);border-width:2px}
+.ach{display:flex;flex-wrap:wrap;gap:6px}
+.badge{font-size:12px;padding:4px 10px;border-radius:99px;border:1px dashed var(--line);color:var(--muted);display:inline-flex;gap:6px;align-items:baseline}
+.badge.on{border-style:solid;border-color:var(--ink);color:var(--ink);background:var(--soft);font-weight:700}
+.badge small{font-weight:400;color:var(--muted)}
+.pk{font-size:12px}
+.scene{width:100%;height:auto;display:block;margin:4px 0 8px;max-height:170px}
+.alloc{display:flex;gap:2px;height:16px;border-radius:4px;overflow:hidden;margin:6px 0}
+.alloc i{display:block;min-width:3px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}
+.legend>span{display:inline-flex;align-items:center;gap:5px}
+.legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.hbars{display:grid;gap:6px}
+.hb{display:grid;grid-template-columns:6.5em 1fr 4.8em;gap:8px;align-items:center;font-size:13px}
+.hb div{height:10px;background:var(--soft);border-radius:4px}
+.hb i{display:block;height:100%;background:var(--s1);border-radius:0 4px 4px 0;min-width:2px}
+.hb b{text-align:right;font-weight:600}
+.spark{width:100%;height:44px;display:block}
+.hrowi{gap:10px;flex-wrap:nowrap;align-items:center}
+.hicon{flex:none}
+button:active:not(:disabled):not(.swatch):not(.starb):not(.link){background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.lifeset summary{cursor:pointer;list-style:none}
+.lifeset summary::-webkit-details-marker{display:none}
+.lifeset[open] summary{margin-bottom:12px}
+.lifeset .brow{grid-template-columns:1fr 150px}
+.spendcard{display:grid;gap:6px;padding:8px;border:1px solid var(--line);border-radius:10px}
+.spendcard.planned{border:2px solid var(--ink)}
+.spendcard>button{text-align:left;flex:1}
+.spendcard{align-content:start}
+.spendcard select{padding:6px 8px;font-size:13px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.partner{display:grid;gap:8px;padding:12px;border-radius:10px;background:var(--soft);margin-bottom:10px}
+.cands{display:grid;gap:8px;margin-top:10px}
+.cand{display:grid;gap:8px;padding:12px;border:1px solid var(--line);border-radius:10px}
+.gigbox{display:grid;gap:8px;padding:12px;border-radius:10px;background:var(--soft);margin:10px 0}
+.chip.live{background:var(--accent);color:var(--accent-ink)}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+let DATA_DATE = "2026/10/19";
+let USD = 31.5; // 匯率約略值（有即時資料時會自動更新）
+const tw=(id,name,price,o={})=>({id,name,type:"台股",price,vol:.08,drift:.006,tax:.003,...o});
+const etf=(id,name,price,o={})=>({id,name,type:"ETF",price,vol:.05,drift:.006,tax:.001,...o});
+const us=(id,name,usd,o={})=>({id,name,type:"美股",usd,price:Math.round(usd*USD),vol:.07,drift:.008,tax:0,fee:.001,...o});
+// hk = 自己的歷史資料；沒有的話用 px（參考指數）× beta 推估過去價格
+const ASSETS = [
+  tw("2330","台積電",2420,{dy:0.009,vol:.075,drift:.01,hk:"2330"}),
+  tw("2454","聯發科",4250,{dy:0.025,vol:.10,drift:.009,hk:"2454"}),
+  tw("2317","鴻海",244,{dy:0.03,hk:"2317"}),
+  tw("2603","長榮",265.5,{dy:0.06,vol:.10,drift:.004,hk:"2603"}),
+  tw("2881","富邦金",161.5,{dy:0.04,vol:.05,hk:"2881"}),
+  tw("2303","聯電",133,{dy:0.05,beta:.8}),
+  tw("2408","南亞科",447.5,{dy:0,vol:.12,beta:1.3}),
+  tw("6669","緯穎",1845,{dy:0.02,vol:.11,beta:1.4,from:"2019-03"}),
+  tw("2368","金像電",1245,{dy:0.02,vol:.12,beta:1.4}),
+  tw("1303","南亞",307,{dy:0.02,vol:.07,beta:.6}),
+  tw("2002","中鋼",19.55,{dy:0.02,vol:.05,drift:.002,beta:.3}),
+  tw("2886","兆豐金",53.7,{dy:0.05,vol:.04,beta:.5}),
+  tw("2610","華航",21.05,{dy:0.02,beta:.6}),
+  tw("1605","華新",38.5,{dy:0.03,beta:.6}),
+  tw("2027","大成鋼",50.9,{dy:0.04,beta:.6}),
+  etf("0050","元大台灣50",109,{dy:0.02,drift:.008,hk:"0050"}),
+  etf("0056","元大高股息",58.75,{dy:0.07,from:"2007-12",beta:.7}),
+  etf("00878","國泰永續高股息",35.53,{dy:0.06,from:"2020-07",beta:.7}),
+  etf("00713","元大台灣高息低波",65.8,{dy:0.06,from:"2017-09",beta:.6,vol:.04}),
+  etf("00631L","元大台灣50正2（槓桿）",37.15,{dy:0,from:"2014-10",beta:2,vol:.10}),
+  etf("00685L","群益臺灣加權正2（槓桿）",12.32,{dy:0,from:"2016-12",approx:true,beta:2,vol:.10}),
+  etf("00927","群益半導體收益",38.22,{dy:0.06,from:"2023-04",approx:true,beta:1.2}),
+  etf("009816","凱基台灣TOP50",16.2,{dy:0,from:"2026-02"}),
+  etf("00981A","主動統一台股增長",29.53,{dy:0.02,from:"2025-05",approx:true}),
+  etf("00985A","主動野村台灣50",23.14,{dy:0.02,from:"2025-07"}),
+  etf("00953B","群益優選非投等債",9.6,{dy:0.08,from:"2025-05",approx:true,beta:0,vol:.015,drift:.002}),
+  us("VOO","Vanguard 標普500 ETF",701.61,{dy:0.012,px:"SPY",vol:.045}),
+  us("SPY","SPDR 標普500 ETF",763.25,{dy:0.012,hk:"SPY",vol:.045}),
+  us("QQQ","那斯達克100 ETF",709.8,{dy:0.006,hk:"QQQ",vol:.055}),
+  us("NVDA","輝達 NVIDIA",214.13,{dy:0.0003,hk:"NVDA",vol:.12,drift:.012}),
+  us("AAPL","蘋果 Apple",343.46,{dy:0.004,hk:"AAPL"}),
+  us("MSFT","微軟 Microsoft",529.05,{dy:0.007,hk:"MSFT"}),
+  us("TSLA","特斯拉 Tesla",354.72,{dy:0,hk:"TSLA",vol:.14,from:"2010-06"}),
+  {id:"BTC",name:"比特幣（每顆）",type:"加密貨幣",from:"2010-07",usd:82600,price:Math.round(82600*USD),vol:.15,drift:.008,tax:0,fee:.001,hk:"BTC"},
+  {id:"ETH",name:"以太幣（每顆）",type:"加密貨幣",usd:2416.6,price:Math.round(2416.6*USD),vol:.18,drift:.008,tax:0,fee:.001,hk:"ETH",from:"2015-08"},
+  {id:"GOLD",name:"黃金（每台錢）",type:"黃金",usd:4160,conv:3.75/31.1035,price:Math.round(4160/31.1035*3.75*USD),vol:.04,drift:.005,tax:0,fee:.005,hk:"GOLD"},
+];
+// 房價：591 實價登錄 2026 新成屋/老屋均價、國泰房地產指數 2026Q2 預售可能成交價（萬/坪）
+const CITIES = {台北:{trend:.05},新北:{trend:.02},桃園:{trend:-.01},新竹:{trend:.08},台中:{trend:-.06},台南:{trend:.02},高雄:{trend:.05}};
+// 各縣市單價（萬/坪）：新成屋/預售 n、30 年老屋 o。台北、新北來自 591 實價登錄，其他新屋來自國泰房地產指數 2026Q2，老屋為估算
+const CITY_PRICE={台北:{n:113.8,o:71},新北:{n:62.4,o:39.7},桃園:{n:46.34,o:24},新竹:{n:63.8,o:30},台中:{n:49.77,o:25},台南:{n:37.04,o:20},高雄:{n:40.08,o:22}};
+const HOUSES = [
+  {id:"h1",city:"台北",type:"3房",name:"台北 新成屋電梯大樓 3房",ping:35,unit:113.8,src:"591 新成屋均價"},
+  {id:"h2",city:"台北",type:"老公寓",name:"台北 30年老公寓 2房",ping:25,unit:71,src:"591 老屋均價"},
+  {id:"h3",city:"新北",type:"3房",name:"新北 新成屋 3房",ping:32,unit:62.4,src:"591 新成屋均價"},
+  {id:"h4",city:"新北",type:"老公寓",name:"新北 30年老公寓 3房",ping:28,unit:39.7,src:"591 老屋均價"},
+  {id:"h5",city:"桃園",type:"3房",name:"桃園 預售屋 3房",ping:33,unit:46.34,src:"國泰指數 Q2"},
+  {id:"h6",city:"新竹",type:"3房",name:"新竹 預售屋 3房",ping:32,unit:63.8,src:"國泰指數 Q2"},
+  {id:"h7",city:"台中",type:"3房",name:"台中 預售屋 3房",ping:35,unit:49.77,src:"國泰指數 Q2"},
+  {id:"h8",city:"台南",type:"3房",name:"台南 預售屋 3房",ping:36,unit:37.04,src:"國泰指數 Q2"},
+  {id:"h9",city:"高雄",type:"3房",name:"高雄 預售屋 3房",ping:34,unit:40.08,src:"國泰指數 Q2"},
+];
+Object.entries(CITY_PRICE).forEach(([c,{n,o}])=>{
+  const E="依均價估算";
+  HOUSES.push({id:c+"-s",city:c,type:"套房",name:`${c} 新成屋套房`,ping:13,unit:n*1.05,src:E});
+  HOUSES.push({id:c+"-2",city:c,type:"2房",name:`${c} 新成屋電梯 2房`,ping:25,unit:n,src:E});
+  HOUSES.push({id:c+"-4",city:c,type:"4房",name:`${c} 大坪數電梯 4房`,ping:50,unit:n*1.08,src:E});
+  HOUSES.push({id:c+"-h",city:c,type:"華廈",name:`${c} 20年華廈 2房`,ping:24,unit:(n+o)/2,src:E});
+  if(c!=="台北")HOUSES.push({id:c+"-t",city:c,type:"透天",name:`${c} 透天厝 4房（含土地）`,ping:55,unit:n*.72,src:E});
+  if(c!=="台北"&&c!=="新北")HOUSES.push({id:c+"-o",city:c,type:"老公寓",name:`${c} 30年老公寓 3房`,ping:30,unit:o,src:"老屋估算"});
+});
+HOUSES.push({id:"台北-l",city:"台北",type:"豪宅",name:"台北 信義區豪宅 4房",ping:80,unit:180,src:"豪宅行情估算"});
+HOUSES.forEach(h=>{h.base=Math.round(h.ping*h.unit*10000);h.mgmt=!/老公寓|透天/.test(h.type)});
+// 各縣市租金投報率（年租金 / 房價，約略值）
+const YIELD={台北:.017,新北:.02,桃園:.025,新竹:.022,台中:.023,台南:.026,高雄:.025};
+
+// 車款：body 決定外觀圖；est=true 為參考行情估價
+const car=(id,name,type,body,wan,upkeep,from,est=true)=>({id,name,type,body,price:wan*10000,upkeep,from,est});
+const CARS = [
+  car("c0","Gogoro 電動機車","機車","scooter",9.5,900,2015),
+  car("c9","Yamaha 勁戰","機車","scooter",9.8,1200,2010),
+  car("c10","SYM JET SL","機車","scooter",8.5,1100,2019),
+  car("c11","Kymco KRV","機車","scooter",11.5,1300,2020),
+  car("c14","Honda Fit","國產車","hatch",69.9,3200,2010),
+  car("c21","Suzuki Swift","進口車","hatch",69.9,3000,2010),
+  car("c25","Volkswagen Golf","進口車","hatch",120,4500,2010),
+  car("c19","Mazda3","進口車","hatch",89.9,3800,2010),
+  car("c12","Toyota Corolla Altis","國產車","sedan",75.9,3600,2010),
+  car("c13","Toyota Camry","進口車","sedan",115,4500,2010),
+  car("c1","Toyota Yaris Cross","國產車","suv",74.9,3500,2023),
+  car("c2","Toyota Corolla Cross","國產車","suv",80.9,3800,2020,false),
+  car("c4","Toyota RAV4","進口車","suv",104,4200,2010,false),
+  car("c6","Toyota RAV4 PHEV","進口車","suv",149,3800,2021,false),
+  car("c15","Honda HR-V","國產車","suv",89.9,3700,2016),
+  car("c5","Honda CR-V","國產車","suv",125.9,4200,2010),
+  car("c16","Nissan Kicks","國產車","suv",73.9,3500,2018),
+  car("c17","Nissan X-Trail","國產車","suv",109,4300,2010),
+  car("c18","Mitsubishi Xforce","國產車","suv",79.9,3600,2024),
+  car("c20","Mazda CX-5","進口車","suv",105,4300,2012),
+  car("c3","Ford Territory","國產車","suv",99.9,4000,2023),
+  car("c22","Ford Kuga","國產車","suv",109,4300,2013),
+  car("c23","Hyundai Tucson L","進口車","suv",109,4300,2022),
+  car("c24","Luxgen n7 電動車","國產車","suv",99.9,2500,2024),
+  car("c36","Toyota Sienta 七人座","進口車","van",79.9,3600,2017),
+  car("c37","Volkswagen Caddy 七人座","進口車","van",119,4300,2010),
+  car("c26","Tesla Model 3","豪華車","sedan",174.9,2800,2019),
+  car("c7","Tesla Model Y","豪華車","suv",199.9,3000,2022),
+  car("c8","Lexus NX","豪華車","suv",177,5500,2014),
+  car("c27","Lexus RX","豪華車","suv",270,6500,2010),
+  car("c28","BMW 3 系列","豪華車","sedan",250,7000,2010),
+  car("c29","BMW X3","豪華車","suv",300,7500,2010),
+  car("c30","Mercedes-Benz C-Class","豪華車","sedan",250,7000,2010),
+  car("c31","Mercedes-Benz GLC","豪華車","suv",300,7500,2015),
+  car("c32","Volvo XC60","豪華車","suv",250,6500,2010),
+  car("c33","Porsche Macan","超跑名車","suv",380,12000,2014),
+  car("c34","Porsche 911","超跑名車","sports",700,18000,2010),
+  car("c35","Lamborghini Urus","超跑名車","suv",1500,35000,2018),
+  car("c38","Toyota Yaris","國產車","hatch",59.9,3000,2010),
+  car("c39","Toyota Prius","進口車","hatch",109,3200,2010),
+  car("c40","Toyota Alphard 保母車","豪華車","van",255,7000,2010),
+  car("c41","Toyota Town Ace 小貨車","商用車","van",62.9,3500,2022),
+  car("c42","CMC J Space 小貨車","商用車","van",56.9,3400,2022),
+  car("c43","Ford Ranger 皮卡","進口車","pickup",125,5200,2012),
+  car("c44","Honda Civic","進口車","sedan",119,4000,2010),
+  car("c45","Honda Odyssey","進口車","van",149,4800,2010),
+  car("c46","Nissan Sentra","國產車","sedan",76.9,3500,2010),
+  car("c47","Mitsubishi Outlander","國產車","suv",109.9,4300,2013),
+  car("c48","Mazda CX-30","進口車","suv",99.9,3900,2020),
+  car("c49","Mazda CX-60","進口車","suv",149,5200,2023),
+  car("c50","Kia Sportage","進口車","suv",109,4200,2010),
+  car("c51","Kia Carnival","進口車","van",159,5200,2015),
+  car("c52","Hyundai Santa Fe","進口車","suv",149,5000,2010),
+  car("c53","Skoda Octavia","進口車","hatch",109,4000,2010),
+  car("c54","Skoda Kodiaq","進口車","suv",149,4800,2017),
+  car("c55","Volkswagen Tiguan","進口車","suv",149,4800,2010),
+  car("c56","MG HS","國產車","suv",89.9,3800,2022),
+  car("c57","Suzuki Jimny","進口車","suv",99,3600,2019),
+  car("c58","MINI Cooper","豪華車","hatch",149,4800,2010),
+  car("c59","Volvo XC40","豪華車","suv",179,5500,2018),
+  car("c60","Lexus ES","豪華車","sedan",199,6000,2010),
+  car("c61","Audi A4","豪華車","sedan",199,6500,2010),
+  car("c62","Audi Q5","豪華車","suv",259,7200,2010),
+  car("c63","BMW 5 系列","豪華車","sedan",330,8500,2010),
+  car("c64","BMW X5","豪華車","suv",450,10000,2010),
+  car("c65","BMW iX 電動車","豪華車","suv",400,5000,2022),
+  car("c66","Mercedes-Benz E-Class","豪華車","sedan",330,8500,2010),
+  car("c67","Mercedes-Benz GLE","豪華車","suv",450,10000,2015),
+  car("c68","Porsche Cayenne","超跑名車","suv",500,15000,2010),
+  car("c69","Porsche Taycan 電動車","超跑名車","sports",560,10000,2020),
+  car("c70","Ferrari Roma","超跑名車","sports",1300,30000,2020),
+  car("c71","Vespa Primavera","機車","scooter",15.8,1300,2014),
+  car("c72","Yamaha MT-07 重機","機車","bike",36,2500,2014),
+  car("c73","Gogoro Pulse","機車","scooter",11.8,900,2024),
+];
+// 每年牌照稅（4月）＋燃料稅（7月），依排氣量級距約略估算；電動車免牌照稅與燃料稅
+CARS.forEach(c=>{const ev=/電動|Tesla|Gogoro/.test(c.name);
+  c.ev=ev;
+  c.tax=c.type==="機車"?{lic:c.body==="bike"?1800:0,fuel:ev?0:c.body==="bike"?1200:450}:ev?{lic:0,fuel:0}:
+    c.type==="超跑名車"?{lic:28220,fuel:9000}:c.type==="豪華車"||c.price>=1500000?{lic:15210,fuel:7200}:
+    c.price>=950000?{lic:11230,fuel:6210}:{lic:7120,fuel:4800};});
+const photoURL=c=>`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(c.name.replace(/（.*）/,"")+" 實車")}`;
+const PAINTS=[["珍珠白","#f1f1ec"],["曜石黑","#24262a"],["星光銀","#b8bec4"],["烈焰紅","#b3261e"],["海洋藍","#24508f"],["森林綠","#2f5d46"],["奶茶色","#c6a57e"]];
+const BODY={
+  sedan:{d:"M10,62 Q12,50 30,48 L60,46 Q75,30 95,28 L130,28 Q148,30 160,46 L182,50 Q192,52 192,62 L192,68 Q192,70 188,70 L12,70 Q10,70 10,66 Z",
+    w:"M68,46 Q80,33 96,32 L112,32 L112,46 Z M116,32 L130,32 Q144,34 152,46 L116,46 Z",wh:[50,155],r:12},
+  suv:{d:"M10,64 L12,44 Q14,36 26,34 L52,32 Q64,18 80,16 L150,16 Q166,17 174,30 L184,34 Q192,36 192,48 L192,68 Q192,71 188,71 L14,71 Q10,71 10,67 Z",
+    w:"M58,32 Q68,21 82,20 L112,20 L112,32 Z M116,20 L148,20 Q162,21 168,32 L116,32 Z",wh:[52,152],r:14},
+  hatch:{d:"M12,64 Q14,50 30,48 L54,46 Q68,26 88,24 L138,24 Q156,25 162,40 L170,50 Q180,52 180,64 L180,69 Q180,71 176,71 L16,71 Q12,71 12,67 Z",
+    w:"M62,46 Q74,29 90,28 L110,28 L110,46 Z M114,28 L136,28 Q150,29 156,46 L114,46 Z",wh:[48,148],r:12},
+  van:{d:"M10,66 L10,30 Q10,14 28,13 L150,12 Q170,12 180,30 L190,44 Q194,48 194,56 L194,68 Q194,71 190,71 L14,71 Q10,71 10,68 Z",
+    w:"M24,20 L70,19 L70,38 L22,38 Z M76,19 L120,18 L120,38 L76,38 Z M126,18 L150,18 Q164,19 174,38 L126,38 Z",wh:[46,158],r:13},
+  pickup:{d:"M8,66 L8,46 Q8,40 16,40 L58,38 L70,18 Q72,15 78,15 L116,15 Q122,15 124,20 L130,38 L190,38 Q194,38 194,44 L194,68 Q194,71 190,71 L12,71 Q8,71 8,68 Z",
+    w:"M76,20 L98,20 L98,36 L68,36 Z M102,20 L118,20 L124,36 L102,36 Z",wh:[46,158],r:14},
+  bike:{d:"M44,58 Q60,42 84,44 L118,40 Q128,30 140,28 L148,30 L140,40 Q156,48 162,60 Q140,52 128,58 L96,60 Q70,62 44,58 Z",
+    w:"M70,44 Q86,36 108,38 L106,44 Q88,42 70,47 Z",wh:[48,156],r:16},
+  sports:{d:"M8,64 Q10,56 26,54 L66,50 Q88,36 112,34 L136,36 Q156,42 172,52 L188,56 Q194,58 194,64 L194,68 Q194,70 190,70 L12,70 Q8,70 8,67 Z",
+    w:"M80,50 Q96,39 112,38 L130,39 Q144,43 154,50 Z",wh:[48,158],r:12},
+  scooter:{d:"M40,62 Q60,55 90,57 L122,57 Q130,42 138,32 L148,26 L154,29 L146,44 Q160,52 168,62 Q150,57 140,63 Q128,67 108,67 L70,67 Q54,68 40,62 Z",
+    w:"M62,52 Q82,44 114,48 L114,54 Q86,52 62,56 Z",wh:[48,156],r:15},
+};
+function carSVG(body,paint){const b=BODY[body]||BODY.sedan;
+  return `<svg class="carpic" viewBox="0 0 200 90" role="img" aria-label="車子外觀示意圖">
+  <ellipse cx="100" cy="${78+b.r*.1}" rx="88" ry="4" fill="var(--line)"/>
+  ${body==="scooter"||body==="bike"?`<path d="M146,28 L140,14 M134,14 L148,14" stroke="var(--ink)" stroke-width="3" stroke-linecap="round" fill="none"/>`:""}
+  <path class="paint" d="${b.d}" fill="${paint}" stroke="var(--ink)" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="${b.w}" fill="${body==="scooter"||body==="bike"?"var(--ink)":"var(--glass)"}" stroke="var(--ink)" stroke-width="1"/>
+  ${b.wh.map(x=>`<circle cx="${x}" cy="${78-b.r+2}" r="${b.r}" fill="var(--ink)"/><circle cx="${x}" cy="${78-b.r+2}" r="${b.r*.42}" fill="var(--card)"/>`).join("")}
+  </svg>`}
+const MORTGAGE_RATE = .022, LOAN_YEARS = 30, SAVE_RATE = .008;
+const BUY_FEE = .001425;
+// 生活預算分類
+const BUDGET=[["food","餐費、日用品"],["transport","交通（不含養車）"],["phone","電信網路、訂閱"],["fun","娛樂、旅遊"],["insurance","保險"],["parents","孝親費"],["other","其他"]];
+// 小孩每月花費（2026 物價，依年齡）
+// 小孩基本生活費（吃穿、尿布奶粉、日用品），學費另計
+function kidCost(age){return age<3?10000:age<6?7000:age<12?8000:age<18?10000:age<22?12000:0}
+// 各階段學校：[名稱, 每月學費（2026 物價）, 教育資源分數]
+const STAGES=[
+  {k:"care",n:"托育",from:0,to:3,opts:[["在家自己帶",0,1],["公共托嬰中心",5000,1],["私立托嬰中心",18000,2],["請保母到家",20000,2]]},
+  {k:"kinder",n:"幼兒園",from:3,to:6,opts:[["公立／非營利幼兒園",3000,1],["準公共幼兒園",4500,1],["私立幼兒園",15000,2],["雙語幼兒園",28000,3]]},
+  {k:"elem",n:"國小",from:6,to:12,opts:[["公立國小",1500,1],["公立國小＋安親班",7500,2],["實驗教育",10000,2],["私立國小",13000,3],["國際學校",45000,4]]},
+  {k:"junior",n:"國中",from:12,to:15,opts:[["公立國中",2000,1],["私立國中",12000,3],["國際學校",48000,4]]},
+  {k:"senior",n:"高中",from:15,to:18,opts:[["公立高中",2500,1.5],["私立高中",13000,2.5],["高職，學一技之長",3000,1.5],["國際學校",50000,4]]},
+  {k:"uni",n:"大學",from:18,to:22,opts:[["國立大學",5000,4],["私立大學",9500,2.5],["出國留學",75000,5],["不升學，直接去工作",0,1]]},
+];
+const CRAM=[["不補習",0,0],["補一兩科",4000,.8],["全科補習",10000,1.5]];
+const ART=[["不學才藝",0,0],["一項才藝",3500,.5],["兩項以上",7000,1]];
+const POCKET=[0,300,500,1000,2000,3000,5000,8000];
+const PETS={狗:{init:30000,month:4000,life:13},貓:{init:15000,month:2500,life:15}};
+const WEDDINGS=[["登記＋拍婚紗",80000,0],["一般婚宴",600000,400000],["豪華婚宴",1500000,900000]];
+
+// ===== state =====
+const KEY="life-sim-v1";
+let S=null, tab="home", pending=null, jumpOpen=false;
+function load(){try{const s=localStorage.getItem(KEY);if(s)S=JSON.parse(s)}catch(e){}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+
+// ===== 歷史資料：2010–2025 每年年底約略收盤（股票為未還原價；0050 已依 2025 年一拆四調整）=====
+let NOW_T = 2026*12+9; // 「現在」的月份，有即時資料時會更新
+const HIST = {
+  "2330":[71,75,97,105.5,133.5,143,181.5,229.5,225.5,331,530,615,448.5,593,1075,1550],
+  "2454":[412,273,331,444,462,249,217,299.5,228,455,797,1205,624,1015,1415,1430],
+  "2317":[114,83,89,80,86,85,82,87,70.5,91.3,92,104,99.9,104.5,184,230],
+  "2603":[30,17,17,18,18,13,14,17,12,14,45,143,146,181,201,210],
+  "2881":[40,29,33,43,54,45,52,51,47,46,46,76,56,64.8,90,95],
+  "0050":[15.3,12.5,13.65,14.5,16.7,15.1,18.05,21,18.9,24.2,30.6,36.4,27.4,33.8,49,65],
+  BTC:[0.3,4.7,13.5,750,320,430,960,14000,3700,7200,29000,46300,16500,42300,93500,88000], // 美元
+  GOLD:[1420,1565,1675,1200,1185,1060,1150,1300,1280,1515,1890,1830,1825,2065,2625,4300], // 美元/盎司
+  FX:[29.2,30.3,29.1,29.8,31.7,33,32.3,29.8,30.7,30,28.1,27.7,30.7,30.7,32.8,31.4],
+  SPY:[125.75,125.5,142.4,184.7,205.5,203.9,223.5,266.9,249.9,321.9,373.9,475,382.4,475.3,586.1,684],
+  QQQ:[54.5,55.8,65.1,88,103.3,111.9,118.5,155.8,154.3,212.6,313.7,397.9,266.3,409.5,511.2,620],
+  NVDA:[.38,.35,.31,.4,.5,.82,2.67,4.84,3.34,5.88,13.05,29.4,14.6,49.5,134.3,186],
+  AAPL:[11.5,14.5,19,20,27.6,26.3,29,42.3,39.4,73.4,132.7,177.6,129.9,192.5,250.4,272],
+  MSFT:[27.9,26,26.7,37.4,46.5,55.5,62.1,85.5,101.6,157.7,222.4,336.3,239.8,376,421.5,485],
+  TSLA:[1.78,1.9,2.26,10,14.8,16,14.2,20.8,22.2,27.9,235,352,123,248,404,450],
+  ETH:[null,null,null,null,null,.93,8,750,133,129,737,3680,1196,2280,3330,2970],
+  CPI:[.807,.818,.833,.84,.85,.848,.859,.865,.876,.88,.878,.896,.922,.945,.966,.983], // 2026=1
+  H_TPE:[.62,.67,.72,.77,.78,.75,.73,.73,.74,.75,.77,.81,.85,.88,.95,.95],
+  H_MID:[.42,.46,.5,.55,.58,.56,.55,.55,.56,.58,.62,.68,.76,.82,.95,.98],
+  H_SOUTH:[.36,.4,.44,.5,.53,.52,.51,.51,.52,.54,.58,.65,.75,.82,.96,1.02],
+};
+const CITY_PROF={台北:"H_TPE",新北:"H_MID",桃園:"H_MID",新竹:"H_MID",台中:"H_SOUTH",台南:"H_SOUTH",高雄:"H_SOUTH"};
+const HIST_EV={"2013-12":"比特幣第一次漲破 1,000 美元","2015-8":"人民幣貶值引發全球股災","2017-12":"比特幣衝上近 2 萬美元後泡沫破裂",
+  "2020-3":"新冠疫情爆發，全球股市暴跌（之後強勁反彈）","2021-5":"台灣疫情升溫進入三級警戒","2022-3":"美國開始升息，股市進入空頭",
+  "2023-8":"新青安房貸上路，房價升溫","2024-7":"台積電股價站上 1,000 元","2024-9":"央行第七波信用管制，房市降溫",
+  "2024-12":"比特幣首次突破 10 萬美元","2025-4":"美國宣布對等關稅，股市急跌","2025-6":"0050 一拆四","2026-1":"金價突破每盎司 5,000 美元"};
+function interp(arr,t,nowVal){
+  const pts=arr.map((v,k)=>[(2010+k)*12+11,v]).filter(p=>p[1]!=null).concat([[NOW_T,nowVal]]);
+  if(t<=pts[0][0])return pts[0][1];
+  for(let i=1;i<pts.length;i++){if(t<=pts[i][0]){const [t0,v0]=pts[i-1],[t1,v1]=pts[i],f=(t-t0)/(t1-t0);return v0*Math.pow(v1/v0,f)}}
+  return nowVal;
+}
+const fxAt=t=>interp(HIST.FX,t,USD);
+const nativeNow=a=>a.usd??a.price;
+function histPrice(id,t){
+  const a=asset(id);let v;
+  if(a.hk)v=interp(HIST[a.hk],t,nativeNow(a));
+  else{const P=asset(a.px||"0050"),pn=nativeNow(P);v=nativeNow(a)*Math.pow(interp(HIST[P.hk],t,pn)/pn,a.beta??1)}
+  return a.usd?v*(a.conv||1)*fxAt(t):v;
+}
+const cpiAt=t=>interp(HIST.CPI,t,1);
+const cityAt=(c,t)=>interp(HIST[CITY_PROF[c]],t,1);
+const rnd=p=>p>=1000?Math.round(p):p>=10?+p.toFixed(1):+p.toFixed(2);
+const tNow=()=>S.y*12+S.m-1;
+
+
+
+// ===== 人生設定 =====
+const CAR_RATE=.035;
+const KID_EX=[["ins","保險"],["other","其他（衣服、玩具、手機）"]];
+const FOCUS={
+  work:{n:"拼工作",d:"加班爭取表現：升遷機會變高、年度加薪多 3%，但健康和幸福會慢慢下降",fx:{health:-.15,happy:-.1,know:.08},cost:0},
+  study:{n:"進修學習",d:"上課考證照：知識上升、加薪機會變高，每月學費約 2,500",fx:{know:.3,happy:-.02},cost:2500},
+  sport:{n:"運動健身",d:"上健身房、跑步：健康上升，每月約 1,500",fx:{health:.3,happy:.05},cost:1500},
+  social:{n:"交朋友",d:"多聚會、參加社團：人際上升，比較容易接到外快和挖角，每月約 3,000",fx:{social:.3,happy:.08},cost:3000},
+  family:{n:"陪家人",d:"多陪伴家人和小孩：幸福和人際上升",fx:{happy:.25,social:.1},cost:0},
+  hobby:{n:"培養興趣",d:"畫畫、音樂、露營：幸福上升，每月約 2,000",fx:{happy:.3,know:.05},cost:2000},
+  rest:{n:"順其自然",d:"不特別安排，各項數值維持原樣",fx:{},cost:0},
+};
+const STATS=[["health","健康"],["happy","幸福"],["know","知識"],["social","人際"]];
+const REFLECT={30:"30 歲了。現在的你，最想對 20 歲的自己說什麼？",40:"40 歲了。這十年最讓你驕傲的一件事是什麼？",
+  50:"50 歲了。人生過了一半，你最想把時間花在哪裡？",60:"60 歲了。如果可以重來，你會做哪個不同的選擇？",70:"70 歲了。你希望家人怎麼記得你？",80:"80 歲了。這一生，你覺得值得嗎？"};
+const DEATH_CAUSE=[[45,["交通意外","突發心臟病","意外事故"]],[80,["癌症","心血管疾病","中風","肺炎"]],[200,["癌症","心臟病","肺炎","自然老去，在睡夢中安詳離開","自然老去，在睡夢中安詳離開"]]];
+
+function splitBudget(total){const r={food:.45,transport:.12,phone:.06,fun:.15,insurance:.1,parents:0};const b={};let used=0;
+  for(const k in r){b[k]=Math.round(total*r[k]);used+=b[k]}b.other=total-used;return b}
+function newGame(o){
+  const t=o.y*12+o.m-1, mode=t<NOW_T?"past":t>NOW_T?"future":"sim";
+  const g=t>NOW_T?Math.pow(1+o.infl,(t-NOW_T)/12):1;
+  S={name:o.name||"我",y:o.y,m:o.m,t0:t,age0:o.age,cash:o.cash,salary:o.salary,budget:splitBudget(o.expense),rent:o.rent,infl:o.infl,mode,
+    prices:Object.fromEntries(ASSETS.map(a=>[a.id,rnd(mode==="past"?histPrice(a.id,t):a.price*g)])),
+    hold:{}, cityIdx:Object.fromEntries(Object.keys(CITIES).map(c=>[c,mode==="past"?cityAt(c,t):g])),
+    pl:mode==="past"?cpiAt(t):g, houses:[],cars:[],kids:[],pets:[],married:false,spouse:0,
+    jobless:0,retired:false,pension:0,lr:0,recur:[],timers:[],pending:null,flags:{},autoPick:false,focus:"rest",
+    st:{health:o.health??75,happy:o.happy??60,know:o.know??50,social:o.social??55},ymap:{},notes:[],bg:o.bg||"",
+    earned:0,peak:o.cash,history:[],log:[],uid:1,ended:null};
+  S.p0={...S.prices};S.c0={...S.cityIdx};
+  S.pacct=Math.round(o.salary*.06*12*Math.max(0,o.age-23)*1.15);
+  const L0=o.life||{};
+  if(L0.mar==="married"){S.married=true;S.spouse=L0.sp||0}
+  if(L0.mar==="dating"){startDating(genCand("原本的交往對象",15));S.partner.love=55}
+  (L0.kids||[]).forEach((a,i)=>{const k={uid:S.uid++,name:(L0.kn&&L0.kn[i])||`孩子${i+1}`,bornT:t-a*12-Math.floor(Math.random()*12),ex:{},base:null,sch:{},pocket:a>=6?P(a<12?500:a<18?2000:5000):0,cram:0,art:0,edu:a*12*1.4,eduN:a*12};
+    if(a>=22){k.indep=1;k.done=1;k.filial=P(5000);k.outcome="已經在工作"}S.kids.push(k)});
+  if(L0.house){const L=listing(L0.house),base=houseNow(L0.house),v=L0.hv||base,loan=Math.min(L0.hl||0,v),n=Math.max(12,(L0.hy||20)*12);
+    S.houses.push({uid:S.uid++,lid:L0.house,city:L.city,buy:v,adj:v/base,loan,pay:loan?Math.round(pmt(loan,MORTGAGE_RATE,n)):0,t:label(),bt:t,use:L0.huse||"self",rent:Math.round(marketRent(L0.house)*(v/base)/100)*100,tenant:L0.huse==="rent",ts:t,lease:t,raise:"cpi"})}
+  if(L0.car){const c=CARS.find(x=>x.id===L0.car),v=L0.cv||Math.round(carPrice(c)*.6),loan=L0.cl||0,n=Math.max(1,L0.cm||36);
+    S.cars.push({uid:S.uid++,mid:c.id,value:v,buy:v,color:PAINTS[0][1],cname:PAINTS[0][0],t,loan,pay:loan?Math.round(pmt(loan,CAR_RATE,n)):0,n})}
+  if(L0.pet)S.pets.push({uid:S.uid++,kind:L0.pet,name:L0.pn||(L0.pet==="狗"?"旺財":"咪咪"),t:t-24});
+  const desc=[S.married?"已婚":L0.mar==="dating"?"交往中":"",S.kids.length?`${S.kids.length} 個小孩（${S.kids.map(k=>kidAge(k)+" 歲").join("、")}）`:"",S.houses.length?`有一間${listing(L0.house).name}，房貸剩 ${money(S.houses[0].loan)}`:"",S.cars.length?`有一台 ${carOf(S.cars[0]).name}`:"",S.pets.length?`養了一隻${L0.pet}`:""].filter(Boolean).join("，");
+  S.history.push({t:label(),nw:netWorth()});
+  addLog(`${o.age} 歲，人生開始。${o.bg?o.bg+"。":""}${desc?desc+"。":""}起始現金 ${money(o.cash)}，月薪 ${money(o.salary)}`,"",true);
+  if(mode==="past")addLog(`回到 ${label()}！行情會照真實歷史走到 2026 年 10 月，之後改成模擬`);
+  if(mode==="future")addLog(`來到未來 ${label()}，所有價格用每年 ${(o.infl*100).toFixed(1)}% 通膨從今天推算`);
+  save();
+}
+function migrate(){if(!S)return;
+  if(S.pl==null){S.pl=1;S.infl=.02;S.mode="sim";S.p0=Object.fromEntries(ASSETS.map(a=>[a.id,a.price]));S.c0=Object.fromEntries(Object.keys(CITIES).map(c=>[c,1]))}
+  ASSETS.forEach(a=>{if(S.prices[a.id]==null){const v=rnd(S.mode==="past"?histPrice(a.id,tNow()):a.price*S.pl);S.prices[a.id]=v;S.p0[a.id]=v}});
+  if(S.t0==null)S.t0=tNow()-(S.history.length-1);
+  if(!S.budget){S.budget=splitBudget(S.expense||18000);delete S.expense}
+  S.kids=S.kids||[];S.pets=S.pets||[];S.spouse=S.spouse||0;S.married=!!S.married;
+  S.jobless=S.jobless||0;S.recur=S.recur||[];S.timers=S.timers||[];S.flags=S.flags||{};if(S.pending===undefined)S.pending=null;
+  if(S.age0==null)S.age0=25;if(!S.st)S.st={health:75,happy:60,know:50,social:55};S.ymap=S.ymap||{};S.notes=S.notes||[];
+  if(S.focus==null)S.focus="rest";if(S.autoPick==null)S.autoPick=true;S.earned=S.earned||0;S.peak=S.peak||netWorth();
+  S.retired=!!S.retired;S.pension=S.pension||0;S.lr=S.lr||0;if(S.ended===undefined)S.ended=null;
+  S.cands=(S.cands||[]).filter(x=>x&&x.name);S.kids.forEach(k=>{k.ex=k.ex||{};k.base=k.base??null;k.sch=k.sch||{};if(k.pocket==null)k.pocket=k.ex.pocket||0;delete k.ex.school;delete k.ex.cram;delete k.ex.pocket;k.cram=k.cram||0;k.art=k.art||0;k.edu=k.edu||0;k.eduN=k.eduN||0});S.ach=S.ach||{};S.stars=S.stars||S.log.filter(l=>l.star).reverse().map(l=>({id:l.id,age:parseInt(l.life)||S.age0,life:l.life,msg:l.msg}));
+  S.cars.forEach(c=>{if(!c.color)c.color=PAINTS[0][1];if(c.t==null)c.t=S.t0;c.loan=c.loan||0;c.pay=c.pay||0});
+  S.houses.forEach((h,i)=>{if(h.bt==null)h.bt=S.t0;if(!h.use){h.use=i===0?"self":"rent";h.rent=Math.round(marketRent(h.lid)*(h.adj||1)/100)*100;h.tenant=i>0;h.ts=tNow()}if(!h.raise)h.raise="cpi";if(h.lease==null)h.lease=h.ts});
+}
+
+// ===== helpers =====
+const fmt=n=>Math.round(n).toLocaleString("zh-TW");
+function money(n){const a=Math.abs(n),s=n<0?"-":"";
+  if(a>=1e8)return s+(a/1e8).toFixed(2)+"億";
+  if(a>=1e4)return s+(a/1e4).toLocaleString("zh-TW",{maximumFractionDigits:1})+"萬";
+  return s+fmt(a)+"元"}
+const label=()=>`${S.y}年${S.m}月`;
+const ymLabel=t=>`${Math.floor(t/12)}年${t%12+1}月`;
+const lifeAt=t=>{const d=t-S.t0;return `第 ${Math.floor(d/12)+1} 年第 ${d%12+1} 個月`};
+const ageAt=t=>S.age0+Math.floor((t-S.t0)/12);
+const age=()=>ageAt(tNow());
+const when=t=>`${ageAt(t)} 歲・${lifeAt(t)}（${ymLabel(t)}）`;
+const esc=x=>String(x).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
+function gauss(){let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+const rr=(a,b)=>a+Math.random()*(b-a);
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const P=n=>Math.round(n*S.pl/100)*100;
+function pmt(P0,rate=MORTGAGE_RATE,n=LOAN_YEARS*12){const r=rate/12;return P0*r/(1-Math.pow(1+r,-n))}
+const asset=id=>ASSETS.find(a=>a.id===id);
+const listing=lid=>HOUSES.find(x=>x.id===lid);
+function houseNow(lid){const L=listing(lid);return Math.round(L.base*S.cityIdx[L.city])}
+const hv=h=>Math.round(houseNow(h.lid)*(h.adj||1));
+const marketRent=lid=>Math.round(houseNow(lid)*YIELD[listing(lid).city]/12/100)*100;
+function stockValue(){return Object.entries(S.hold).reduce((t,[id,h])=>t+h.qty*S.prices[id],0)}
+function houseEquity(){return S.houses.reduce((t,h)=>t+hv(h)-h.loan,0)}
+function carValue(){return S.cars.reduce((t,c)=>t+c.value-(c.loan||0),0)}
+function netWorth(){return S.cash+stockValue()+houseEquity()+carValue()+(S.pacct||0)}
+function addLog(t,cls,star){const e={t:label(),life:S.t0!=null?`${age()} 歲・${lifeAt(tNow())}`:"",msg:t,cls:cls||"",star:!!star,id:S.uid++};S.log.unshift(e);S.log=S.log.slice(0,500);
+  if(star){S.stars=S.stars||[];S.stars.push({id:e.id,age:S.t0!=null?age():0,life:e.life,msg:t})}}
+function toast(t){const el=document.getElementById("toast");el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,2600)}
+const kidAge=k=>Math.floor((tNow()-k.bornT)/12);
+const stageOf=a=>STAGES.find(st=>a>=st.from&&a<st.to);
+const kidIndep=k=>k.indep||kidAge(k)>=22;
+function kidParts(k){const a=kidAge(k);if(kidIndep(k))return null;const st=stageOf(a),o=st?st.opts[k.sch[st.k]??0]:null;
+  return {living:k.base!=null?k.base:P(kidCost(a)),school:o?P(o[1]):0,schoolName:o?o[0]:"",stage:st,
+    cram:a>=9&&a<18?P(CRAM[k.cram||0][1]):0,art:a>=4&&a<16?P(ART[k.art||0][1]):0,pocket:a>=6?(k.pocket||0):0,
+    ex:KID_EX.reduce((s,[e])=>s+(k.ex[e]||0),0)}}
+const kidTotal=k=>{const q=kidParts(k);return q?q.living+q.school+q.cram+q.art+q.pocket+q.ex:0};
+const budgetTotal=()=>BUDGET.reduce((t,[k])=>t+(S.budget[k]||0),0);
+const carOf=c=>CARS.find(x=>x.id===c.mid);
+function pay(amt,msg,cls){S.cash-=amt;addLog(`${msg} -${money(amt)}`,cls||"down")}
+function gain(amt,msg,star){S.cash+=amt;addLog(`${msg} +${money(amt)}`,"up",star)}
+function bump(fx){for(const k in fx)S.st[k]=Math.max(0,Math.min(100,S.st[k]+fx[k]))}
+
+// monthly cash flow pieces
+function flow(){
+  const t=tNow();
+  const job=S.retired?0:S.jobless>0?Math.round(Math.min(S.salary,45800*S.pl)*.6):S.salary;
+  const pension=S.retired?S.pension:0;
+  const gig=S.retired?(S.gig||0):0,gigNhi=gig>=P(20000)?Math.round(gig*.0211):0;
+  const ins=S.retired||S.jobless>0?0:Math.round(S.salary*.04);
+  const living=budgetTotal(), self=S.houses.some(h=>h.use==="self"), rent=self?0:S.rent;
+  const loan=S.houses.reduce((s,h)=>s+(h.loan>0?h.pay:0),0)+S.cars.reduce((s,c)=>s+(c.loan>0?c.pay:0),0);
+  const mgmt=S.houses.reduce((s,h)=>{const L=listing(h.lid);return s+(L.mgmt?P(L.ping*70):0)},0);
+  const car=S.cars.reduce((s,c)=>s+P(carOf(c).upkeep),0);
+  const kids=S.kids.reduce((s,k)=>s+kidTotal(k),0);
+  const pets=S.pets.reduce((s,p)=>s+P(PETS[p.kind].month),0);
+  const allowance=S.kids.reduce((s,k)=>s+(t-k.bornT<24?5000:0),0);
+  const filial=S.kids.reduce((s,k)=>s+(k.filial||0),0);
+  const rental=S.houses.reduce((s,h)=>s+(h.use==="rent"&&h.tenant?h.rent:0),0);
+  const interest=Math.max(0,Math.round(S.cash*SAVE_RATE/12));
+  const overdraft=S.cash<0?Math.round(-S.cash*.08/12):0;
+  const spouse=S.married&&!S.retired?S.spouse:0;
+  const focus=P(FOCUS[S.focus].cost);
+  const rOut=S.recur.reduce((s,r)=>s+Math.max(0,r.amt),0),rIn=S.recur.reduce((s,r)=>s+Math.max(0,-r.amt),0);
+  const inc=job+pension+gig+spouse+rental+interest+allowance+filial+rIn, out=ins+gigNhi+living+rent+loan+mgmt+car+kids+pets+rOut+overdraft+focus;
+  return {gig,gigNhi,filial,job,pension,ins,living,rent,loan,mgmt,car,kids,pets,allowance,rental,interest,overdraft,spouse,focus,inc,out,net:inc-out};
+}
+
+// ===== 綜合所得稅（約略）=====
+function incomeTax(){
+  const gross=(S.retired?(S.gig||0)*12:S.salary*13.5)+(S.married?S.spouse*13.5:0);if(gross<=0)return 0;
+  const people=1+(S.married?1:0)+S.kids.filter(k=>kidAge(k)<20).length;
+  const ded=P(101000)*people+P(136000)*(S.married?2:1)+P(227000)*(S.married?2:1)+P(150000)*S.kids.filter(k=>kidAge(k)<6).length;
+  let ti=Math.max(0,gross-ded),tax=0;const br=[[610000,.05],[1380000,.12],[2770000,.2],[5180000,.3],[Infinity,.4]];let prev=0;
+  for(const [cap,r] of br){const c=P(cap);if(ti>prev){tax+=(Math.min(ti,c)-prev)*r}prev=c}
+  return Math.round(tax);
+}
+
+// ===== 每年固定會發生的事 =====
+function yearly(t){
+  const m=S.m;
+  if(m===1){const extra=S.focus==="work"?.03:S.focus==="study"?.01+S.st.know/5000:0;
+    if(!S.retired&&S.jobless<=0){S.salary=Math.round(S.salary*(1.03+extra));if(S.married)S.spouse=Math.round(S.spouse*1.03)}
+    const inf=S.mode==="past"?cpiAt(t)/cpiAt(t-12)-1:S.infl;S.lr=inf;
+    BUDGET.forEach(([k])=>S.budget[k]=Math.round((S.budget[k]||0)*(1+inf)));S.rent=Math.round(S.rent*(1+inf));
+    S.kids.forEach(k=>{if(k.pocket)k.pocket=Math.round(k.pocket*(1+inf)/50)*50;KID_EX.forEach(([e])=>{if(k.ex[e])k.ex[e]=Math.round(k.ex[e]*(1+inf))});if(k.base!=null)k.base=Math.round(k.base*(1+inf))});
+    if(S.retired)S.pension=Math.round(S.pension*(1+inf));
+    addLog(S.retired?`新年度：物價漲 ${(inf*100).toFixed(1)}%，生活費變成 ${money(budgetTotal())}`:`新年度：調薪 ${((1.03+extra-1)*100).toFixed(1)}%，月薪 ${money(S.salary)}；物價漲 ${(inf*100).toFixed(1)}%，生活費變成 ${money(budgetTotal())}`,"up")}
+  if(m===2){if(S.jobless<=0&&!S.retired){const b=Math.round(S.salary*1.5);gain(b,"領到年終獎金");S.earned+=b}
+    pay(P(6000)*(S.married?2:1)+P(2000)*S.kids.length,"過年包紅包給爸媽、姪子");bump({happy:2,social:1});
+    const kr=S.kids.filter(k=>kidAge(k)<18).length;if(kr)gain(P(3000)*kr,"小孩收到長輩紅包（幫忙存起來）")}
+  if(m===4){const tx=S.cars.reduce((s,c)=>s+carOf(c).tax.lic,0);if(tx)pay(tx,"繳汽機車牌照稅")}
+  if(m===5){const tx=incomeTax();if(tx)pay(tx,"報綜合所得稅");else addLog("報稅：所得未達課稅標準，免繳所得稅");
+    const ht=S.houses.reduce((s,h)=>s+hv(h)*(h.use==="self"?.0008:.002),0);if(ht)pay(Math.round(ht),"繳房屋稅（出租或空屋稅率較高）");
+    pay(P(3000),"母親節聚餐、買禮物");bump({happy:1,social:1})}
+  if(m===7){const tx=S.cars.reduce((s,c)=>s+carOf(c).tax.fuel,0);if(tx)pay(tx,"繳汽機車燃料稅")}
+  dividends(m);
+  if(m===8){pay(P(3000),"父親節聚餐、買禮物");bump({social:1})}
+  if(m===9){pay(P(2500),"中秋節烤肉、送月餅禮盒");bump({happy:1,social:1})}
+  if(m===11){const lt=S.houses.reduce((s,h)=>s+hv(h)*.0007,0);if(lt)pay(Math.round(lt),"繳地價稅")}
+  if(m===12&&S.jobless<=0&&!S.retired&&Math.random()<.35)gain(P(rr(2000,30000)),"尾牙抽獎中獎");
+  if(S.flags.bday==null)S.flags.bday=(S.t0%12+1);
+  if(m===S.flags.bday){pay(P(2000),`${age()} 歲生日，跟朋友吃大餐`);bump({happy:2})}
+}
+// 配息月份（約略，依各檔習慣）：季配、半年配、年配、月配
+const DIVM={"2330":[1,4,7,10],"2317":[7],"2454":[1,7],"2881":[7],"0050":[1,7],"0056":[1,4,7,10],"00878":[2,5,8,11],"00713":[3,6,9,12],"00927":[1,4,7,10],"00981A":[1,7],"00985A":[1,7],"00953B":[1,2,3,4,5,6,7,8,9,10,11,12]};
+const divMonths=a=>DIVM[a.id]||(a.type==="美股"?[3,6,9,12]:[7]);
+const divFreq=a=>{const n=divMonths(a).length;return n===12?"月配":n===4?"季配":n===2?"半年配":"年配"};
+function dividends(m){let cash=0,nhi=0,re=0;const list=[];
+  Object.entries(S.hold).forEach(([id,h])=>{const a=asset(id);if(!a.dy)return;const ms=divMonths(a);if(!ms.includes(m))return;
+    let d=Math.round(h.qty*S.prices[id]*a.dy/ms.length*(a.type==="美股"?.7:1));if(d<=0)return;
+    const fee=a.type!=="美股"&&d>=20000?Math.round(d*.0211):0;nhi+=fee;d-=fee;list.push(`${a.name} ${money(d+fee)}`);
+    if(S.mode!=="past"&&a.type!=="美股")S.prices[id]=rnd(S.prices[id]*(1-a.dy/ms.length));
+    const drip=(S.drip||{})[id]??S.dripAll;
+    if(drip){const q=Math.floor(d/S.prices[id]*(a.type==="台股"||a.type==="ETF"?1:1000))/(a.type==="台股"||a.type==="ETF"?1:1000);
+      if(q>0){h.qty=+(h.qty+q).toFixed(3);h.cost+=q*S.prices[id];re+=q*S.prices[id];cash+=d-q*S.prices[id]}else cash+=d}else cash+=d});
+  if(list.length){S.cash+=cash;S.divGot=(S.divGot||0)+cash+re;
+    addLog(`領到股利：${list.join("、")}${nhi?`（扣二代健保 ${money(nhi)}）`:""}${re?`，其中 ${money(re)} 自動買回股票`:""}`,"up")}
+}
+
+// ===== 隨機生活事件 =====
+const has={car:()=>S.cars.some(c=>carOf(c).type!=="機車"),moto:()=>S.cars.length>0,house:()=>S.houses.length>0,
+  kid:(a,b)=>S.kids.some(k=>kidAge(k)>=a&&kidAge(k)<b),pet:()=>S.pets.length>0,job:()=>S.jobless<=0&&!S.retired,rented:()=>S.houses.some(h=>h.use==="rent"&&h.tenant)};
+const sick=()=>1.6-S.st.health/100*1.2+Math.max(0,age()-50)/40;
+const EVENTS=[
+  // [機率, 條件, 金額, 說明, 數值影響, 機率倍率]
+  [.18,()=>1,()=>-P(rr(300,1200)),"感冒看診拿藥",{health:-1},sick],
+  [.05,()=>1,()=>-P(rr(3000,15000)),"看牙醫、補牙洗牙",{health:-.5}],
+  [.01,()=>1,()=>-(S.budget.insurance>=2000*S.pl?P(rr(3000,10000)):P(rr(40000,120000))),"生病住院幾天（有保險的話自付很少）",{health:-8,happy:-4},sick],
+  [.004,()=>age()>=40,()=>-(S.budget.insurance>=3000*S.pl?P(rr(30000,80000)):P(rr(200000,600000))),"檢查出慢性病，需要長期治療（保險有幫上忙的話自付較少）",{health:-15,happy:-6},sick],
+  [.03,()=>1,()=>-P(6000),"做自費健康檢查",{health:2}],
+  [.05,()=>1,()=>-P(rr(4000,9000)),"手機摔壞，修螢幕",{happy:-1}],
+  [.03,()=>1,()=>-P(rr(15000,35000)),"家電壞掉，換洗衣機或冷氣",{}],
+  [.08,()=>1,()=>-P(rr(3600,6600)),"朋友結婚包紅包",{social:1}],
+  [.03,()=>1,()=>-P(rr(2000,3600)),"長輩過世，包白包",{happy:-2}],
+  [.06,()=>has.job(),()=>-P(rr(1000,3000)),"同事離職、聚餐分攤",{social:1}],
+  [.10,()=>has.job(),()=>Math.round(S.salary*rr(.1,.3)),"接到外快案子",{know:1},()=>.5+S.st.social/100],
+  [.05,()=>1,()=>Math.round(rr(200,2000)),"統一發票中獎",{happy:1}],
+  [.02,()=>1,()=>Math.round(rr(500,10000)),"刮刮樂中獎",{happy:2}],
+  [.10,()=>has.car(),()=>-P(rr(600,3600)),"違規停車／超速收到罰單",{happy:-1}],
+  [.05,()=>has.moto(),()=>-P(rr(1000,4000)),"機車被拖吊、保養換機油",{}],
+  [.06,()=>has.car(),()=>-P(rr(8000,16000)),"車子回原廠保養",{}],
+  [.02,()=>has.car(),()=>-P(16000),"四條輪胎磨平，全部換新",{}],
+  [.04,()=>has.house(),()=>-P(rr(20000,60000)),"家裡漏水、換熱水器",{happy:-1}],
+  [.02,()=>has.house()&&[8,9].includes(S.m),()=>-P(rr(8000,30000)),"颱風過境，修理門窗",{}],
+  [.10,()=>has.kid(0,12),()=>-P(rr(800,6000)),"小孩感冒看醫生、買藥",{happy:-1}],
+  [.05,()=>has.kid(6,18),()=>-P(rr(3000,8000)),"學校戶外教學、買制服文具",{}],
+  [.04,()=>has.kid(6,18),()=>0,"小孩在學校得獎，帶獎狀回家",{happy:4}],
+  [.02,()=>has.kid(12,16),()=>-P(60000),"小孩做牙齒矯正",{}],
+  [.08,()=>has.pet(),()=>-P(rr(3000,12000)),"毛小孩生病看獸醫",{happy:-1}],
+  [.06,()=>has.pet(),()=>-P(rr(800,1500)),"帶毛小孩去美容",{happy:1}],
+  [.03,()=>1,()=>0,"和老朋友聚會，聊到半夜",{social:3,happy:2}],
+  [.02,()=>S.st.happy<35,()=>-P(rr(1500,3000)),"覺得壓力很大，去看身心科、做諮商",{happy:3,health:1}],
+  [.01,()=>has.rented(),()=>"arrears","房客欠租",{happy:-2}],
+  [.025,()=>has.rented(),()=>"leave","房客搬走",{}],
+  [.03,()=>has.rented(),()=>-P(rr(5000,25000)),"出租的房子修繕（房客報修）",{}],
+];
+// 需要做決定的事件
+const DECISIONS={
+  layoff:{p:.004,cond:()=>has.job(),title:"公司裁員，你被資遣了",text:()=>`公司營運不好，這個月起你失業了。可以領到資遣費 ${money(S.salary*1.5)}。`,
+    choices:[["休息一下慢慢找（領失業給付，約 2–6 個月後找到工作）",()=>{gain(Math.round(S.salary*1.5),"領資遣費");S.jobless=Math.round(rr(2,6));S.flags.newSal=rr(.95,1.12)+S.st.know/1000;bump({happy:-6});return "開始領失業給付，慢慢找工作"}],
+             ["馬上找新工作（下個月就上班，薪水少 10%）",()=>{gain(Math.round(S.salary*1.5),"領資遣費");S.salary=Math.round(S.salary*.9);bump({happy:-3});return `找到新工作，月薪 ${money(S.salary)}`}]],def:1},
+  promote:{p:.01,mult:()=>(.5+S.st.know/100)*(S.focus==="work"?2:1),cond:()=>has.job(),title:"主管想升你當組長",text:()=>"加薪 15%，但責任變重、常常加班。",
+    choices:[["接受升遷",()=>{S.salary=Math.round(S.salary*1.15);bump({happy:2,health:-2});return `升官了！月薪 ${money(S.salary)}`}],["婉拒，維持現在的步調",()=>{bump({happy:1});return "婉拒升遷，生活比較輕鬆"}]],def:0},
+  headhunt:{p:.007,mult:()=>.5+S.st.social/100,cond:()=>has.job(),title:"獵人頭打電話來挖角",text:()=>"新公司開價加薪 20%，但不確定合不合得來。",
+    choices:[["跳槽",()=>{if(Math.random()<.25){S.salary=Math.round(S.salary*1.05);bump({happy:-3});return `新公司和想像不一樣，談完只加薪 5%，月薪 ${money(S.salary)}`}S.salary=Math.round(S.salary*1.2);bump({happy:3});return `跳槽成功，月薪 ${money(S.salary)}`}],["留在原公司",()=>"決定留下來"]],def:1},
+  startup:{p:.003,cond:()=>has.job()&&S.cash>P(800000)&&age()<50,title:"要不要辭職創業？",text:()=>`你有個開店的想法，需要投入 ${money(P(800000))}，創業期間沒有薪水。`,
+    choices:[["辭職創業",()=>{pay(P(800000),"創業資金");S.flags.oldSal=S.salary;S.jobless=0;S.recur.push({k:"startup",label:"創業期間沒有薪水",amt:S.salary,left:12});S.timers.push({t:tNow()+12,k:"startup",v:P(800000)});bump({happy:3,know:5});return "開始創業！一年後見真章"}],["繼續上班",()=>"繼續當上班族"]],def:1},
+  restaurant:{p:.005,cond:()=>S.cash>P(400000),title:"朋友找你合夥開餐廳",text:()=>`朋友想開早午餐店，希望你出資 ${money(P(300000))}。`,
+    choices:[["出資入股",()=>{pay(P(300000),"投資朋友的餐廳");S.timers.push({t:tNow()+24,k:"restaurant",v:P(300000)});return "成為餐廳股東，兩年後見真章"}],["婉拒",()=>{bump({social:-1});return "婉拒了朋友"}]],def:1},
+  scam:{p:.006,cond:()=>S.cash>P(150000),title:"LINE 群組有「老師」報明牌",text:()=>"說跟著買保證每月賺 20%，要你先匯 10 萬到指定帳戶。",
+    choices:[["匯錢試試看",()=>{pay(P(100000),"匯款給「投資老師」");S.timers.push({t:tNow()+1,k:"scam"});return "匯款出去了……"}],["封鎖並打 165 檢舉",()=>"識破詐騙，封鎖檢舉"]],def:1},
+  borrow:{p:.006,cond:()=>S.cash>P(100000),title:"親戚開口跟你借錢",text:()=>`表哥說周轉不靈，想借 ${money(P(50000))}，說一年內會還。`,
+    choices:[["借給他",()=>{pay(P(50000),"借錢給表哥");S.timers.push({t:tNow()+12,k:"repay",v:P(50000)});bump({social:2});return "借出去了"}],["婉拒",()=>{bump({social:-2});return "婉拒借錢，有點尷尬"}]],def:1},
+  parent:{p:.003,cond:()=>!S.flags.parentCare&&age()>=35,title:"爸媽生病需要人照顧",text:()=>"醫生說需要有人長期照顧幾個月。",
+    choices:[["請看護（每月約 3.5 萬，6 個月）",()=>{S.flags.parentCare=1;S.recur.push({label:"請看護照顧爸媽",amt:P(35000),left:6});bump({happy:-3});return "請了看護"}],
+             ["留職停薪自己照顧（3 個月沒有薪水）",()=>{S.flags.parentCare=1;S.recur.push({label:"留職停薪（少領的薪水）",amt:S.salary,left:3});bump({happy:-2,social:3});return "留職停薪照顧爸媽"}]],def:0},
+  crash:{p:.008,cond:()=>has.car(),title:"開車發生擦撞",text:()=>"對方車尾凹了一塊，幸好人沒事。",
+    choices:[["走保險理賠（自付 5,000，之後保費變貴）",()=>{pay(P(5000),"車禍自付額");S.recur.push({label:"車險保費調漲",amt:P(250),left:12});return "走保險處理"}],["自己私下和解",()=>{pay(P(rr(15000,50000)),"私下和解賠償");return "私下和解"}]],def:0},
+  date:{p:.02,mult:()=>.5+S.st.social/100,cond:()=>!S.married&&!S.partner&&age()<60,title:"朋友說要介紹一個人給你",text:()=>{S.flags.blind=genCand("朋友介紹",10);const c=S.flags.blind;return `${c.name}，${c.age} 歲，${c.job}，${c.trait}，喜歡${c.hobby}。要不要見個面？`},
+    choices:[["好啊，見個面",()=>{const c=S.flags.blind||genCand("朋友介紹",10);S.flags.blind=null;S.cands=(S.cands||[]).filter(Boolean);S.cands.push(c);return `認識了 ${c.name}，可以在「生活」約對方出來`}],["先不用",()=>"婉拒了介紹"]],def:1},
+  breakup:{p:.006,cond:()=>!!S.partner&&!S.married&&S.partner.love<50,title:"感情遇到瓶頸",text:()=>"最近常常吵架，要繼續努力還是分開？",
+    choices:[["好好溝通，再努力看看",()=>{if(Math.random()<.6){bump({happy:2});return "兩個人和好了"}endDating();bump({happy:-8});return "努力過了，還是分手了"}],["和平分手",()=>{endDating();bump({happy:-5});return "分手了"}]],def:0},
+  phone:{p:.02,cond:()=>1,title:"新手機上市了",text:()=>"你的手機用了好幾年，越來越卡。",
+    choices:[["換最新旗艦機",()=>{pay(P(42000),"買新手機");bump({happy:2});return "換了新手機"}],["換中階機",()=>{pay(P(12000),"買新手機");bump({happy:1});return "換了中階手機"}],["繼續用",()=>"手機繼續撐"]],def:2},
+  trip:{p:.025,cond:()=>1,title:"連假到了，要不要出去玩？",text:()=>`全家 ${1+(S.married?1:0)+S.kids.filter(k=>kidAge(k)<22).length} 人。`,
+    choices:[["出國去日本",()=>{const n=1+(S.married?1:0)+S.kids.filter(k=>kidAge(k)<22).length;pay(P(40000)*n,"日本旅遊");bump({happy:8,social:1});return "去日本玩"}],["國內旅遊",()=>{const n=1+(S.married?1:0)+S.kids.filter(k=>kidAge(k)<22).length;pay(P(8000)*n,"國內旅遊");bump({happy:4});return "國內小旅行"}],["在家耍廢",()=>{bump({happy:1});return "在家休息"}]],def:2},
+  side:{p:.008,cond:()=>has.job()&&!S.recur.some(r=>r.k==="side"),title:"有人找你下班接案",text:()=>"每月多賺約 8,000，但下班時間會少很多。",
+    choices:[["接（一年）",()=>{S.recur.push({k:"side",label:"下班接案收入",amt:-P(8000),left:12});bump({happy:-2,know:2});return "開始兼差接案"}],["不接",()=>"不接案，保留下班時間"]],def:1},
+  lowerRent:{p:.01,cond:()=>has.rented(),title:"房客想降租",text:()=>"房客說附近租金比較便宜，希望降 10%。",
+    choices:[["同意降租",()=>{const h=S.houses.find(h=>h.use==="rent"&&h.tenant);h.rent=Math.round(h.rent*.9/100)*100;return `租金降為 ${money(h.rent)}`}],["不降",()=>{if(Math.random()<.4){const h=S.houses.find(h=>h.use==="rent"&&h.tenant);h.tenant=false;h.ts=tNow();return "房客不滿意，搬走了"}return "房客勉強續租"}]],def:0},
+  consult:{p:.012,cond:()=>S.retired&&!S.gig&&age()<72,title:"以前的公司想請你回去當顧問",text:()=>{S.flags.offer=Math.round(P(rr(30000,70000))/1000)*1000;return `每週去兩天，每月 ${money(S.flags.offer)}。`},
+    choices:[["答應",()=>{S.gig=S.flags.offer;S.gigLabel="顧問";bump({happy:2,know:3,social:2});return `開始當顧問，每月 ${money(S.gig)}`}],["好好享受退休生活",()=>{bump({happy:1});return "婉拒了"}]],def:1},
+  retire:{p:1,cond:()=>!S.retired&&age()>=60&&!S.flags.askRetire,title:"60 歲了，要退休嗎？",text:()=>{const r=retirePlan();return `現在退休：勞退帳戶 ${money(S.pacct||0)} 可以領出，65 歲起每月領勞保年金約 ${money(pensionCalc())}；股利每月約 ${money(r.pa.div)}。被動收入可以支付 ${Math.round(r.cover*100)}% 的生活費。`},
+    choices:[["退休，好好享受生活",()=>{S.flags.askRetire=1;retireNow();return "退休了"}],["再做幾年（65 歲自動退休）",()=>{S.flags.askRetire=1;return "繼續工作"}]],def:1},
+};
+function endDating(){S.flags.dating=0;S.partner=null;S.recur=S.recur.filter(r=>r.k!=="dating")}
+const NAMES={女:["怡君","雅婷","佳穎","心怡","宜蓁","詩涵","品妤","欣妤","子晴","語彤","思妤","筱涵","郁婷","可欣"],男:["冠廷","承恩","柏翰","宇軒","家豪","俊傑","彥廷","品睿","哲瑋","子翔","昱辰","建宏","志偉","宥任"]};
+const SURN="陳林黃張李王吳劉蔡楊許鄭謝郭洪曾";
+const JOBS=[["工程師",70000],["護理師",52000],["國小老師",52000],["業務",48000],["平面設計師",42000],["公務員",48000],["咖啡店店長",38000],["醫師",150000],["會計師",68000],["自由接案者",40000],["行銷企劃",45000],["空服員",60000],["餐廳主廚",45000],["研究生",15000],["銀行行員",50000],["物理治療師",55000],["YouTuber",35000],["電商老闆",80000]];
+const TRAITS=["溫柔體貼","幽默風趣","獨立自主","有點黏人","理性務實","很浪漫","愛冒險","喜歡宅在家","慢熟害羞","超級正向","有點固執","很會照顧人"];
+const HOBBIES=["爬山","看電影","打電動","烘焙","旅行","攝影","健身","追劇","露營","手沖咖啡","看書","唱歌","跑步","養植物"];
+const MEETS=[["app","滑交友軟體",300,"便宜，認識的人多，但比較難遇到合拍的"],["club","參加社團、活動",1500,"人際越好越容易認識人"],["friend","請朋友幫忙介紹",1000,"請朋友吃飯，介紹的人通常比較合拍"],["agency","找婚友社相親",20000,"比較貴，對方通常想穩定、工作也穩定"]];
+function genCand(src,boost=0){const want=S.prefSex==="男"?"男":S.prefSex==="女"?"女":pick(["男","女"]);const j=pick(JOBS);
+  const a=Math.max(20,Math.min(70,age()+Math.round(rr(-5,5))));
+  return {id:S.uid++,sex:want,name:SURN[Math.floor(Math.random()*SURN.length)]+pick(NAMES[want]),age:a,job:j[0],income:Math.round(P(j[1])*rr(.8,1.25)/1000)*1000,
+    trait:pick(TRAITS),hobby:pick(HOBBIES),compat:Math.round(Math.min(98,Math.max(10,rr(25,90)+boost))),src,t:tNow()}}
+function meet(kind){const m=MEETS.find(x=>x[0]===kind),c=P(m[2]);if(S.married)return toast("已經結婚了");if(S.partner)return toast("你正在交往中");
+  if(c>S.cash)return toast(`現金不夠，要 ${money(c)}`);S.done=S.done||{};if(S.done["m-"+kind]===tNow())return toast("這個月已經試過了，下個月再來");
+  pay(c,m[1]);S.done["m-"+kind]=tNow();S.cands=(S.cands||[]).filter(x=>x&&tNow()-x.t<4);
+  const n={app:Math.random()<.75?2:1,club:Math.random()<.35+S.st.social/200?(Math.random()<.4?2:1):0,friend:Math.random()<.5+S.st.social/250?1:0,agency:3}[kind];
+  const boost={app:-8,club:4,friend:12,agency:6}[kind];
+  for(let i=0;i<n;i++)S.cands.push(genCand(m[1],boost));S.cands=S.cands.slice(-6);
+  bump({social:1});addLog(n?`${m[1]}，認識了 ${n} 個新朋友`:`${m[1]}，這次沒有遇到聊得來的人`);save();render();toast(n?`認識了 ${n} 個人`:"這次沒遇到聊得來的人")}
+function askOut(id){const c=(S.cands||[]).find(x=>x&&x.id===id);if(!c)return;const cost=P(1500);if(cost>S.cash)return toast("現金不夠約會");pay(cost,`約 ${c.name} 吃飯`);
+  const chance=c.compat/100*.55+S.st.social/100*.25+S.st.happy/100*.2-Math.abs(c.age-age())/60;
+  S.cands=S.cands.filter(x=>x&&x.id!==id);
+  if(Math.random()<chance){startDating(c);toast(`和 ${c.name} 開始交往了！`)}else{addLog(`約 ${c.name} 吃飯，但對方覺得你們比較適合當朋友`,"down");bump({happy:-2});toast("對方覺得比較適合當朋友")}
+  save();render()}
+function startDating(c){S.partner={...c,love:35,since:tNow()};S.flags.dating=tNow();S.flags.everDated=1;S.recur=S.recur.filter(r=>r.k!=="dating");
+  S.recur.push({k:"dating",label:`和 ${c.name} 約會、通話、小禮物`,amt:P(3000),left:999});addLog(`和 ${c.name}（${c.age} 歲，${c.job}）開始交往了`,"up",true);bump({happy:8,social:2})}
+const DATES=[["dine","約會吃飯",2000,6],["gift","送禮物",5000,8],["travel","一起出遊",15000,12],["family","見對方家長",8000,10]];
+function dateAct(kind){const P0=S.partner;if(!P0)return;const d=DATES.find(x=>x[0]===kind),c=P(d[2]);S.done=S.done||{};
+  if(S.done["d-"+kind]===tNow())return toast("這個月已經做過了");if(kind==="family"&&(P0.love<55||P0.metFamily))return toast(P0.metFamily?"已經見過家長了":"感情再穩定一點再見家長");
+  if(c>S.cash)return toast(`現金不夠，要 ${money(c)}`);pay(c,`和 ${P0.name}${d[1]}`);S.done["d-"+kind]=tNow();
+  const g=d[3]*(.7+P0.compat/150);P0.love=Math.min(100,P0.love+g);if(kind==="family")P0.metFamily=1;bump({happy:kind==="travel"?6:3});save();render();toast(`好感度 +${g.toFixed(0)}`)}
+function propose(){const P0=S.partner;if(!P0)return;if(P0.love<65)return toast("感情還不夠穩定，多約會幾次再求婚");
+  const c=P(30000);if(c>S.cash)return toast(`買戒指要 ${money(c)}`);pay(c,"買求婚戒指");
+  if(Math.random()<P0.love/110+(P0.metFamily?.1:0)){P0.engaged=1;addLog(`向 ${P0.name} 求婚，對方答應了！`,"up",true);bump({happy:10});toast("對方答應了！選一種婚禮吧")}
+  else{P0.love-=15;addLog(`向 ${P0.name} 求婚，對方說還想再等等`,"down");bump({happy:-6});toast("對方說還想再等等")}save();render()}
+function romance(t){const P0=S.partner;if(!P0||S.married)return;
+  P0.love+=(P0.compat-55)/40-.6+(S.focus==="family"||S.focus==="social"?.5:0)-(S.focus==="work"?.5:0)+(S.cash<0?-1:0);P0.love=Math.max(0,Math.min(100,P0.love));
+  if(P0.love<12){addLog(`和 ${P0.name} 越來越少聯絡，最後分手了`,"down",true);bump({happy:-10});endDating();return}
+  if(Math.random()<.03){const ev=pick([["一起過了很開心的紀念日",4],["因為小事吵了一架",-6],["對方工作很忙，比較少見面",-3],["收到對方親手做的禮物",5],["一起養了盆植物",2]]);P0.love=Math.max(0,Math.min(100,P0.love+ev[1]));addLog(`${P0.name}：${ev[0]}`,ev[1]>0?"up":"down")}
+  if(P0.engaged&&!P0.askedWed&&Math.random()<.1){P0.askedWed=1;addLog(`${P0.name} 問你婚禮想怎麼辦，到「生活」選一種婚禮`)}}
+function pensionCalc(){const yrs=Math.max(1,(S.retired&&S.retAge?S.retAge:age())-23);return Math.round(Math.min(S.salary,45800*S.pl)*yrs*.0155)}
+function retireNow(){S.retired=true;S.retAge=age();S.penBase=pensionCalc();S.pension=0;
+  if(age()>=65)S.pension=S.penBase;
+  if(age()>=60&&S.pacct){const lump=Math.round(S.pacct);S.pacct=0;gain(lump,"領出勞退個人帳戶",true)}
+  addLog(age()>=65?`${age()} 歲退休了！每月領勞保年金 ${money(S.pension)}`:`${age()} 歲提早退休！之後靠股利、房租、存款生活${age()<60?"，60 歲可領出勞退帳戶":""}，65 歲開始領勞保年金約 ${money(S.penBase)}/月`,"up",true);bump({happy:8,health:2})}
+function unretire(){S.retired=false;S.pension=0;addLog(`${age()} 歲重回職場，月薪 ${money(S.salary)}`,"up",true);save();render();toast("重回職場")}
+function passive(){const f=flow();const div=divYear()/12;return {div,rent:f.rental,int:f.interest,pen:f.pension,fil:f.filial,gig:f.gig-f.gigNhi,total:div+f.rental+f.interest+f.pension+f.filial+f.gig-f.gigNhi}}
+function retirePlan(){const f=flow(),pa=passive(),need=f.out-f.ins-f.gigNhi-f.focus;
+  const cover=need>0?pa.total/need:1,gap=Math.max(0,need-pa.total);
+  const yieldNow=stockValue()>0?divYear()/stockValue():.05,y=Math.max(.03,Math.min(.07,yieldNow||.05));
+  const needInvest=gap*12/y;
+  // 不足的部分用現金＋股票撐幾年（考慮通膨 2%）
+  let pool=Math.max(0,S.cash)+stockValue(),yrs=0,g=gap*12;while(g>0&&pool>0&&yrs<80){pool=pool*1.03-g;g*=1.02;yrs++}
+  return {need,pa,cover,gap,needInvest,y,yrs:g<=0?Infinity:yrs}}
+function retireCard(){const r=retirePlan(),pa=r.pa;const pct=Math.min(100,Math.round(r.cover*100));
+  return `<div class="panel"><h2>退休試算 ${S.retired?`<span class="chip">已退休${S.retAge?`（${S.retAge} 歲）`:""}</span>`:""}</h2>
+    <div class="stat" style="grid-template-columns:7em 1fr 3.5em"><span>被動收入夠不夠</span><div class="bar"><i style="width:${pct}%;background:var(--${r.cover>=1?"s3":"s4"})"></i></div><b class="num">${Math.round(r.cover*100)}%</b></div>
+    <table class="ledger">
+      <tr><td>退休後每月生活支出（不含勞健保）</td><td class="num">${money(r.need)}</td></tr>
+      <tr><td>股利（一年 ${money(divYear())}，平均每月）</td><td class="num up">+${money(pa.div)}</td></tr>
+      ${pa.rent?`<tr><td>房租收入</td><td class="num up">+${money(pa.rent)}</td></tr>`:""}
+      ${pa.int?`<tr><td>存款利息</td><td class="num up">+${money(pa.int)}</td></tr>`:""}
+      ${pa.fil?`<tr><td>小孩給的孝親費</td><td class="num up">+${money(pa.fil)}</td></tr>`:""}
+      ${pa.gig?`<tr><td>${esc(S.gigLabel||"顧問／兼職")}收入（扣二代健保後）</td><td class="num up">+${money(pa.gig)}</td></tr>`:""}
+      <tr><td>勞保年金${S.retired&&age()<65?`（65 歲開始，約 ${money(S.penBase||0)}）`:pa.pen?"":`（65 歲退休可領約 ${money(pensionCalc())}）`}</td><td class="num ${pa.pen?"up":"muted"}">${pa.pen?"+"+money(pa.pen):"還沒開始領"}</td></tr>
+      <tr class="total"><td>${r.gap>0?"每月還差":"每月多出"}</td><td class="num ${r.gap>0?"down":"up"}">${money(r.gap>0?r.gap:pa.total-r.need)}</td></tr></table>
+    <p class="note">${r.gap<=0?"被動收入已經足夠支付生活支出，可以考慮提早退休，靠股利生活。":
+      `照你現在持股的平均殖利率 ${(r.y*100).toFixed(1)}%，還要再多 ${money(r.needInvest)} 的股票或 ETF，股利才夠付生活費。如果現在退休，不夠的部分用存款和股票補，大約可以撐 ${r.yrs===Infinity?"一輩子":r.yrs+" 年"}。`}</p>
+    <div class="row">${S.retired?`<button data-act="unretire">重回職場（月薪 ${money(S.salary)}）</button>`:`<button class="buy" data-act="retireask" aria-pressed="${pending==="retire"}">${pending==="retire"?"再按一次確定退休":"現在退休，靠股利生活"}</button>`}
+      <button class="cat" data-act="dripall" aria-pressed="${!!S.dripAll}">${S.dripAll?"股利：自動買回股票":"股利：領現金"}</button>
+      <button class="cat" data-act="autosell" aria-pressed="${S.autoSell!==false}">${S.autoSell!==false?"錢不夠時自動賣股票：開":"錢不夠時自動賣股票：關"}</button></div>
+    ${S.retired?`<div class="gigbox"><h3 class="h3">退休後的工作</h3>
+      <div class="brow"><label for="gig-l">做什麼</label><input id="gig-l" maxlength="16" value="${esc(S.gigLabel||"顧問")}"></div>
+      <div class="brow"><label for="gig-a">每月收入</label><input id="gig-a" type="number" min="0" step="1000" value="${S.gig||0}"></div>
+      <div class="qbtns">${[0,20000,30000,50000,80000,100000].map(v=>`<button type="button" data-gig="${v}" aria-pressed="${(S.gig||0)===v}">${v?money(v):"不工作"}</button>`).join("")}</div>
+      <button class="primary" data-act="gigsave">儲存</button>
+      <p class="note">當顧問、兼職、接案的收入，每月入帳，單筆 2 萬以上扣 2.11% 二代健保，每年 5 月一起報所得稅。不會影響已經在領的勞保年金。</p></div>`:""}
+    <p class="note">退休後沒有薪水，也不用付勞健保。60 歲可以領出勞退帳戶，65 歲開始領勞保年金。股利選「領現金」會入帳當生活費；選「自動買回股票」會把股利再買回同一檔，讓股數越滾越多。退休後現金不夠時，可以自動賣掉一部分股票補足 3 個月生活費。</p></div>`}
+function runTimers(){const t=tNow();S.timers=S.timers.filter(x=>{if(x.t>t)return true;
+  if(x.k==="restaurant"){if(Math.random()<.3)gain(x.v*2.2,"朋友的餐廳生意興隆，你賣掉股份",true);else{addLog("朋友的餐廳經營不善收掉了，投資的錢拿不回來","down");bump({happy:-4})}}
+  if(x.k==="scam"){addLog("「老師」的帳號消失了，錢拿不回來。這是投資詐騙，記得撥 165 反詐騙專線","down");bump({happy:-8})}
+  if(x.k==="repay"){if(Math.random()<.5)gain(x.v,"表哥把借的錢還你了");else{addLog("表哥說還要再等等……借的錢還沒還","down");bump({social:-2})}}
+  if(x.k==="startup"){const r=Math.random()+S.st.know/250;
+    if(r>1.1){S.salary=Math.round(S.flags.oldSal*2.2);addLog(`創業成功！生意穩定，每月收入約 ${money(S.salary)}`,"up",true);bump({happy:10})}
+    else if(r>.6){S.salary=Math.round(S.flags.oldSal*1.1);addLog(`創業打平，每月收入約 ${money(S.salary)}`,"up")}
+    else{S.salary=Math.round(S.flags.oldSal*.95);addLog("創業失敗收掉了，回去上班，月薪少了一點","down",true);bump({happy:-10})}}
+  return false})}
+function autoSellForCash(){const target=Math.max(0,(flow().out-flow().inc))*3;let need=target-S.cash;if(need<=0)return;
+  const hs=Object.entries(S.hold).sort((a,b)=>(asset(a[0]).dy||0)-(asset(b[0]).dy||0));const sold=[];
+  for(const [id,h] of hs){if(need<=0)break;const a=asset(id),per=S.prices[id]*(1-(a.fee??BUY_FEE)-a.tax);const unit=a.type==="台股"||a.type==="ETF"?1:.001;
+    let q=Math.min(h.qty,Math.ceil(need/per/unit)*unit);q=+q.toFixed(3);if(q<=0)continue;const get=q*per;const c=h.cost*q/h.qty;h.cost-=c;h.qty=+(h.qty-q).toFixed(3);if(h.qty<=0)delete S.hold[id];
+    S.cash+=get;need-=get;sold.push(`${a.name} ${fmt(q)} 單位`)}
+  if(sold.length)addLog(`退休金不夠用，自動賣出 ${sold.join("、")}，補足生活費`,"down")}
+function forceSell(){const limit=Math.max(P(500000),(S.salary+(S.married?S.spouse:0))*12);if(S.cash>=-limit)return;
+  for(const [id,h] of Object.entries(S.hold)){if(S.cash>=0)break;const a=asset(id),get=h.qty*S.prices[id]*(1-(a.fee??BUY_FEE)-a.tax);S.cash+=get;delete S.hold[id];addLog(`信貸額度爆了，被迫賣出全部 ${a.name}，拿回 ${money(get)}`,"down",true)}
+  const order=[...S.houses].sort((x,y)=>(x.use==="self")-(y.use==="self"));
+  for(const h of order){if(S.cash>=-limit*.2)break;const v=hv(h),get=Math.round(v*.9)-h.loan;S.cash+=get;S.houses.splice(S.houses.indexOf(h),1);
+    addLog(`繳不出錢，銀行催收，被迫低價賣掉 ${listing(h.lid).name}（賣 ${money(v*.9)}，還完貸款拿回 ${money(get)}）`,"down",true);bump({happy:-15})}
+  for(const c of [...S.cars]){if(S.cash>=-limit*.2)break;S.cash+=c.value-(c.loan||0);S.cars.splice(S.cars.indexOf(c),1);addLog(`被迫賣掉 ${carOf(c).name}`,"down")}
+}
+const ACH=[["m100","存到第一個 100 萬",()=>netWorth()>=1e6],["m1000","淨資產破千萬",()=>netWorth()>=1e7],["m5000","淨資產破五千萬",()=>netWorth()>=5e7],["b1","淨資產破億",()=>netWorth()>=1e8],
+  ["house","買下第一間房",()=>S.houses.length>0],["noloan","房貸全部繳清",()=>S.houses.length>0&&S.houses.every(h=>h.loan<=0)],["landlord","當上房東",()=>S.houses.some(h=>h.use==="rent"&&h.tenant)],
+  ["car","擁有第一台車",()=>S.cars.length>0],["date","第一次交往",()=>!!S.flags.everDated||S.married],["married","結婚",()=>S.married],["parent","當爸媽",()=>S.kids.length>0],
+  ["grad","孩子大學畢業、經濟獨立",()=>S.kids.some(k=>k.done)],["pet","養了毛小孩",()=>S.pets.length>0],["div","一年股利超過 10 萬",()=>divYear()>=1e5],
+  ["fire","財務自由：被動收入超過每月支出",()=>{const r=retirePlan();return r.need>0&&r.cover>=1}],["early","提早退休（60 歲前）",()=>S.retired&&S.retAge<60],
+  ["healthy","健康 90 以上",()=>S.st.health>=90],["happy","幸福 90 以上",()=>S.st.happy>=90],["retire","平安退休",()=>S.retired],["old","活到 90 歲",()=>age()>=90]];
+function divYear(){return Object.entries(S.hold).reduce((s,[id,h])=>{const a=asset(id);return s+h.qty*S.prices[id]*(a.dy||0)*(a.type==="美股"?.7:1)},0)}
+function checkAch(){S.ach=S.ach||{};ACH.forEach(([k,n,f])=>{if(!S.ach[k]&&f()){S.ach[k]=tNow();addLog(`【成就解鎖】${n}`,"up",true)}})}
+function mortality(){const a=age();const q=Math.min(.6,.00006*Math.exp(.087*a))*(1.6-S.st.health/100*1.2);return 1-Math.pow(1-q,1/12)}
+
+let autoNow=false;
+function step(auto){
+  if(S.ended)return;autoNow=!!auto;
+  const f=flow();
+  S.cash+=f.net;S.earned+=f.job+f.spouse+f.gig;
+  forceSell();
+  if(!S.retired&&S.jobless<=0)S.pacct=((S.pacct||0)+S.salary*.06)*(1+.03/12);
+  S.recur.forEach(r=>r.left--);S.recur=S.recur.filter(r=>{if(r.left<=0){addLog(`「${r.label}」結束了`);return false}return true});
+  if(S.jobless>0){S.jobless--;if(S.jobless===0){S.salary=Math.round(S.salary*(S.flags.newSal||1));addLog(`找到新工作了！月薪 ${money(S.salary)}`,"up");bump({happy:4})}}
+  S.houses.forEach(h=>{if(h.loan>0){const int=h.loan*MORTGAGE_RATE/12;h.loan=Math.max(0,h.loan-(h.pay-int));}});
+  S.cars.forEach(c=>{c.value=Math.round(c.value*.988);if(c.loan>0){const int=c.loan*CAR_RATE/12;c.loan=Math.max(0,c.loan-(c.pay-int));if(c.loan<1){c.loan=0;addLog(`${carOf(c).name} 的車貸繳清了`,"up")}}});
+  // 數值變化
+  bump(FOCUS[S.focus].fx);
+  if(age()>=40)bump({health:-.06-(age()-40)*.004});
+  ["happy","know","social"].forEach(k=>S.st[k]+=(60-S.st[k])*.012);
+  if(S.budget.fun>=4000*S.pl)bump({happy:.1});
+  if(S.cash<0)bump({happy:-.5});
+  S.m++;if(S.m>12){S.m=1;S.y++}
+  const t=tNow();
+  if(S.mode==="past"){
+    ASSETS.forEach(a=>{const b=histPrice(a.id,t);S.prices[a.id]=rnd(t===NOW_T?b:b*(1+a.vol*.35*gauss()))});
+    Object.keys(S.cityIdx).forEach(c=>S.cityIdx[c]=cityAt(c,t));
+    S.pl=cpiAt(t);
+    const ev=HIST_EV[`${S.y}-${S.m}`];if(ev)addLog(`【新聞】${ev}`);
+    if(t===NOW_T){S.mode="sim";addLog(`回到現在（${ymLabel(NOW_T)}）！之後的行情改成隨機模擬`,"up")}
+  }else{
+    let crash=Math.random()<.02;
+    ASSETS.forEach(a=>{let r=a.drift+a.vol*gauss();if(crash&&a.type!=="黃金")r-=.15;
+      S.prices[a.id]=rnd(Math.max(S.p0[a.id]*.05,S.prices[a.id]*(1+r)))});
+    if(crash)addLog("股市黑天鵝！風險資產一個月大跌","down");
+    Object.keys(S.cityIdx).forEach(c=>{S.cityIdx[c]*=1+CITIES[c].trend/12+.008*gauss()});
+    S.pl*=Math.pow(1+S.infl,1/12);
+  }
+  yearly(t);
+  runPlans();
+  runTimers();
+  romance(t);
+  // 出租：找房客、續約調租
+  S.houses.forEach(h=>{if(h.use!=="rent")return;const L=listing(h.lid);
+    if(!h.tenant){const r=h.rent/Math.round(marketRent(h.lid)*(h.adj||1)/100)*100,p=Math.min(.9,Math.max(.05,1.3-r));
+      if(Math.random()<p){h.tenant=true;h.ts=t;h.lease=t;addLog(`${L.name} 找到房客了，月租 ${money(h.rent)}`,"up")}return}
+    if(t-h.lease>=24){h.lease=t;const mr=Math.round(marketRent(h.lid)*(h.adj||1)/100)*100,old=h.rent;
+      if(h.raise==="cpi")h.rent=Math.round(h.rent*Math.pow(1+(S.lr||S.infl),2)/100)*100;
+      if(h.raise==="market")h.rent=Math.round(mr*.97/100)*100;
+      if(h.rent!==old){addLog(`${L.name} 續約，租金從 ${money(old)} 調整為 ${money(h.rent)}`,"up");
+        if(h.rent>mr*1.05&&Math.random()<.5){h.tenant=false;h.ts=t;addLog("房客覺得太貴，沒有續約搬走了","down")}}
+      else addLog(`${L.name} 房客續約兩年，租金維持 ${money(h.rent)}`)}});
+  // 小孩、寵物
+  S.kids.forEach(k=>{if(kidIndep(k)&&k.done)return;const m=t-k.bornT,a=Math.floor(m/12);
+    const st=stageOf(a);
+    if(st&&!k.indep){const o=st.opts[k.sch[st.k]??0];k.edu+=o[2]+CRAM[k.cram||0][2]*(a>=9)+ART[k.art||0][2]*(a>=4&&a<16)+(S.focus==="family"?.5:0)+(k.pocket>P(3000)?-.2:0);k.eduN++}
+    const nst=STAGES.find(x=>x.from*12===m&&x.k!=="care");
+    if(nst&&!k.indep){addLog(`${k.name} ${a} 歲，要上${nst.n}了`,"",nst.k==="elem"||nst.k==="uni");
+      if(!S.pending&&(!autoNow||!S.autoPick))S.pending={id:"school",kid:k.uid,stage:nst.k,text:`${k.name} ${a} 歲了，要讀哪一種${nst.n}？`};
+      else{k.sch[nst.k]=0;addLog(`${k.name} 讀${nst.opts[0][0]}`)}}
+    if((m===264||(k.indep&&!k.done))&&!k.done){k.done=1;k.indep=1;const avg=k.eduN?k.edu/k.eduN:1,r=avg+rr(-.6,.6)+S.st.happy/200;
+      const out=r>=4.2?["成為醫師、工程師或專業人士，收入很好",15000]:r>=3.2?["進了不錯的公司，工作穩定",9000]:r>=2.2?["找到一份穩定的工作",5000]:["還在摸索人生方向，暫時沒辦法拿錢回家",0];
+      k.filial=P(out[1]);k.outcome=out[0];addLog(`${k.name} 經濟獨立了：${out[0]}${k.filial?`，每月拿 ${money(k.filial)} 孝親費給你`:""}`,"up",true);bump({happy:out[1]>=9000?8:3})}});
+  S.pets=S.pets.filter(p=>{if(t-p.t>=PETS[p.kind].life*12){addLog(`${p.name} 陪伴你 ${PETS[p.kind].life} 年，安詳地離開了`,"",true);bump({happy:-8});return false}return true});
+  for(const [p,cond,fn,txt,fx,mul] of EVENTS){if(Math.random()<p*(mul?mul():1)&&cond()){const v=fn();
+    if(fx)bump(fx);
+    if(v==="arrears"){const h=S.houses.find(h=>h.use==="rent"&&h.tenant);S.cash-=h.rent;addLog(`房客欠租一個月，少收 ${money(h.rent)}`,"down")}
+    else if(v==="leave"){const h=S.houses.find(h=>h.use==="rent"&&h.tenant);h.tenant=false;h.ts=t;addLog(`${listing(h.lid).name} 的房客搬走了，要重新找房客`,"down")}
+    else if(v){S.cash+=v;addLog(`${txt} ${v>0?"+":""}${money(v)}`,v>0?"up":"down")}
+    else addLog(txt,"up")}}
+  // 退休
+  if(!S.retired&&age()>=65){retireNow()}
+  if(S.retired&&!S.pension&&age()>=65&&S.penBase){S.pension=S.penBase;addLog(`65 歲了，開始每月領勞保年金 ${money(S.pension)}`,"up",true)}
+  if(S.retired&&S.pacct&&age()>=60){const lump=Math.round(S.pacct);S.pacct=0;gain(lump,"60 歲，領出勞退個人帳戶",true)}
+  if(S.retired&&S.cash<0&&S.autoSell!==false)autoSellForCash();
+  // 年度紀錄（人生地圖）
+  const A=age(),Y=S.ymap[A]||(S.ymap[A]={h:0,n:0});Y.h+=S.st.happy;Y.n++;Y.nw=netWorth();
+  // 人生提問
+  const stop=()=>!auto||!S.autoPick;
+  if(!S.pending&&S.m===S.flags.bday&&REFLECT[A]&&!S.flags["q"+A]){S.flags["q"+A]=1;
+    if(stop()){S.pending={id:"reflect",age:A,text:REFLECT[A]}}}
+  // 決定事件（一次最多一個）
+  if(!S.pending){for(const [id,d] of Object.entries(DECISIONS)){if(Math.random()<d.p*(d.mult?d.mult():1)&&d.cond()){
+    if(!stop()){const c=d.choices[d.def];const r=c[1]();addLog(`【${d.title}】快轉中自動選擇「${c[0]}」：${r}`)}
+    else{S.pending={id,text:d.text()};addLog(`【${d.title}】等你做決定`)}break}}}
+  // 每年 1 月決定今年重心
+  if(!S.pending&&S.m===1&&stop()&&!auto)S.pending={id:"focus",text:"新的一年，你想把時間花在哪裡？"};
+  addLog(`本月收支 ${f.net>=0?"+":""}${money(f.net)}`,f.net>=0?"up":"down");
+  if(S.cash<0)addLog(`現金是負的，正在用信用貸款週轉（年利率 8%）。欠太多的話，銀行會強制賣掉你的股票、房子或車子`,"down");
+  checkAch();
+  S.ph=S.ph||{};Object.keys(S.hold).forEach(id=>{const a=(S.ph[id]=S.ph[id]||[]);a.push(S.prices[id]);if(a.length>60)a.shift()});
+  const nw=netWorth();if(nw>S.peak)S.peak=nw;
+  S.history.push({t:label(),nw});
+  if(S.history.length>1200)S.history.shift();
+  // 生命的終點
+  if(Math.random()<mortality()){const a=A;const cause=pick(DEATH_CAUSE.find(([lim])=>a<lim)[1]);endLife(cause.startsWith("自然")?`${a} 歲，${cause}`:`${a} 歲，因${cause}離開了人世`,true);S.pending=null}
+}
+let autoTimer=null,autoSpeed=1;
+function stopAuto(){if(autoTimer){clearInterval(autoTimer);autoTimer=null}}
+function startAuto(){stopAuto();autoTimer=setInterval(()=>{if(!S||S.ended||S.pending){stopAuto();render();return}step(true);save();render()},Math.round(1000/autoSpeed))}
+function advance(n){if(S.ended)return;if(S.pending){tab="home";render();return toast("先處理眼前這件事，再繼續過日子")}
+  for(let i=0;i<n;i++){step(n>1);if(S.pending||S.ended)break}save();render();
+  if(!S.ended)toast(S.pending?`停在 ${label()}：有事情需要你決定`:`來到 ${label()}，${age()} 歲，淨資產 ${money(netWorth())}`)}
+function decide(i){const pd=S.pending;
+  if(pd.id==="reflect"){const txt=(document.getElementById("rf").value||"").trim();S.notes.push({age:pd.age,q:pd.text,a:txt});S.pending=null;
+    addLog(`【${pd.age} 歲的人生提問】${pd.text}${txt?`——「${txt}」`:""}`,"",true);save();render();return}
+  if(pd.id==="school"){const k=S.kids.find(x=>x.uid===pd.kid),st=STAGES.find(x=>x.k===pd.stage);S.pending=null;if(k){k.sch[st.k]=i;
+    if(st.k==="uni"&&i===3){k.indep=1;addLog(`${k.name} 決定不升學，直接去工作`,"",true)}else addLog(`${k.name} 讀${st.opts[i][0]}，每月學費約 ${money(P(st.opts[i][1]))}`,"",true)}save();render();return}
+  if(pd.id==="focus"){const k=Object.keys(FOCUS)[i];S.focus=k;S.pending=null;addLog(`今年的重心：${FOCUS[k].n}`);save();render();return}
+  const d=DECISIONS[pd.id],c=d.choices[i];S.pending=null;const r=c[1]();addLog(`【${d.title}】你選擇「${c[0]}」：${r}`);save();render();toast(r)}
+function jumpTo(T){const n=T-tNow();if(n<=0)return toast("請選比現在更晚的月份");if(S.pending)return advance(1);const f=label();advance(n);addLog(`從 ${f} 跳到 ${label()}`);save();render()}
+
+// ===== 結束人生 =====
+const PKEY="life-sim-past";
+function pastLives(){try{return JSON.parse(localStorage.getItem(PKEY)||"[]")}catch(e){return[]}}
+function summary(){const yrs=Object.keys(S.ymap).map(Number).sort((a,b)=>a-b);
+  const map=yrs.map(a=>({age:a,h:Math.round(S.ymap[a].h/S.ymap[a].n),star:(S.stars||[]).some(z=>z.age===a)}));
+  const best=map.reduce((b,x)=>x.h>(b?.h??-1)?x:b,null);
+  return {id:Date.now(),name:S.name,start:ymLabel(S.t0),end:label(),age0:S.age0,age:age(),nw:netWorth(),peak:S.peak,earned:S.earned,cause:S.ended,
+    married:S.married,kids:S.kids.map(k=>k.name),pets:S.pets.length,houses:S.houses.length,cars:S.cars.length,st:{...S.st},map,best:best?.age,
+    stars:(S.stars||[]).map(z=>`${z.age} 歲：${z.msg}`),ach:ACH.filter(([k])=>S.ach&&S.ach[k]!=null).map(([,n])=>n),notes:S.notes,msg:S.flags.msg||""}}
+function endLife(reason,natural){stopAuto();S.ended=reason;addLog(reason,"",true);if(natural)bump({});save();savePast();tab="end";}
+function savePast(){try{const L=pastLives().filter(x=>x.id!==S.flags.pastId);const sm=summary();sm.id=S.flags.pastId||sm.id;S.flags.pastId=sm.id;L.unshift(sm);localStorage.setItem(PKEY,JSON.stringify(L.slice(0,10)))}catch(e){}}
+let viewPast=null;
+
+// ===== actions =====
+const ymT=f=>{const [y,m]=String(f).split("-");return +y*12+(+(m||1))-1};
+const assetLocked=a=>S.mode==="past"&&!!a.from&&tNow()<ymT(a.from);
+function waitText(T){const n=T-tNow();return n>=12?`${Math.floor(n/12)} 年${n%12?` ${n%12} 個月`:""}`:`${n} 個月`}
+function lockText(from,approx){const T=ymT(from);return `${Math.floor(T/12)} 年 ${T%12+1} 月${approx?"左右":""}才上市，還要等 ${waitText(T)}`}
+function trade(id,side){
+  const a=asset(id),el=document.getElementById("q-"+id),q=Math.floor(+el.value||0);
+  if(q<=0)return toast("請輸入數量");
+  if(side==="buy"&&assetLocked(a))return toast(`${a.name} ${lockText(a.from,a.approx)}`);
+  const p=S.prices[id],gross=p*q;
+  if(side==="buy"){const cost=gross*(1+(a.fee??BUY_FEE));if(cost>S.cash)return toast(`現金不夠，需要 ${money(cost)}`);
+    S.cash-=cost;const h=S.hold[id]||{qty:0,cost:0,bt:tNow()};h.cost+=cost;h.qty+=q;S.hold[id]=h;addLog(`買進 ${a.name} ${fmt(q)} 單位，共 ${money(cost)}`)}
+  else{const h=S.hold[id];if(!h||h.qty<q)return toast("持有數量不足");
+    const get=gross*(1-(a.fee??BUY_FEE)-a.tax);const c=h.cost*q/h.qty;h.cost-=c;h.qty-=q;if(!h.qty)delete S.hold[id];
+    S.cash+=get;const pl=get-c;addLog(`賣出 ${a.name} ${fmt(q)} 單位，${pl>=0?"賺":"賠"} ${money(Math.abs(pl))}`,pl>=0?"up":"down")}
+  save();render();
+}
+function buyHouse(lid){
+  const L=listing(lid),price=houseNow(lid),dp=+document.getElementById("dp-"+lid).value;
+  const down=Math.round(price*dp),fee=Math.round(price*.01),loan=price-down;
+  if(down+fee>S.cash)return toast(`自備款＋規費需要 ${money(down+fee)}`);
+  const self=!S.houses.some(h=>h.use==="self");
+  S.cash-=down+fee;S.houses.push({uid:S.uid++,lid,city:L.city,buy:price,loan,pay:loan?Math.round(pmt(loan)):0,t:label(),bt:tNow(),use:self?"self":"empty",rent:marketRent(lid),tenant:false,ts:tNow(),lease:tNow(),raise:"cpi"});
+  addLog(`買下 ${L.name}，總價 ${money(price)}，貸款 ${money(loan)}${self?"，搬進去自住":"，可以到「房子」設定出租"}`,"",S.houses.length===1);bump({happy:self?6:2});save();render();toast("恭喜成為屋主");
+}
+function sellHouse(uid){
+  const i=S.houses.findIndex(h=>h.uid===uid),h=S.houses[i],L=listing(h.lid),v=hv(h);
+  const get=Math.round(v*.96)-h.loan;S.cash+=get;S.houses.splice(i,1);
+  addLog(`賣掉 ${L.name}，成交 ${money(v)}，還清貸款後拿回 ${money(get)}`,v>h.buy?"up":"down");save();render();
+}
+function setUse(uid){const h=S.houses.find(x=>x.uid===uid),u=document.getElementById("use-"+uid).value,rent=Math.max(0,Math.round(+document.getElementById("rent-"+uid).value||0)),raise=document.getElementById("raise-"+uid).value;
+  if(u==="self")S.houses.forEach(x=>{if(x!==h&&x.use==="self"){x.use="empty";addLog(`${listing(x.lid).name} 改成空屋`)}});
+  const L=listing(h.lid);h.raise=raise;
+  if(u==="rent"&&(h.use!=="rent"||h.rent!==rent)){if(h.use==="rent"&&h.tenant&&rent>h.rent){if(Math.random()<.5){h.tenant=false;h.ts=tNow();addLog(`漲租後房客決定搬走`,"down")}else addLog("房客接受漲租")}
+    h.rent=rent;if(h.use!=="rent"){h.tenant=false;h.ts=tNow()}addLog(`${L.name} 出租，月租 ${money(rent)}`)}
+  if(u!=="rent"){h.tenant=false}
+  if(u!==h.use&&u!=="rent")addLog(`${L.name} 改成${u==="self"?"自住":"空屋"}`);
+  h.use=u;save();render();toast("已更新")}
+function payLoan(uid){const h=S.houses.find(x=>x.uid===uid),amt=Math.min(h.loan,Math.floor(+document.getElementById("pp-"+uid).value||0));
+  if(amt<=0||amt>S.cash)return toast("金額不對或現金不足");S.cash-=amt;h.loan-=amt;h.pay=h.loan?Math.round(pmt(h.loan)):0;
+  addLog(`提前還房貸 ${money(amt)}`);save();render()}
+const carPrice=c=>Math.round(c.price*S.pl/1000)*1000;
+const carLocked=c=>S.mode==="past"&&tNow()<c.from*12;
+const CARPLANS=[["全額付清",1,0],["自備 50%，貸款 3 年",.5,36],["自備 30%，貸款 5 年",.3,60],["零頭款，貸款 7 年",0,84]];
+let pickPaint={};
+function buyCar(mid){const c=CARS.find(x=>x.id===mid),price=carPrice(c),paint=pickPaint[mid]||PAINTS[0],[pn,dp,n]=CARPLANS[+document.getElementById("cp-"+mid).value];
+  if(carLocked(c))return toast(`${c.name} ${c.from} 年款上市，還要等 ${waitText(c.from*12)}`);
+  const down=Math.round(price*dp),loan=price-down;
+  if(down>S.cash)return toast(`頭期款不夠，要 ${money(down)}`);
+  S.cash-=down;S.cars.push({uid:S.uid++,mid,value:Math.round(price*.85),buy:price,color:paint[1],cname:paint[0],t:tNow(),loan,pay:loan?Math.round(pmt(loan,CAR_RATE,n)):0,n});
+  addLog(`買了 ${paint[0]} ${c.name}，${money(price)}（${pn}${loan?`，月付 ${money(pmt(loan,CAR_RATE,n))}`:""}）`,"",S.cars.length===1);bump({happy:4});save();render();toast("新車入庫")}
+function sellCar(uid){const i=S.cars.findIndex(c=>c.uid===uid),c=S.cars[i];const get=c.value-(c.loan||0);S.cash+=get;S.cars.splice(i,1);
+  addLog(`賣掉 ${carOf(c).name}，賣 ${money(c.value)}${c.loan?`，還清車貸 ${money(c.loan)}`:""}，拿回 ${money(get)}`);save();render()}
+function payCarLoan(uid){const c=S.cars.find(x=>x.uid===uid);if(c.loan>S.cash)return toast(`現金不夠，要 ${money(c.loan)}`);S.cash-=c.loan;addLog(`車貸一次還清 ${money(c.loan)}`);c.loan=0;c.pay=0;save();render()}
+// 生活
+const val=id=>Math.max(0,Math.round(+document.getElementById(id).value||0));
+function saveBudget(){BUDGET.forEach(([k])=>S.budget[k]=val("b-"+k));S.rent=val("b-rent");addLog(`調整每月生活預算為 ${money(budgetTotal())}，房租 ${money(S.rent)}`);save();render();toast("預算已更新")}
+function saveJob(){const s=val("j-sal");if(s!==S.salary){addLog(`月薪從 ${money(S.salary)} 調整為 ${money(s)}`,s>S.salary?"up":"down");S.salary=s}
+  if(S.married){S.spouse=val("j-sp")}save();render();toast("收入已更新")}
+function marry(i){const [n,cost,gift]=WEDDINGS[i],net=P(cost-gift);if(net>S.cash)return toast(`現金不夠，淨支出要 ${money(net)}`);
+  const P0=S.partner;S.cash-=net;S.married=true;S.spouse=P0?P0.income:val("j-spin");S.spouseName=P0?P0.name:"另一半";S.spouseInfo=P0?`${P0.job}・${P0.trait}・喜歡${P0.hobby}`:"";endDating();
+  addLog(`${P0?`和 ${S.spouseName} `:""}結婚了！${n}，扣掉禮金淨花 ${money(net)}，另一半月收入 ${money(S.spouse)}`,"up",true);bump({happy:12,social:4});save();render();toast("新婚快樂")}
+function haveKid(){const name=(document.getElementById("k-name").value||"").trim()||`寶寶${S.kids.length+1}`;
+  const cost=P(50000),sub=100000;S.cash+=sub-cost;S.kids.push({uid:S.uid++,name,bornT:tNow(),ex:{},base:null,sch:{},pocket:0,cram:0,art:0,edu:0,eduN:0});
+  addLog(`${name} 出生了！生產費用 ${money(cost)}，領到生育補助 ${money(sub)}`,"up",true);bump({happy:10,health:-2});save();render();toast(`歡迎 ${name}`)}
+function saveKid(uid){const k=S.kids.find(x=>x.uid===uid);const b=document.getElementById(`kb-${uid}`).value.trim();k.base=b===""?null:Math.max(0,Math.round(+b||0));
+  const st=stageOf(kidAge(k)),se=document.getElementById(`ks-${uid}`);if(st&&se){const ni=+se.value;if(ni!==(k.sch[st.k]??0))addLog(`${k.name} 改讀 ${st.opts[ni][0]}`);k.sch[st.k]=ni}
+  ["cram","art"].forEach(f=>{const el=document.getElementById(`k${f}-${uid}`);if(el)k[f]=+el.value});
+  const pk=document.getElementById(`kp-${uid}`);if(pk)k.pocket=val(`kp-${uid}`);
+  KID_EX.forEach(([e])=>k.ex[e]=val(`ke-${uid}-${e}`));addLog(`調整 ${k.name} 的每月花費為 ${money(kidTotal(k))}`);save();render();toast("已更新")}
+function adoptPet(kind){const name=(document.getElementById("p-name").value||"").trim()||(kind==="狗"?"旺財":"咪咪");const c=P(PETS[kind].init);
+  if(c>S.cash)return toast(`現金不夠，需要 ${money(c)}`);S.cash-=c;S.pets.push({uid:S.uid++,kind,name,t:tNow()});
+  addLog(`養了一隻${kind}「${name}」，籠具、疫苗、結紮等初期花費 ${money(c)}`,"",true);bump({happy:6});save();render();toast(`${name} 來到你家`)}
+// 想做點什麼：[代號, 名稱, 2026 價格, 效果說明, 是否以人數計]
+const SPENDS=[["checkup","全身健康檢查",8000,"健康 +4",0],["dental","洗牙、牙齒檢查",1500,"健康 +1",0],["dinner","請家人朋友吃大餐",3000,"人際 +4、幸福 +3",1],["spa","按摩、泡湯放鬆",3000,"幸福 +3",0],
+  ["trip","國內旅行",10000,"幸福 +6",1],["abroad","出國旅行",45000,"幸福 +10",1],["course","職訓課程、考證照",20000,"知識 +6",0],["concert","看演唱會、展覽",4000,"幸福 +4",0],
+  ["donate","捐款做公益",5000,"幸福 +3、人際 +1",0],["parents","帶爸媽出去玩",15000,"幸福 +4、人際 +3",0]];
+const SPEND_FX={checkup:{health:4},dental:{health:1},dinner:{social:4,happy:3},spa:{happy:3,health:1},trip:{happy:6},abroad:{happy:10,know:1},course:{know:6},concert:{happy:4},donate:{happy:3,social:1},parents:{happy:4,social:3}};
+const PLAN_OPTS=[[0,"不固定"],[1,"每個月"],[3,"每 3 個月"],[6,"每半年"],[12,"每年"]];
+const famN=()=>1+(S.married?1:0)+S.kids.filter(k=>kidAge(k)<22).length;
+function spendCost(kind){const d=SPENDS.find(x=>x[0]===kind);return P(d[2])*(d[4]?famN():1)}
+function doSpend(kind,auto){const d=SPENDS.find(x=>x[0]===kind),c=spendCost(kind);
+  if(c>S.cash){if(auto)addLog(`現金不夠，這次的「${d[1]}」先取消`,"down");return false}
+  pay(c,auto?`（固定安排）${d[1]}`:d[1]);bump(SPEND_FX[kind]);S.done=S.done||{};S.done[kind]=tNow();return true}
+function spend(kind){if(!doSpend(kind,false))return toast(`現金不夠，要 ${money(spendCost(kind))}`);save();render();toast(`${SPENDS.find(x=>x[0]===kind)[1]}（這個月已安排）`)}
+function setPlan(kind,every){S.plans=S.plans||{};const d=SPENDS.find(x=>x[0]===kind);
+  if(!every){delete S.plans[kind];addLog(`取消固定安排：${d[1]}`)}else{S.plans[kind]={every,next:tNow()+every};addLog(`固定安排：${PLAN_OPTS.find(x=>x[0]===every)[1]}${d[1]}，下次在 ${ymLabel(tNow()+every)}`)}
+  save();render();toast(every?"已設定固定安排":"已取消固定安排")}
+function runPlans(){const t=tNow();Object.entries(S.plans||{}).forEach(([k,p])=>{if(p.every&&t>=p.next){p.next=t+p.every;doSpend(k,true)}})}
+
+// ===== render =====
+const chg=(now,base)=>{const p=(now/base-1)*100;return `<span class="${p>0?"up":p<0?"down":"muted"} num">${p>0?"▲":p<0?"▼":""}${Math.abs(p).toFixed(1)}%</span>`};
+const FILT={inv:{q:"",cat:"全部"},car:{q:"",cat:"全部"},house:{q:"",cat:"全部"}};
+// ===== 圖像 =====
+function spark(arr,w=220,h=44){if(!arr||arr.length<2)return "";const lo=Math.min(...arr),hi=Math.max(...arr),d=hi-lo||1;
+  const x=i=>2+i*(w-8)/(arr.length-1),y=v=>4+(hi-v)*(h-8)/d;const pts=arr.map((v,i)=>`${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+  const up=arr[arr.length-1]>=arr[0];
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" role="img" aria-label="近 ${arr.length} 個月走勢"><title>近 ${arr.length} 個月：最低 ${lo.toLocaleString("zh-TW")}、最高 ${hi.toLocaleString("zh-TW")}</title>
+    <polyline points="${pts}" fill="none" stroke="var(--${up?"up":"down"})" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${x(arr.length-1)}" cy="${y(arr[arr.length-1])}" r="3.5" fill="var(--${up?"up":"down"})"/></svg>`}
+function allocBar(){const parts=[["現金",Math.max(0,S.cash),"s1"],["投資",stockValue(),"s2"],["房屋淨值",Math.max(0,houseEquity()),"s3"],["車輛",Math.max(0,carValue()),"s4"],["勞退帳戶",S.pacct||0,"s5"]].filter(x=>x[1]>0);
+  const tot=parts.reduce((a,x)=>a+x[1],0);if(!tot)return "";
+  return `<div class="alloc" role="img" aria-label="資產分布">${parts.map(([n,v,c])=>`<i style="flex:${v};background:var(--${c})" title="${n} ${money(v)}（${(v/tot*100).toFixed(0)}%）"></i>`).join("")}</div>
+  <div class="legend">${parts.map(([n,v,c])=>`<span><i style="background:var(--${c})"></i>${n} <b class="num">${(v/tot*100).toFixed(0)}%</b> <span class="muted num">${money(v)}</span></span>`).join("")}</div>`}
+function spendBars(f){const items=[["生活費",f.living],["房租",f.rent],["房貸車貸",f.loan],["養小孩",f.kids],["養車",f.car],["毛小孩",f.pets],["勞健保",f.ins],["管理費",f.mgmt],["人生重心",f.focus],["信貸利息",f.overdraft],["其他固定支出",S.recur.reduce((a,r)=>a+Math.max(0,r.amt),0)]].filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]);
+  const mx=Math.max(...items.map(x=>x[1]),1);
+  return `<div class="hbars">${items.map(([n,v])=>`<div class="hb" title="${n} ${money(v)}，占支出 ${(v/f.out*100).toFixed(0)}%"><span>${n}</span><div><i style="width:${(v/mx*100).toFixed(1)}%"></i></div><b class="num">${money(v)}</b></div>`).join("")}</div>`}
+function person(x,scale,shirt,hairLong,label){const s=scale;return `<g transform="translate(${x},${118-60*s}) scale(${s})"><title>${label}</title>
+  <rect x="-13" y="34" width="26" height="30" rx="10" fill="${shirt}"/><rect x="-9" y="58" width="7" height="20" rx="3" fill="var(--ink)"/><rect x="2" y="58" width="7" height="20" rx="3" fill="var(--ink)"/>
+  <circle cx="0" cy="20" r="13" fill="var(--skin)"/><path d="M-13,18 Q-12,4 0,5 Q12,4 13,18 Q8,10 0,11 Q-8,10 -13,18Z" fill="var(--hair)"/>
+  ${hairLong?`<path d="M-13,18 L-14,34 L-8,32 Z M13,18 L14,34 L8,32 Z" fill="var(--hair)"/>`:""}
+  <circle cx="-4.5" cy="21" r="1.6" fill="var(--ink)"/><circle cx="4.5" cy="21" r="1.6" fill="var(--ink)"/><path d="M-4,26 Q0,29 4,26" stroke="var(--ink)" stroke-width="1.4" fill="none" stroke-linecap="round"/></g>`}
+function petSVG(x,kind,name){return kind==="狗"?`<g transform="translate(${x},96)"><title>${esc(name)}（狗）</title><ellipse cx="0" cy="10" rx="16" ry="9" fill="#b07a45"/><circle cx="16" cy="0" r="8" fill="#b07a45"/><path d="M13,-6 L10,4 L16,2Z" fill="#7a5130"/><rect x="-12" y="14" width="4" height="10" rx="2" fill="#7a5130"/><rect x="8" y="14" width="4" height="10" rx="2" fill="#7a5130"/><path d="M-16,6 Q-24,0 -22,-6" stroke="#7a5130" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="19" cy="-1" r="1.4" fill="var(--ink)"/></g>`
+  :`<g transform="translate(${x},98)"><title>${esc(name)}（貓）</title><ellipse cx="0" cy="10" rx="13" ry="8" fill="#9a9a9a"/><circle cx="12" cy="0" r="7" fill="#9a9a9a"/><path d="M7,-4 L8,-11 L12,-6Z M13,-6 L17,-11 L18,-4Z" fill="#9a9a9a"/><path d="M-13,8 Q-22,2 -18,-8" stroke="#9a9a9a" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="14" cy="-1" r="1.2" fill="var(--ink)"/></g>`}
+function houseIcon(type,w=64){const tall=/套房|2房|3房|4房|豪宅|華廈/.test(type),tt=/透天/.test(type);
+  return `<svg class="hicon" viewBox="0 0 64 64" width="${w}" height="${w}" role="img" aria-label="${type}">${tall?
+    `<rect x="14" y="${type==="豪宅"?4:12}" width="36" height="${type==="豪宅"?56:48}" rx="2" fill="var(--glass)" stroke="var(--ink)" stroke-width="1.5"/>${Array.from({length:type==="豪宅"?6:5},(_,r)=>[0,1,2].map(c=>`<rect x="${19+c*10}" y="${(type==="豪宅"?9:17)+r*9}" width="6" height="5" fill="var(--card)" stroke="var(--ink)" stroke-width=".8"/>`).join("")).join("")}<rect x="28" y="52" width="8" height="8" fill="var(--ink)"/>`
+    :tt?`<path d="M14,22 L32,8 L50,22 L50,60 L14,60Z" fill="#e8d3b5" stroke="var(--ink)" stroke-width="1.5"/>${[26,40].map(y=>`<rect x="20" y="${y}" width="9" height="7" fill="var(--glass)" stroke="var(--ink)" stroke-width=".8"/><rect x="35" y="${y}" width="9" height="7" fill="var(--glass)" stroke="var(--ink)" stroke-width=".8"/>`).join("")}<rect x="27" y="50" width="10" height="10" fill="var(--ink)"/>`
+    :`<rect x="10" y="20" width="44" height="40" fill="#d9c7a8" stroke="var(--ink)" stroke-width="1.5"/>${[0,1,2].map(r=>[0,1,2,3].map(c=>`<rect x="${14+c*10}" y="${24+r*11}" width="6" height="6" fill="var(--glass)" stroke="var(--ink)" stroke-width=".7"/>`).join("")).join("")}<path d="M8,20 L56,20" stroke="var(--ink)" stroke-width="2"/>`}
+  </svg>`}
+function familyScene(){const items=[];
+  items.push({w:40,svg:person(0,1,"var(--accent)",false,`${esc(S.name)}，${age()} 歲`)});
+  if(S.married||S.partner)items.push({w:40,svg:person(0,1,"var(--s5)",true,S.married?(S.spouseName||"另一半"):`交往中：${esc(S.partner.name)}`)});
+  S.kids.forEach((k,i)=>{const a=kidAge(k),sc=Math.min(1,.45+a*.03);items.push({w:40*sc+4,svg:person(0,sc,["var(--s1)","var(--s4)","var(--s3)","var(--s2)"][i%4],i%2===1,`${esc(k.name)}，${a} 歲`)})});
+  S.pets.forEach(p=>items.push({w:46,svg:petSVG(0,p.kind,p.name),pet:1}));
+  let x=S.houses.length?82:56;
+  const placed=items.map(it=>{const cx=x+it.w/2+(it.pet?-6:0);x+=it.w+8;return it.svg.replace("translate(0,",`translate(${cx.toFixed(0)},`)}).join("");
+  const carW=S.cars.length?108:0,W=Math.max(320,x+carW+8);
+  const home=S.houses.length?`<g transform="translate(6,52)">${houseIcon(listing(S.houses.find(h=>h.use==="self")?.lid||S.houses[0].lid).type).replace('<svg class="hicon"','<svg')}</g>`:`<text x="8" y="112" font-size="11" fill="var(--muted)">租屋中</text>`;
+  const car=S.cars.length?`<g transform="translate(${x+4},74)"><svg width="100" height="45" viewBox="0 0 200 90">${carSVG(carOf(S.cars[0]).body,S.cars[0].color).replace(/^<svg[^>]*>/,"").replace(/<\/svg>\s*$/,"")}</svg></g>`:"";
+  return `<svg class="scene" viewBox="0 44 ${W} 88" role="img" aria-label="我的家"><rect x="0" y="118" width="${W}" height="14" fill="var(--soft)"/>${home}${car}${placed}</svg>`}
+function statBars(st){return `<div class="stats">${STATS.map(([k,n])=>`<div class="stat"><span>${n}</span><div class="bar"><i style="width:${Math.round(st[k])}%"></i></div><b class="num">${Math.round(st[k])}</b></div>`).join("")}</div>`}
+function render(){
+  const app=document.getElementById("app");
+  if(!S){app.innerHTML=viewPast?endView(viewPast,true):setupView();if(!viewPast)bindSetup();bindCommon(app);return}
+  if(S.ended){app.innerHTML=endView(summary(),false);bindCommon(app);return}
+  const nw=netWorth(),start=S.history[0].nw,f=flow();
+  app.innerHTML=`
+  <header>
+    <div class="hrow">
+      <div><div class="label">${esc(S.name)}・${age()} 歲・${label()}・第 ${Math.floor((tNow()-S.t0)/12)+1} 年 <span class="chip">${({past:"歷史重現",future:"未來試算",sim:"模擬中"})[S.mode]}</span> ${liveBadge()}${S.retired?` <span class="chip">已退休</span>`:""}</div><div class="nw">${money(nw)}</div></div>
+      <div class="hbtns"><button class="primary" id="b1">下個月 →</button><button id="b12">快轉一年</button><button id="bj" aria-expanded="${jumpOpen}">跳到…</button>
+        <button id="bauto" aria-pressed="${!!autoTimer}">${autoTimer?"暫停":"自動播放"}</button><select id="bspeed" aria-label="播放速度">${[1,2,4,8,16].map(s=>`<option value="${s}" ${s===autoSpeed?"selected":""}>${s}×</option>`).join("")}</select>
+        <button id="bend" class="${pending==="end"?"sell":""}">${pending==="end"?"再按一次結束這一生":"結束"}</button></div>
+    </div>
+    ${jumpOpen?`<div class="jump"><select id="j-y" aria-label="年">${Array.from({length:Math.max(1,2101-S.y)},(_,i)=>S.y+i).map(y=>`<option value="${y}" ${y===S.y+1?"selected":""}>${y} 年（${ageAt(y*12+S.m-1)} 歲）</option>`).join("")}</select><select id="j-m" aria-label="月">${Array.from({length:12},(_,i)=>i+1).map(m=>`<option value="${m}" ${m===S.m?"selected":""}>${m} 月</option>`).join("")}</select><button class="primary" id="j-go">出發</button></div>
+      <p class="note" style="margin:4px 0 0">中間每個月的收支、行情、生活事件都會照常發生。${S.autoPick?"遇到需要做決定的事，會自動選比較保守的選項。":"遇到需要做決定的事會停下來問你。"}</p>`:""}
+    <div class="sub"><span>現金 <b class="num ${S.cash<0?"down":""}">${money(S.cash)}</b></span>
+      <span>每月結餘 <b class="num ${f.net>=0?"up":"down"}">${f.net>=0?"+":""}${money(f.net)}</b></span>
+      <span>從起點 ${chg(nw,start||1)}</span>${S.jobless>0?`<span class="down">失業中，還要 ${S.jobless} 個月</span>`:""}${S.cash<0?`<span class="down">信貸週轉中</span>`:""}</div>
+    <nav role="tablist">${[["home","總覽"],["life","生活"],["invest","投資"],["house","房子"],["car","車子"],["log","紀錄"]].map(([k,t])=>`<button role="tab" data-tab="${k}" aria-selected="${tab===k}">${t}</button>`).join("")}</nav>
+  </header>
+  ${S.pending?decisionCard():""}
+  <section>${safeView(({home:homeView,life:lifeView,invest:investView,house:houseView,car:carView,log:logView})[tab]||homeView)}</section>`;
+  app.querySelector("#b1").onclick=()=>{stopAuto();advance(1)};
+  app.querySelector("#b12").onclick=()=>{stopAuto();advance(12)};
+  app.querySelector("#bj").onclick=()=>{jumpOpen=!jumpOpen;render()};
+  app.querySelector("#bauto").onclick=()=>{if(autoTimer){stopAuto();render()}else{if(S.pending)return toast("先處理眼前這件事");startAuto();render()}};
+  app.querySelector("#bspeed").onchange=e=>{autoSpeed=+e.target.value;if(autoTimer)startAuto()};
+  app.querySelector("#bend").onclick=()=>{if(pending==="end"){pending=null;endLife(`${age()} 歲時，你決定在這裡結束這段人生`,false);render()}else{pending="end";render();setTimeout(()=>{if(pending==="end"){pending=null;render()}},4000)}};
+  const jg=app.querySelector("#j-go");if(jg)jg.onclick=()=>{jumpOpen=false;stopAuto();jumpTo(+app.querySelector("#j-y").value*12+ +app.querySelector("#j-m").value-1)};
+  bindCommon(app);
+  ["inv","car","house"].forEach(k=>{const q=app.querySelector(`#${k}-q`);if(!q)return;
+    q.oninput=()=>{FILT[k].q=q.value;applyFilter(k)};applyFilter(k)});
+  app.querySelectorAll("button.cat[data-cat]").forEach(b=>b.onclick=()=>{const [k,c]=b.dataset.cat.split(":");FILT[k].cat=c;
+    app.querySelectorAll(`button.cat[data-cat^="${k}:"]`).forEach(x=>x.setAttribute("aria-pressed",x===b));applyFilter(k)});
+  app.querySelectorAll(".budget input[data-b]").forEach(i=>i.oninput=()=>{let s=0;app.querySelectorAll(".budget input[data-b]").forEach(x=>s+=Math.max(0,+x.value||0));app.querySelector("#b-total").textContent=money(s)});
+  app.querySelectorAll("select[data-plan]").forEach(sel=>sel.onchange=()=>setPlan(sel.dataset.plan,+sel.value));
+  app.querySelectorAll("select[data-use]").forEach(sel=>sel.onchange=()=>{const r=document.getElementById("rentrow-"+sel.dataset.use);if(r)r.hidden=sel.value!=="rent"});
+}
+function safeView(fn){try{return fn()}catch(e){console.error(e);return `<div class="panel"><h2>這一頁暫時打不開</h2><p class="note">錯誤訊息：${esc(e.message)}。請截圖給我，我來修。</p></div>`}}
+function bindCommon(app){
+  app.querySelectorAll("[data-gig]").forEach(b=>b.onclick=()=>{const el=document.getElementById("gig-a");if(el)el.value=b.dataset.gig;app.querySelectorAll("[data-gig]").forEach(x=>x.setAttribute("aria-pressed",x===b))});
+  app.querySelectorAll("[data-pk]").forEach(b=>b.onclick=()=>{const [u,v]=b.dataset.pk.split(":");const el=document.getElementById("kp-"+u);if(el)el.value=v;app.querySelectorAll(`[data-pk^="${u}:"]`).forEach(x=>x.setAttribute("aria-pressed",x===b))});
+  app.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render();window.scrollTo(0,0)});
+  app.querySelectorAll("[data-act]").forEach(b=>b.onclick=()=>{const [a,x,y]=b.dataset.act.split(":");
+    ({trade:()=>trade(x,y),bh:()=>buyHouse(x),sh:()=>sellHouse(+x),bc:()=>buyCar(x),sc:()=>sellCar(+x),pcl:()=>payCarLoan(+x),pl:()=>payLoan(+x),jt:()=>jumpTo(+x),
+      use:()=>setUse(+x),unretire,
+      gigsave:()=>{const v=val("gig-a"),l=(document.getElementById("gig-l").value||"").trim()||"顧問";const old=S.gig||0;S.gig=v;S.gigLabel=l;
+        addLog(v?`退休後當${l}，每月收入 ${money(v)}`:`不再當${S.gigLabel||"顧問"}了`,v>old?"up":"",v&&!old);save();render();toast(v?`${l}收入每月 ${money(v)}`:"已停止")},
+      retireask:()=>{if(pending==="retire"){pending=null;retireNow();save();render();toast("退休了！")}else{pending="retire";render();setTimeout(()=>{if(pending==="retire"){pending=null;render()}},4000)}},
+      dripall:()=>{S.dripAll=!S.dripAll;addLog(S.dripAll?"股利改成自動買回股票":"股利改成領現金");save();render()},
+      autosell:()=>{S.autoSell=S.autoSell===false;save();render()},
+      drip:()=>{S.drip=S.drip||{};const cur=S.drip[x]??!!S.dripAll;S.drip[x]=!cur;save();render()},meet:()=>meet(x),ask:()=>askOut(+x),pass:()=>{S.cands=(S.cands||[]).filter(c=>c&&c.id!==+x);save();render()},date:()=>dateAct(x),propose,
+      breakup:()=>{if(pending==='breakup'){pending=null;const n=S.partner.name;endDating();addLog(`和 ${n} 分手了`,'down',true);bump({happy:-8});save();render()}else{pending='breakup';toast('再按一次「分手」確定');setTimeout(()=>pending=pending==='breakup'?null:pending,3000)}},
+      pref:()=>{S.prefSex=x;save();render()},retire:()=>{retireNow();save();render()},dec:()=>decide(+x),kidsave:()=>saveKid(+x),spend:()=>spend(x),
+      star:()=>{const l=S.log.find(l=>l.id===+x);if(l){l.star=!l.star;S.stars=(S.stars||[]).filter(z=>z.id!==l.id);if(l.star){const a=parseInt(l.life)||S.age0;S.stars.push({id:l.id,age:a,life:l.life,msg:l.msg});S.stars.sort((p,q)=>p.id-q.id)}save();render()}},
+      autopick:()=>{S.autoPick=!S.autoPick;save();render();toast(S.autoPick?"快轉時會自動做決定":"快轉時遇到抉擇會停下來問你")},
+      focus:()=>{S.focus=x;addLog(`人生重心改成：${FOCUS[x].n}`);save();render()},
+      q:()=>{const el=document.getElementById("q-"+x);el.value=(+el.value||0)+ +y},
+      bud:saveBudget,job:saveJob,wed:()=>marry(+x),kid:haveKid,pet:()=>adoptPet(x),
+      paint:()=>{const Pt=PAINTS[+y];pickPaint[x]=Pt;const card=b.closest(".item");card.querySelector(".paint").setAttribute("fill",Pt[1]);
+        card.querySelector(".pname").textContent=Pt[0];card.querySelectorAll(".swatch").forEach(s=>s.setAttribute("aria-pressed",s===b))},
+      msg:()=>{S.flags.msg=(document.getElementById("lastmsg").value||"").trim();savePast();render();toast("已留下給這一生的話")},
+      copy:()=>{const t=document.getElementById("sharetxt").value;navigator.clipboard?.writeText(t).then(()=>toast("已複製，可以貼到脆或 LINE")).catch(()=>{const el=document.getElementById("sharetxt");el.select();toast("請長按複製")})},
+      again:()=>{S=null;viewPast=null;try{localStorage.removeItem(KEY)}catch(e){}tab="home";render();window.scrollTo(0,0)},
+      past:()=>{viewPast=pastLives().find(p=>p.id===+x);render();window.scrollTo(0,0)},back:()=>{viewPast=null;render()},
+      reset:()=>{if(pending==="reset"){try{localStorage.removeItem(KEY)}catch(e){}S=null;pending=null;tab="home";render()}else{pending="reset";render()}}
+    })[a]?.()});
+}
+function decisionCard(){const pd=S.pending;
+  if(pd.id==="reflect")return `<div class="decide"><div class="label">${pd.age} 歲・人生提問</div><h2>${pd.text}</h2>
+    <textarea id="rf" rows="3" maxlength="200" placeholder="寫下你的回答（可以留白）"></textarea><button class="primary" data-act="dec:0">寫好了，繼續過日子</button></div>`;
+  if(pd.id==="school"){const st=STAGES.find(x=>x.k===pd.stage);return `<div class="decide"><div class="label">${age()} 歲・孩子的教育</div><h2>${esc(pd.text)}</h2>
+    <p class="note">學校越好，孩子長大後越有機會有好工作、拿孝親費給你，但學費也越高。之後也可以在「生活」頁改。</p>
+    <div class="grid3">${st.opts.map((o,i)=>`<button data-act="dec:${i}"><b>${o[0]}</b><br><span class="note">${o[1]?`每月約 ${money(P(o[1]))}`:"不用學費"}</span></button>`).join("")}</div></div>`}
+  if(pd.id==="focus")return `<div class="decide"><div class="label">${age()} 歲・新的一年</div><h2>今年的重心</h2><p>${pd.text}</p>
+    <div class="grid3">${Object.entries(FOCUS).map(([k,v],i)=>`<button data-act="dec:${i}" ${S.focus===k?'aria-pressed="true"':""}><b>${v.n}</b><br><span class="note">${v.d}</span></button>`).join("")}</div></div>`;
+  const d=DECISIONS[pd.id];
+  return `<div class="decide" role="alertdialog" aria-labelledby="dec-t"><div class="label">${age()} 歲・人生抉擇</div><h2 id="dec-t">${d.title}</h2><p>${pd.text}</p>
+  <div class="grid3">${d.choices.map((c,i)=>`<button data-act="dec:${i}">${c[0]}</button>`).join("")}</div></div>`}
+function filterBar(kind,cats,ph){const F=FILT[kind];return `<div class="panel" style="display:grid;gap:10px">
+  <input id="${kind}-q" type="search" placeholder="${ph}" value="${esc(F.q)}" autocomplete="off">
+  <div class="qbtns">${cats.map(c=>`<button class="cat" data-cat="${kind}:${c}" aria-pressed="${c===F.cat}">${c}</button>`).join("")}</div>
+  <span class="note" id="${kind}-count"></span></div>`}
+function applyFilter(kind){
+  const F=FILT[kind],q=F.q.trim().toLowerCase();let n=0;
+  document.querySelectorAll(`[data-f="${kind}"]`).forEach(el=>{const ok=(F.cat==="全部"||el.dataset.cat===F.cat)&&(!q||el.dataset.s.toLowerCase().includes(q));el.hidden=!ok;if(ok)n++});
+  const c=document.getElementById(kind+"-count");if(c)c.textContent=n?`共 ${n} 項`:"找不到符合的項目，換個關鍵字試試";
+}
+function homeView(){
+  const f=flow(),sv=stockValue(),nw=netWorth();
+  const hdebt=S.houses.reduce((t,h)=>t+h.loan,0),cdebt=S.cars.reduce((t,c)=>t+(c.loan||0),0);
+  const fam=[S.married?"已婚":S.partner?`和 ${esc(S.partner.name)} 交往中`:"單身",S.kids.length?`${S.kids.length} 個小孩`:"",S.pets.length?S.pets.map(p=>p.kind).join("、"):""].filter(Boolean).join(" · ");
+  const row=(l,v,c)=>v?`<tr><td>${l}</td><td class="num ${c}">${c==="up"?"+":"-"}${money(v)}</td></tr>`:"";
+  const recent=S.log.filter(l=>l.t===label()&&!/^本月收支/.test(l.msg)).slice(0,12);
+  const got=ACH.filter(([k])=>S.ach&&S.ach[k]!=null);
+  return `
+  ${recent.length?`<div class="panel recap"><h2>${label()} 發生的事</h2><ul class="log">${recent.map(l=>`<li><span>${l.star?"★":"·"}</span><div class="${l.cls}">${esc(l.msg)}</div></li>`).join("")}</ul></div>`:""}
+  <div class="panel"><h2>人生狀態 <span class="chip">${fam}</span></h2>${familyScene()}${statBars(S.st)}
+    <div class="qbtns focusbar">${Object.entries(FOCUS).map(([k,v])=>`<button class="cat" data-act="focus:${k}" aria-pressed="${S.focus===k}">${v.n}</button>`).join("")}</div>
+    <p class="note">上面是「今年的重心」，隨時都可以換，選中的會變成黑色。${FOCUS[S.focus].d}。健康太低容易生病、壽命變短；知識高比較容易升遷；人際好比較容易接到外快和被挖角；幸福會記錄在人生地圖上。</p></div>
+  <div class="panel"><h2>資產負債表</h2><table class="ledger">
+    <tr><td>現金存款 <span class="note">${S.cash<0?"負數部分以信貸年利率 8% 計息":`活存 ${(SAVE_RATE*100).toFixed(1)}%`}</span></td><td class="num ${S.cash<0?"down":""}">${money(S.cash)}</td></tr>
+    <tr><td>股票／ETF／幣／金 市值</td><td class="num">${money(sv)}</td></tr>
+    <tr><td>房屋市值</td><td class="num">${money(S.houses.reduce((t,h)=>t+hv(h),0))}</td></tr>
+    <tr><td>車輛殘值</td><td class="num">${money(S.cars.reduce((t,c)=>t+c.value,0))}</td></tr>
+    ${S.pacct?`<tr><td>勞退個人帳戶（雇主每月提撥 6%）</td><td class="num">${money(S.pacct)}</td></tr>`:""}
+    ${hdebt?`<tr><td>房貸餘額</td><td class="num down">-${money(hdebt)}</td></tr>`:""}
+    ${cdebt?`<tr><td>車貸餘額</td><td class="num down">-${money(cdebt)}</td></tr>`:""}
+    <tr class="total"><td>淨資產</td><td class="num">${money(nw)}</td></tr></table>
+    <h3 class="h3">資產分布</h3>${allocBar()}</div>
+  <div class="panel"><h2>淨資產走勢</h2>${chartSVG()}</div>
+  <div class="panel"><h2>人生成就 <span class="chip">${got.length} / ${ACH.length}</span></h2><div class="ach">${ACH.map(([k,n])=>{const t=S.ach?.[k];return `<span class="badge ${t!=null?"on":""}">${n}${t!=null?`<small>${ageAt(t)} 歲</small>`:""}</span>`}).join("")}</div></div>
+  <div class="panel"><h2>每月收支</h2><table class="ledger">
+    ${row(S.jobless>0?"失業給付（投保薪資 6 成）":"薪水",f.job,"up")}
+    ${row("勞保老年年金",f.pension,"up")}
+    ${row(`${esc(S.gigLabel||"顧問／兼職")}收入`,f.gig,"up")}
+    ${row("顧問收入的二代健保（2.11%）",f.gigNhi,"down")}
+    ${row("另一半收入",f.spouse,"up")}
+    ${row("房租收入",f.rental,"up")}
+    ${row("育兒津貼",f.allowance,"up")}
+    ${row("小孩給的孝親費",f.filial,"up")}
+    ${row("存款利息",f.interest,"up")}
+    ${S.recur.filter(r=>r.amt<0).map(r=>row(`${r.label}（剩 ${r.left} 個月）`,-r.amt,"up")).join("")}
+    ${row("勞健保自付額（約薪水 4%）",f.ins,"down")}
+    <tr><td>生活費 <button class="link" data-tab="life">調整</button></td><td class="num down">-${money(f.living)}</td></tr>
+    ${f.rent?row("房租",f.rent,"down"):`<tr><td class="muted">房租（有自住的房子，免付）</td><td class="num muted">0</td></tr>`}
+    ${row("房貸、車貸月付",f.loan,"down")}
+    ${row("大樓管理費",f.mgmt,"down")}
+    ${row("養車（油錢、保險、保養）",f.car,"down")}
+    ${row("養小孩",f.kids,"down")}
+    ${row("養毛小孩",f.pets,"down")}
+    ${row(`今年重心「${FOCUS[S.focus].n}」的花費`,f.focus,"down")}
+    ${row("信用貸款利息",f.overdraft,"down")}
+    ${S.recur.filter(r=>r.amt>0).map(r=>row(`${r.label}${r.left<900?`（剩 ${r.left} 個月）`:""}`,r.amt,"down")).join("")}
+    <tr class="total"><td>每月結餘</td><td class="num ${f.net>=0?"up":"down"}">${f.net>=0?"+":""}${money(f.net)}</td></tr></table>
+    ${divYear()?`<p class="note">另外每年股利約 <b class="num">${money(divYear())}</b>（平均每月 ${money(divYear()/12)}），在配息月份入帳，沒有算在上面的每月結餘。</p>`:""}
+    <h3 class="h3">錢都花去哪了</h3>${spendBars(f)}
+    <p class="note">每年固定：1 月調薪和物價上漲、2 月年終和過年紅包、4 月牌照稅、5 月所得稅和房屋稅、7 月燃料稅和台股配息、11 月地價稅，還有生日和三節。60 歲可以選擇退休，65 歲自動退休，開始領勞保年金和勞退帳戶。</p></div>
+  <div class="panel"><div class="row" style="justify-content:space-between">
+    <span class="note">${modeNote()}從 ${ymLabel(S.t0)}、${S.age0} 歲開始玩，進度只存在這台裝置的瀏覽器。</span>
+    <button data-act="reset" class="${pending==="reset"?"sell":""}">${pending==="reset"?"再按一次確定重來（不留紀錄）":"重新開始"}</button></div></div>`;
+}
+function modeNote(){return S.mode==="past"?"現在是歷史重現：行情照 2010–2025 年底真實收盤平滑內插，月份間的小波動是模擬的。":
+  S.mode==="future"?`現在是未來試算：開局價格是今天行情乘上每年 ${(S.infl*100).toFixed(1)}% 通膨，之後隨機模擬。`:`價格以 ${DATA_DATE} 真實行情為起點，之後隨機模擬，物價每年漲 ${(S.infl*100).toFixed(1)}%。`}
+function chartSVG(){
+  const H=S.history,W=640,Ht=220,p={l:76,r:12,t:12,b:26};
+  if(H.length<2)return `<p class="muted">按「下個月」開始過日子，這裡會畫出你的淨資產曲線。</p>`;
+  const vals=H.map(h=>h.nw);let lo=Math.min(...vals,0),hi=Math.max(...vals);if(hi===lo)hi=lo+1;
+  const x=i=>p.l+i*(W-p.l-p.r)/(H.length-1),y=v=>p.t+(hi-v)*(Ht-p.t-p.b)/(hi-lo);
+  const pts=H.map((h,i)=>`${x(i).toFixed(1)},${y(h.nw).toFixed(1)}`).join(" ");
+  const ticks=[0,1,2,3].map(k=>lo+(hi-lo)*k/3);
+  const last=H[H.length-1];
+  return `<svg class="chart" viewBox="0 0 ${W} ${Ht}" role="img" aria-label="淨資產走勢">
+    ${ticks.map(v=>`<line x1="${p.l}" x2="${W-p.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/><text x="${p.l-6}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="var(--muted)" font-family="IBM Plex Mono,monospace">${money(v)}</text>`).join("")}
+    ${lo<0?`<line x1="${p.l}" x2="${W-p.r}" y1="${y(0)}" y2="${y(0)}" stroke="var(--muted)" stroke-dasharray="4 3"/>`:""}
+    <polygon points="${p.l},${y(Math.max(lo,0))} ${pts} ${x(H.length-1)},${y(Math.max(lo,0))}" fill="var(--accent)" fill-opacity=".12"/>
+    <polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linejoin="round"/>
+    <circle cx="${x(H.length-1)}" cy="${y(last.nw)}" r="4.5" fill="var(--accent)"/>
+    <text x="${p.l}" y="${Ht-6}" font-size="11" fill="var(--muted)">${H[0].t}</text>
+    <text x="${W-p.r}" y="${Ht-6}" font-size="11" fill="var(--muted)" text-anchor="end">${last.t}</text></svg>`;
+}
+function lifeMap(map){return `<div class="lmap">${map.map(c=>`<div class="cell" style="--h:${(c.h/100).toFixed(2)}" title="${c.age} 歲・幸福 ${c.h}"><span>${c.age}</span>${c.star?"<i>★</i>":""}</div>`).join("")}</div>
+  <p class="note">一格是一年，顏色越深代表那年越幸福；★ 是值得記住的時刻。</p>`}
+function loveSection(){
+  if(S.married)return `<h3 class="h3">已婚 <span class="stamp">囍</span></h3><p class="meta">${esc(S.spouseName||"另一半")}${S.spouseInfo?`（${esc(S.spouseInfo)}）`:""}，每月收入 ${money(S.spouse)}，每年 1 月一起調薪。</p>`;
+  const P0=S.partner,C=(S.cands||[]).filter(x=>x&&tNow()-x.t<4);
+  if(P0)return `<h3 class="h3">交往中 <span class="chip">${esc(P0.name)}</span></h3>
+    <div class="partner"><div><b>${esc(P0.name)}</b>　${P0.age} 歲・${P0.job}・月收入約 ${money(P0.income)}<br><span class="note">${P0.trait}・喜歡${P0.hobby}・合拍度 ${P0.compat}・${when(P0.since)}開始交往</span></div>
+    <div class="stat"><span>好感度</span><div class="bar"><i style="width:${Math.round(P0.love)}%;background:var(--up)"></i></div><b class="num">${Math.round(P0.love)}</b></div></div>
+    <div class="grid3">${DATES.map(([k,n,c,g])=>`<button data-act="date:${k}" aria-pressed="${(S.done||{})["d-"+k]===tNow()}"><b>${n}</b><br><span class="note">${money(P(c))}・好感度 +${g}${k==="family"?"（好感度 55 以上）":""}</span></button>`).join("")}</div>
+    ${P0.engaged?`<p><b>已經訂婚了！</b>選一種婚禮：</p><div class="grid3">${WEDDINGS.map(([n,c,g],i)=>`<button data-act="wed:${i}"><b>${n}</b><br><span class="note">花 ${money(P(c))}${g?`，收禮金約 ${money(P(g))}`:""}<br>淨支出 ${money(P(c-g))}</span></button>`).join("")}</div>`
+      :`<div class="row"><button class="buy" data-act="propose">求婚（戒指 ${money(P(30000))}，好感度 65 以上）</button><button class="sell" data-act="breakup">分手</button></div>`}
+    <p class="note">好感度每個月會依合拍度自然變化，太久沒約會、重心放在「拼工作」會下降；降到很低就會分手。見過家長求婚比較容易成功。</p>`;
+  return `<h3 class="h3">認識新朋友</h3>
+    <div class="row"><span class="note">想認識：</span>${["女","男","都可以"].map(x=>`<button class="cat" data-act="pref:${x}" aria-pressed="${(S.prefSex||"都可以")===x}">${x==="都可以"?x:x+"生"}</button>`).join("")}</div>
+    <div class="grid3">${MEETS.map(([k,n,c,d])=>`<button data-act="meet:${k}" aria-pressed="${(S.done||{})["m-"+k]===tNow()}"><b>${n}</b><br><span class="note">${money(P(c))}・${d}</span></button>`).join("")}</div>
+    ${C.length?`<div class="cands">${C.map(c=>`<div class="cand"><div><b>${esc(c.name)}</b>　${c.age} 歲・${c.job}<br><span class="note">${c.trait}・喜歡${c.hobby}・月收入約 ${money(c.income)}<br>合拍度 ${"★".repeat(Math.max(1,Math.round(c.compat/20)))}${"☆".repeat(5-Math.max(1,Math.round(c.compat/20)))}・在${c.src}認識</span></div>
+      <div class="row"><button class="buy" data-act="ask:${c.id}">約出來（${money(P(1500))}）</button><button data-act="pass:${c.id}">不考慮</button></div></div>`).join("")}</div>
+      <p class="note">認識的人 3 個月內沒約就會失去聯絡。成功機率看合拍度、你的人際和幸福，年紀差太多比較難。</p>`:`<p class="note">還沒有認識的對象。每種方式每個月可以試一次，認識的人會出現在這裡。</p>`}
+    <details><summary class="note">想直接結婚？（跳過交往）</summary>
+      <div class="field"><label for="j-spin">另一半的月收入</label><input id="j-spin" type="number" min="0" value="40000"></div>
+      <div class="grid3">${WEDDINGS.map(([n,c,g],i)=>`<button data-act="wed:${i}"><b>${n}</b><br><span class="note">淨支出 ${money(P(c-g))}</span></button>`).join("")}</div></details>`}
+function lifeView(){
+  return `
+  <div class="panel"><h2>今年的重心</h2><p class="note">隨時都可以換，選中的會變成黑色。</p><div class="grid3">${Object.entries(FOCUS).map(([k,v])=>`<button class="cat" data-act="focus:${k}" aria-pressed="${S.focus===k}"><b>${v.n}</b><br><span class="note">${v.d}</span></button>`).join("")}</div>
+    ${statBars(S.st)}</div>
+
+  <div class="panel"><h2>想做點什麼？</h2><p class="note">花錢換健康、幸福、知識或人際。這個月做過的會變成黑色，下個月會恢復。</p><div class="grid3">
+    ${SPENDS.map(([k,n,c,e,per])=>{const pl=(S.plans||{})[k];return `<div class="spendcard ${pl?"planned":""}"><button data-act="spend:${k}" aria-pressed="${(S.done||{})[k]===tNow()}"><b>${n}</b><br><span class="note">${money(P(c))}${per?`／人${famN()>1?`（全家 ${famN()} 人 ${money(spendCost(k))}）`:""}`:""}・${e}</span></button>
+      <label class="sr" for="plan-${k}">固定安排${n}</label><select id="plan-${k}" data-plan="${k}">${PLAN_OPTS.map(([v,l])=>`<option value="${v}" ${(pl?.every||0)===v?"selected":""}>${v?`固定${l}`:"不固定安排"}</option>`).join("")}</select>
+      ${pl?`<span class="note">下次：${ymLabel(pl.next)}</span>`:""}</div>`}).join("")}</div>
+    <p class="note">每張卡片下面可以設定「固定安排」，例如每年做一次健康檢查、每半年出國一次，時間到會自動執行並扣錢；現金不夠時那次會自動取消。設定了固定安排的卡片會有黑色外框。</p></div>
+
+  ${retireCard()}
+  <div class="panel"><h2>工作收入</h2><div class="budget">
+    ${S.retired?`<p>已退休，每月領勞保年金 ${money(S.pension)}。</p>`:S.jobless>0?`<p class="down">目前失業中，領失業給付，預計 ${S.jobless} 個月後找到工作。</p>`:""}
+    <div class="field"><label for="j-sal">我的月薪（換工作、升遷、減薪都可以改）</label><input id="j-sal" type="number" min="0" value="${S.salary}"></div>
+    ${S.married?`<div class="field"><label for="j-sp">另一半月收入</label><input id="j-sp" type="number" min="0" value="${S.spouse}"></div>`:""}
+    <button class="primary" data-act="job">更新收入</button>
+    <p class="note">想提早退休、靠股利生活？到下面的「退休試算」看看錢夠不夠。</p>
+    <p class="note">每月自動扣勞健保（約薪水 4%），雇主另外幫你提撥 6% 到勞退帳戶，退休時領出。每年 5 月自動報所得稅。</p></div></div>
+
+  <div class="panel"><h2>每月生活預算</h2><div class="budget">
+    ${BUDGET.map(([k,n])=>`<div class="brow"><label for="b-${k}">${n}</label><input id="b-${k}" data-b="1" type="number" min="0" step="500" value="${S.budget[k]||0}"></div>`).join("")}
+    <div class="brow total"><span>生活費合計</span><b class="num" id="b-total">${money(budgetTotal())}</b></div>
+    <div class="brow"><label for="b-rent">房租（有自住的房子就免付）</label><input id="b-rent" type="number" min="0" step="500" value="${S.rent}"></div>
+    <button class="primary" data-act="bud">儲存預算</button>
+    <p class="note">保險預算每月至少 2,000 元，生病住院自付會少很多；娛樂旅遊每月 4,000 元以上，幸福會慢慢上升。預算每年 1 月跟著物價上漲。</p></div></div>
+
+  <div class="panel"><h2>家庭</h2>
+    ${loveSection()}
+    <h3 class="h3">小孩 ${S.kids.length?`<span class="chip">${S.kids.length} 個</span>`:""}</h3>
+    ${S.kids.map(k=>{const a=kidAge(k),q=kidParts(k);return `<details class="kid"><summary><span class="t">${esc(k.name)}</span><span class="meta">${a} 歲${q&&q.stage?`・${q.schoolName}`:""}・${when(k.bornT)}出生</span><span class="num ${q?"down":"up"}">${q?`-${money(kidTotal(k))}/月`:k.filial?`+${money(k.filial)}/月`:"已獨立"}</span></summary>
+      ${!q?`<p class="note">${esc(k.name)} 已經經濟獨立${k.outcome?`：${k.outcome}`:""}。</p>`:`<div class="budget">
+      ${q.stage?`<div class="brow"><label for="ks-${k.uid}">${q.stage.n}要讀哪裡</label><select id="ks-${k.uid}">${q.stage.opts.map((o,i)=>`<option value="${i}" ${(k.sch[q.stage.k]??0)===i?"selected":""}>${o[0]}${o[1]?`（${money(P(o[1]))}/月）`:""}</option>`).join("")}</select></div>`:""}
+      ${a>=9&&a<18?`<div class="brow"><label for="kcram-${k.uid}">補習</label><select id="kcram-${k.uid}">${CRAM.map((o,i)=>`<option value="${i}" ${(k.cram||0)===i?"selected":""}>${o[0]}${o[1]?`（${money(P(o[1]))}/月）`:""}</option>`).join("")}</select></div>`:""}
+      ${a>=4&&a<16?`<div class="brow"><label for="kart-${k.uid}">才藝（鋼琴、游泳、美術）</label><select id="kart-${k.uid}">${ART.map((o,i)=>`<option value="${i}" ${(k.art||0)===i?"selected":""}>${o[0]}${o[1]?`（${money(P(o[1]))}/月）`:""}</option>`).join("")}</select></div>`:""}
+      ${a>=6?`<div class="brow"><label for="kp-${k.uid}">每月零用錢</label><input id="kp-${k.uid}" type="number" min="0" step="100" value="${k.pocket||0}" list="pk-list"></div>
+        <div class="qbtns">${POCKET.map(v=>`<button type="button" class="pk" data-pk="${k.uid}:${P(v)}" aria-pressed="${(k.pocket||0)===P(v)}">${v?money(P(v)):"不給"}</button>`).join("")}</div>`:""}
+      <div class="brow"><label for="kb-${k.uid}">基本生活費（留空 = 依年齡自動，目前 ${money(P(kidCost(a)))}）</label><input id="kb-${k.uid}" type="number" min="0" step="500" value="${k.base??""}" placeholder="自動"></div>
+      ${KID_EX.map(([e,n])=>`<div class="brow"><label for="ke-${k.uid}-${e}">${n}</label><input id="ke-${k.uid}-${e}" type="number" min="0" step="500" value="${k.ex[e]||0}"></div>`).join("")}
+      <div class="brow total"><span>每月合計</span><b class="num">${money(kidTotal(k))}</b></div>
+      <p class="note">這個月：生活 ${money(q.living)}${q.school?`、${q.schoolName} ${money(q.school)}`:""}${q.cram?`、補習 ${money(q.cram)}`:""}${q.art?`、才藝 ${money(q.art)}`:""}${q.pocket?`、零用錢 ${money(q.pocket)}`:""}${q.ex?`、其他 ${money(q.ex)}`:""}</p>
+      <button class="primary" data-act="kidsave:${k.uid}">儲存 ${esc(k.name)} 的安排</button></div>`}</details>`}).join("")}
+    <div class="trade"><input id="k-name" placeholder="寶寶的名字" maxlength="12"><button class="buy" data-act="kid">生小孩</button><span></span></div>
+    <p class="note">點開每個小孩，可以選托育、幼兒園、國小、國中、高中、大學要讀哪裡，以及補習、才藝、零用錢。每到新階段也會問你要讀哪種學校。教育資源越好、你越常「陪家人」，孩子長大越有機會有好工作，22 歲獨立後每月拿孝親費給你；零用錢給太多反而不一定好。出生領生育補助 10 萬、前兩年每月育兒津貼 5,000（約略值）。</p>
+
+    <h3 class="h3">毛小孩 ${S.pets.length?`<span class="chip">${S.pets.length} 隻</span>`:""}</h3>
+    ${S.pets.map(p=>`<div class="fam"><span class="t">${esc(p.name)} <span class="chip">${p.kind}</span></span><span class="meta">${when(p.t)}來到你家</span><span class="num down">-${money(P(PETS[p.kind].month))}/月</span></div>`).join("")}
+    <div class="trade"><input id="p-name" placeholder="取個名字" maxlength="12"><button class="buy" data-act="pet:狗">養狗</button><button class="buy" data-act="pet:貓">養貓</button></div>
+  </div>
+  <div class="panel"><h2>人生地圖</h2>${Object.keys(S.ymap).length?lifeMap(summary().map):`<p class="muted">過完第一個月就會開始畫。</p>`}</div>
+  <div class="panel"><h2>遊戲設定</h2><div class="row" style="justify-content:space-between"><span>快轉、自動播放時遇到人生抉擇：<b>${S.autoPick?"自動選保守的選項":"停下來問我"}</b></span><button data-act="autopick">切換</button></div></div>`;
+}
+function investView(){
+  const held=Object.entries(S.hold);
+  const mine=held.length?`<div class="panel"><h2>我的持股</h2><table class="ledger">${held.map(([id,h])=>{const a=asset(id),v=h.qty*S.prices[id];
+    return `<tr><td>${a.name} <span class="muted num">× ${fmt(h.qty)}</span>${h.bt!=null?`<br><span class="note">${when(h.bt)}開始買入</span>`:""}</td><td class="num">${money(v)} ${chg(v,h.cost)}</td></tr>`}).join("")}
+    <tr class="total"><td>合計</td><td class="num">${money(stockValue())}</td></tr></table>
+    <p class="note">預估一年股利 <b class="num">${money(divYear())}</b>（平均每月 ${money(divYear()/12)}）${S.divGot?`，到現在總共領了 ${money(S.divGot)}`:""}。</p></div>`:"";
+  return mine+filterBar("inv",["全部","台股","ETF","美股","加密貨幣","黃金"],"搜尋代號或名稱，例如 0056、高股息、NVDA")+
+  `<p class="note">台股可買零股，1 張 = 1,000 股；買進手續費 0.1425%，賣出另扣證交稅（股票 0.3%、ETF 0.1%）。每檔配息月份不同（月配、季配、半年配、年配），單筆超過 2 萬扣二代健保 2.11%；美股每季配息並預扣 30% 稅。每檔都可以選股利領現金或自動再投入。殖利率為約略值。顏色照台股習慣：紅漲綠跌。${S.mode==="past"?"沒有逐年資料的標的，過去價格用大盤走勢推估。還沒上市的商品會鎖住，並顯示哪個月開始可以買。":""}</p>
+  <div class="grid2">${ASSETS.map(a=>{
+    const h=S.hold[a.id],p=S.prices[a.id],unit=a.type==="台股"||a.type==="ETF",lock=assetLocked(a);
+    return `<div class="item" data-f="inv" data-cat="${a.type}" data-s="${a.id} ${a.name} ${a.type}"><div class="row" style="justify-content:space-between"><span class="t">${a.name}</span><span class="chip">${a.id} · ${a.type}</span></div>
+      <div class="row" style="justify-content:space-between"><span class="price">${p.toLocaleString("zh-TW")}</span>${chg(p,S.p0[a.id])}</div>
+      <div class="meta">${a.usd&&a.type!=="黃金"?`約 ${(p/(S.mode==="past"?fxAt(tNow()):USD)/(a.conv||1)).toLocaleString("en-US",{maximumFractionDigits:2})} 美元 · `:""}${a.dy?`年殖利率約 ${(a.dy*100).toFixed(1)}%・${divFreq(a)}（${divMonths(a).length===12?"每月":divMonths(a).join("、")+" 月"}）`:a.dy===0?"不配息":""}</div>
+      ${h&&a.dy?`<div class="row"><span class="note">每年約領 ${money(h.qty*p*a.dy*(a.type==="美股"?.7:1))}</span><button class="cat" data-act="drip:${a.id}" aria-pressed="${!!((S.drip||{})[a.id]??S.dripAll)}">${((S.drip||{})[a.id]??S.dripAll)?"股利再投入":"股利領現金"}</button></div>`:""}
+      ${a.live&&S.mode!=="past"&&Math.abs(p-a.live)/a.live>.001?`<div class="meta">今天真實價格 <b class="num">${a.live.toLocaleString("zh-TW")}</b>（遊戲裡是模擬行情）</div>`:""}
+      ${lock?`<div class="lock"><b>還沒上市，不能買</b><span>${lockText(a.from,a.approx)}</span><button data-act="jt:${ymT(a.from)}">跳到上市那個月</button></div>`:
+       h?`${spark((S.ph||{})[a.id])}<div class="meta">持有 <b class="num">${fmt(h.qty)}</b> · 市值 <b class="num">${money(h.qty*p)}</b> · 損益 ${chg(h.qty*p,h.cost)}</div>`:`<div class="meta">尚未持有</div>`}
+      ${lock?"":`<div class="trade"><input id="q-${a.id}" type="number" min="0" inputmode="numeric" placeholder="數量"><button class="buy" data-act="trade:${a.id}:buy">買</button><button class="sell" data-act="trade:${a.id}:sell">賣</button></div>
+      <div class="qbtns">${unit?`<button data-act="q:${a.id}:1">+1股</button><button data-act="q:${a.id}:100">+100股</button><button data-act="q:${a.id}:1000">+1張</button>`:`<button data-act="q:${a.id}:1">+1</button><button data-act="q:${a.id}:10">+10</button>`}</div>`}</div>`}).join("")}</div>`;
+}
+function houseView(){
+  const mine=S.houses.length?`<div class="panel"><h2>我的房子</h2><div class="grid2">${S.houses.map(h=>{const L=listing(h.lid),v=hv(h),mr=Math.round(marketRent(h.lid)*(h.adj||1)/100)*100;
+    const status=h.use==="self"?"自住中":h.use==="empty"?"空屋":h.tenant?`出租中，${when(h.ts)}起租，下次續約 ${ymLabel(h.lease+24)}`:`招租中（${when(h.ts)}開始找房客）`;
+    return `<div class="item"><div class="row hrowi">${houseIcon(L.type,52)}<span class="t" style="flex:1">${L.name}</span><span class="chip ${h.use==="rent"&&!h.tenant?"est":""}">${status.split("，")[0].split("（")[0]}</span></div>
+      <div class="meta">${when(h.bt)}買進，${money(h.buy)}</div>
+      <div class="row" style="justify-content:space-between"><span class="price">${money(v)}</span>${chg(v,h.buy)}</div>
+      <div class="meta">房貸剩 <b class="num">${money(h.loan)}</b>${h.loan?` · 月付 <b class="num">${money(h.pay)}</b>`:` · <span class="stamp">已還清</span>`}${L.mgmt?` · 管理費 ${money(P(L.ping*70))}/月`:""}</div>
+      <div class="usebox">
+        <div class="field"><label for="use-${h.uid}">用途</label><select id="use-${h.uid}" data-use="${h.uid}">
+          ${[["self","自住（不用付房租）"],["rent","出租給別人"],["empty","空著"]].map(([k,n])=>`<option value="${k}" ${h.use===k?"selected":""}>${n}</option>`).join("")}</select></div>
+        <div class="field" id="rentrow-${h.uid}" ${h.use==="rent"?"":"hidden"}><label for="rent-${h.uid}">月租金（附近行情約 ${money(mr)}${h.use==="rent"&&h.rent<mr*.8?"，你的租金偏低":""}）</label><input id="rent-${h.uid}" type="number" min="0" step="500" value="${h.rent||mr}">
+          <label for="raise-${h.uid}">每兩年續約時</label><select id="raise-${h.uid}">${[["cpi","跟著物價調漲"],["market","調到附近行情"],["none","不調漲"]].map(([k,n])=>`<option value="${k}" ${h.raise===k?"selected":""}>${n}</option>`).join("")}</select></div>
+        <span class="note">${status}${h.use==="rent"?`。租金比行情高越多，越難找到房客，續約漲太多房客可能搬走；出租的房子房屋稅較高。`:""}</span>
+        <button data-act="use:${h.uid}">更新</button></div>
+      ${h.loan?`<div class="trade"><input id="pp-${h.uid}" type="number" min="0" placeholder="提前還款金額"><button data-act="pl:${h.uid}">還款</button><span></span></div>`:""}
+      <button class="sell" data-act="sh:${h.uid}">賣掉（扣 4% 仲介與稅費）</button></div>`}).join("")}</div></div>`:"";
+  return mine+filterBar("house",["全部",...Object.keys(CITIES)],"搜尋房型，例如 套房、透天、老公寓、豪宅")+
+  `<p class="note">總價 = 坪數 × 單價。標「591」「國泰指數」的是 2026 年真實均價，標「估算」的是依當地均價換算的參考值。房貸利率 ${(MORTGAGE_RATE*100).toFixed(1)}%、${LOAN_YEARS} 年本息平均攤還，買屋另付約 1% 規費。大樓每月有管理費，每年要繳房屋稅、地價稅。</p>
+  <div class="grid2">${HOUSES.map(L=>{const v=houseNow(L.id),dps=[.2,.3,.5,1];
+    return `<div class="item" data-f="house" data-cat="${L.city}" data-s="${L.name} ${L.type} ${L.city}"><div class="row hrowi">${houseIcon(L.type,52)}<span class="t" style="flex:1">${L.name}</span><span class="chip ${/估算/.test(L.src)?"est":""}">${L.src}</span></div>
+      <div class="meta">${L.type} · ${L.ping} 坪 × ${(v/L.ping/1e4).toFixed(1)} 萬/坪 · 出租行情約 ${money(marketRent(L.id))}/月</div>
+      <div class="row" style="justify-content:space-between"><span class="price">${money(v)}</span>${chg(v,L.base*S.c0[L.city])}</div>
+      <div class="field"><label for="dp-${L.id}">自備款比例</label><select id="dp-${L.id}">${dps.map(d=>`<option value="${d}">${d===1?"全額現金":`${d*100}%（自備 ${money(v*d)}，月付 ${money(pmt(v*(1-d)))}）`}</option>`).join("")}</select></div>
+      <button class="buy" data-act="bh:${L.id}">買這間</button></div>`}).join("")}</div>`;
+}
+function carView(){
+  const mine=S.cars.length?`<div class="panel"><h2>我的車庫</h2><div class="grid2">${S.cars.map(c=>{const M=carOf(c);
+    return `<div class="item">${carSVG(M.body,c.color)}<div class="row" style="justify-content:space-between"><span class="t">${c.cname?c.cname+" ":""}${M.name}</span><a class="photo" href="${photoURL(M)}" target="_blank" rel="noopener">看實車照片 ↗</a></div><div class="meta">${when(c.t)}買入，${money(c.buy)}</div>
+      <div class="row" style="justify-content:space-between"><span class="price">${money(c.value)}</span>${chg(c.value,c.buy)}</div>
+      ${c.loan?`<div class="meta">車貸剩 <b class="num">${money(c.loan)}</b> · 月付 <b class="num">${money(c.pay)}</b>（年利率 ${(CAR_RATE*100).toFixed(1)}%）</div><button data-act="pcl:${c.uid}">一次還清車貸</button>`:""}
+      <div class="meta">每月養車 ${money(P(M.upkeep))} · 每年牌照稅 ${money(M.tax.lic)}、燃料稅 ${money(M.tax.fuel)}</div><button class="sell" data-act="sc:${c.uid}">賣掉${c.loan?"（先還清車貸）":""}</button></div>`}).join("")}</div></div>`:"";
+  return mine+filterBar("car",["全部","機車","國產車","進口車","豪華車","超跑名車","商用車"],"搜尋品牌或車款，例如 Toyota、特斯拉、七人座、休旅")+
+  `<p class="note">圖片是依車型畫的示意圖，可以先挑顏色；按「看實車照片」會在新分頁開啟真實照片搜尋結果。可以選擇全額付清或車貸（年利率 ${(CAR_RATE*100).toFixed(1)}%）。標「官方價」的是 2026 年台灣公布的起售價，標「估價」的是參考市售行情。</p>
+  <div class="grid2">${CARS.map(c=>{const Pt=pickPaint[c.id]||PAINTS[0],lock=carLocked(c),pr=carPrice(c);
+    const alias=[["Tesla","特斯拉"],["Toyota","豐田"],["Honda","本田"],["Mercedes","賓士"],["Porsche","保時捷"],["BMW","寶馬"],["Nissan","日產"],["Ford","福特"],["Lamborghini","藍寶堅尼"],["Volkswagen","福斯"],["Ferrari","法拉利"],["Hyundai","現代"],["Kia","起亞"],["Audi","奧迪"],["Volvo","富豪"],["Mitsubishi","三菱"],["Suzuki","鈴木"],["Yamaha","山葉"],["Kymco","光陽"],["SYM","三陽"]].filter(([e])=>c.name.includes(e)).map(x=>x[1]).join(" ");
+    return `<div class="item" data-f="car" data-cat="${c.type}" data-s="${c.name} ${c.type} ${alias} ${c.ev?"電動車":""} ${{suv:"休旅",sedan:"轎車",hatch:"掀背",van:"七人座 mpv 廂型",sports:"跑車",scooter:"機車 速克達",pickup:"皮卡 貨卡",bike:"重機 檔車"}[c.body]}">
+    ${carSVG(c.body,Pt[1])}
+    <div class="row" style="justify-content:space-between"><span class="t">${c.name}</span><span class="chip ${c.est?"est":""}">${c.est?"估價":"官方價"}</span></div>
+    <a class="photo" href="${photoURL(c)}" target="_blank" rel="noopener">看實車照片 ↗</a>
+    <div class="row swatches"><span class="note">顏色：<b class="pname">${Pt[0]}</b></span>${PAINTS.map((q,i)=>`<button class="swatch" style="background:${q[1]}" aria-label="${q[0]}" aria-pressed="${q[0]===Pt[0]}" data-act="paint:${c.id}:${i}"></button>`).join("")}</div>
+    <span class="price">${money(pr)}</span><div class="meta">${c.type}${c.ev?" · 電動":""} · 每月養車約 ${money(P(c.upkeep))} · 每年稅金 ${money(c.tax.lic+c.tax.fuel)}</div>
+    ${lock?`<div class="lock"><b>還沒上市，不能買</b><span>${c.from} 年款上市，還要等 ${waitText(c.from*12)}</span><button data-act="jt:${c.from*12}">跳到上市那年</button></div>`:
+    `<div class="field"><label for="cp-${c.id}">付款方式</label><select id="cp-${c.id}">${CARPLANS.map(([n,dp,m],i)=>`<option value="${i}">${n}${m?`（頭期 ${money(pr*dp)}，月付 ${money(pmt(pr*(1-dp),CAR_RATE,m))}）`:""}</option>`).join("")}</select></div>
+    <button class="buy" data-act="bc:${c.id}">買下</button>`}</div>`}).join("")}</div>`;
+}
+function logView(){return `<div class="panel"><h2>人生紀錄</h2><p class="note">按 ☆ 可以把事件標成「值得記住的時刻」，會出現在人生地圖和最後的回顧裡。</p><ul class="log">${S.log.map(l=>`<li><button class="starb" data-act="star:${l.id}" aria-pressed="${!!l.star}" aria-label="標記值得記住">${l.star?"★":"☆"}</button><div><span class="muted num">${l.life?l.life+" · ":""}${l.t}</span><br><span class="${l.cls}">${esc(l.msg)}</span></div></li>`).join("")}</ul></div>`}
+function endView(sm,isPast){
+  const share=`【我的一生】${sm.name}，${sm.age0} 歲從 ${sm.start} 開始，${sm.cause}。\n最後淨資產 ${money(sm.nw)}（最高 ${money(sm.peak)}），一輩子賺了 ${money(sm.earned)}。\n${sm.married?"結了婚":"沒有結婚"}，${sm.kids.length?`有 ${sm.kids.length} 個小孩`:"沒有小孩"}，${sm.houses?`有 ${sm.houses} 間房子`:"沒有買房"}。\n最幸福的是 ${sm.best??"—"} 歲那年。${sm.msg?`\n給這一生的話：「${sm.msg}」`:""}`;
+  const L=pastLives();
+  return `<div class="ending">
+  <div class="label">${isPast?"前世紀錄":"人生回顧"}</div>
+  <h1>${esc(sm.name)} 的一生</h1>
+  <p class="cause">${esc(sm.cause||"")}</p>
+  <div class="panel"><table class="ledger">
+    <tr><td>人生期間</td><td class="num">${sm.start} – ${sm.end}（${sm.age0}–${sm.age} 歲）</td></tr>
+    <tr><td>最後淨資產</td><td class="num">${money(sm.nw)}</td></tr>
+    <tr><td>淨資產最高</td><td class="num">${money(sm.peak)}</td></tr>
+    <tr><td>一輩子工作收入</td><td class="num">${money(sm.earned)}</td></tr>
+    <tr><td>家庭</td><td>${sm.married?"已婚":"單身"}${sm.kids.length?`，小孩：${sm.kids.map(esc).join("、")}`:""}${sm.pets?`，毛小孩 ${sm.pets} 隻`:""}</td></tr>
+    <tr><td>房子／車子</td><td class="num">${sm.houses} 間／${sm.cars} 台</td></tr>
+    <tr class="total"><td>最幸福的一年</td><td class="num">${sm.best??"—"} 歲</td></tr></table>
+    ${statBars(sm.st)}</div>
+  <div class="panel"><h2>人生地圖</h2>${lifeMap(sm.map)}</div>
+  ${sm.ach&&sm.ach.length?`<div class="panel"><h2>解鎖的成就 <span class="chip">${sm.ach.length} / ${ACH.length}</span></h2><div class="ach">${sm.ach.map(n=>`<span class="badge on">${n}</span>`).join("")}</div></div>`:""}
+  ${sm.stars.length?`<div class="panel"><h2>值得記住的時刻</h2><ul class="log">${sm.stars.map(s=>`<li><span>★</span><div>${esc(s)}</div></li>`).join("")}</ul></div>`:""}
+  ${sm.notes.length?`<div class="panel"><h2>人生提問</h2>${sm.notes.map(n=>`<p><b>${n.age} 歲：</b>${esc(n.q)}<br><span class="muted">${n.a?`「${esc(n.a)}」`:"（沒有寫下回答）"}</span></p>`).join("")}</div>`:""}
+  ${isPast?"":`<div class="panel"><h2>給這一生的自己</h2><textarea id="lastmsg" rows="3" maxlength="200" placeholder="想對這一生說的話">${esc(sm.msg)}</textarea><button class="primary" data-act="msg">留下這句話</button></div>`}
+  <div class="panel"><h2>分享</h2><textarea id="sharetxt" rows="6" readonly>${esc(share)}</textarea><button data-act="copy">複製文字</button></div>
+  <div class="row"><button class="primary" data-act="again">再活一次</button>${isPast?`<button data-act="back">回到開始畫面</button>`:""}</div>
+  ${!isPast&&L.length>1?`<div class="panel"><h2>前世紀錄</h2>${pastList(L)}</div>`:""}
+  </div>`;
+}
+function pastList(L){return `<ul class="log">${L.map(p=>`<li><span>·</span><div><b>${esc(p.name)}</b>　${p.age0}–${p.age} 歲・${p.start} 起<br><span class="muted">淨資產 ${money(p.nw)}・${esc(p.cause||"")}</span><br><button class="link" data-act="past:${p.id}">再看一次</button></div></li>`).join("")}</ul>`}
+const BGS=[["一般家庭，靠自己打拚",[200000,600000],[32000,45000]],["小康家庭，爸媽幫忙付了一點頭期",[800000,2000000],[38000,55000]],["單親家庭，從小半工半讀",[0,150000],[28000,38000]],["家裡開小店，偶爾要回去幫忙",[300000,900000],[33000,48000]],["雙薪公教家庭，生活穩定",[500000,1200000],[40000,55000]],["家裡有點負債，要幫忙還",[-300000,50000],[30000,42000]],["含著金湯匙出生，家族企業第二代",[10000000,40000000],[80000,150000]],["科技業工程師，剛領完第一筆分紅",[1500000,3500000],[70000,110000]]];
+function setupView(){const L=pastLives();return `<div class="setup">
+  <div><div class="label">REAL-LIFE SIMULATOR · 價格基準 ${DATA_DATE} ${liveBadge()}</div><h1>人生資產模擬器</h1>
+  <p class="muted">設定你的起點，用台灣真實的房價、車價、股價過一輩子。每個月薪水入帳、帳單扣款、市場波動，生活中的大小事、人生抉擇都會發生，直到這一生結束。</p></div>
+  <button id="s-rand">隨機一個人生開局</button><p class="note" id="s-bg"></p>
+  <div class="field"><label for="s-name">名字</label><input id="s-name" value="我"></div>
+  <div class="field"><label for="s-age">開始時幾歲</label><input id="s-age" type="number" min="15" max="80" value="25"></div>
+  <div class="field"><label for="s-y">從哪一年哪一月開始</label><div class="row"><select id="s-y" style="flex:1">${Array.from({length:40},(_,i)=>2011+i).map(y=>`<option value="${y}" ${y===2026?"selected":""}>${y} 年</option>`).join("")}</select><select id="s-m" style="flex:1">${Array.from({length:12},(_,i)=>i+1).map(m=>`<option value="${m}" ${m===10?"selected":""}>${m} 月</option>`).join("")}</select></div>
+    <span class="note" id="s-hint"></span></div>
+  <div class="field"><label for="s-inf">未來每年通膨率（%）</label><input id="s-inf" type="number" step="0.1" value="2"></div>
+  <div class="field"><label for="s-cash">起始現金（元）</label><input id="s-cash" type="number" value="1000000"></div>
+  <div class="field"><label for="s-sal">月薪（元，稅前）</label><input id="s-sal" type="number" value="45000"></div>
+  <div class="field"><label for="s-exp">每月生活費，不含房租（之後可以在「生活」分項調整）</label><input id="s-exp" type="number" value="18000"></div>
+  <div class="field"><label for="s-rent">每月房租（有自住的房子就不用付）</label><input id="s-rent" type="number" value="12000"></div>
+  <div class="row"><button data-p="1000000,45000">社會新鮮人</button><button data-p="5000000,80000">工程師五年</button><button data-p="30000000,150000">富二代</button></div>
+  <details class="panel lifeset" ${setupOpen?"open":""}><summary><b>目前的人生狀況</b>　<span class="note">不是從零開始的話，在這裡填婚姻、小孩、房子、車子</span></summary>
+    <div class="budget">
+    <div class="brow"><label for="s-mar">感情狀況</label><select id="s-mar"><option value="single">單身</option><option value="dating">交往中</option><option value="married">已婚</option></select></div>
+    <div class="brow" id="r-sp" hidden><label for="s-sp">另一半月收入</label><input id="s-sp" type="number" min="0" step="1000" value="40000"></div>
+    <div class="field"><label for="s-kages">小孩的年紀（用逗號分開，例如 3,7；沒有就留空）</label><input id="s-kages" placeholder="例如 3,7"></div>
+    <div class="field"><label for="s-kn">小孩的名字（用逗號分開，可留空）</label><input id="s-kn" placeholder="例如 小安,小樂"></div>
+    <div class="field"><label for="s-house">房子</label><select id="s-house"><option value="">沒有，租房子住</option>${Object.keys(CITIES).map(c=>`<optgroup label="${c}">${HOUSES.filter(h=>h.city===c).map(h=>`<option value="${h.id}">${h.name}（${h.ping} 坪）</option>`).join("")}</optgroup>`).join("")}</select></div>
+    <div id="r-house" hidden class="budget">
+      <div class="brow"><label for="s-hv">房子現在值多少（留空 = 依當時行情）</label><input id="s-hv" type="number" min="0" step="100000" placeholder="依行情"></div>
+      <div class="brow"><label for="s-hl">房貸還剩多少</label><input id="s-hl" type="number" min="0" step="100000" value="0"></div>
+      <div class="brow"><label for="s-hy">房貸還要繳幾年</label><input id="s-hy" type="number" min="1" max="40" value="20"></div>
+      <div class="brow"><label for="s-huse">這間房子</label><select id="s-huse"><option value="self">自己住</option><option value="rent">已經租給別人</option></select></div></div>
+    <div class="field"><label for="s-car">車子</label><select id="s-car"><option value="">沒有</option>${["機車","國產車","進口車","豪華車","超跑名車","商用車"].map(tp=>`<optgroup label="${tp}">${CARS.filter(c=>c.type===tp).map(c=>`<option value="${c.id}">${c.name}</option>`).join("")}</optgroup>`).join("")}</select></div>
+    <div id="r-car" hidden class="budget">
+      <div class="brow"><label for="s-cv">車子現在值多少（留空 = 新車價 6 成）</label><input id="s-cv" type="number" min="0" step="10000" placeholder="新車價 6 成"></div>
+      <div class="brow"><label for="s-cl">車貸還剩多少</label><input id="s-cl" type="number" min="0" step="10000" value="0"></div>
+      <div class="brow"><label for="s-cm">車貸還剩幾個月</label><input id="s-cm" type="number" min="1" max="96" value="36"></div></div>
+    <div class="brow"><label for="s-pet">毛小孩</label><select id="s-pet"><option value="">沒有</option><option>狗</option><option>貓</option></select></div>
+    <div class="brow" id="r-pet" hidden><label for="s-pn">毛小孩的名字</label><input id="s-pn" maxlength="12" placeholder="取個名字"></div>
+    <p class="note">金額請用開始那一年的物價填。已婚、有小孩、有房有車的話，每個月的支出會自動算進去；生活費、房租可以照實際情況調整。</p></div></details>
+  <button class="primary" id="s-go">開始人生</button>
+  ${L.length?`<div class="panel"><h2>前世紀錄</h2>${pastList(L)}</div>`:""}</div>`}
+let setupBg="",setupOpen=false;
+function bindSetup(){
+  const hint=()=>{const t=+document.getElementById("s-y").value*12+ +document.getElementById("s-m").value-1;
+    document.getElementById("s-hint").textContent=t<NOW_T?"回到過去：用當時的股價、房價、車價開局，照真實歷史走到 2026 年 10 月，之後改成隨機模擬。":
+      t>NOW_T?"未來試算：用今天的真實價格，乘上你設定的通膨率推算到那個月份開局。":"從現在開始：用 2026 年 10 月的真實價格開局。"};
+  document.getElementById("s-y").onchange=hint;document.getElementById("s-m").onchange=hint;hint();
+  const tog=()=>{document.getElementById("r-sp").hidden=document.getElementById("s-mar").value!=="married";document.getElementById("r-house").hidden=!document.getElementById("s-house").value;
+    document.getElementById("r-car").hidden=!document.getElementById("s-car").value;document.getElementById("r-pet").hidden=!document.getElementById("s-pet").value};
+  ["s-mar","s-house","s-car","s-pet"].forEach(id=>document.getElementById(id).onchange=tog);tog();
+  document.getElementById("s-age").onchange=()=>{if(+document.getElementById("s-age").value>=30)document.querySelector(".lifeset").open=true};
+  document.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>{document.querySelectorAll("[data-p]").forEach(x=>x.setAttribute("aria-pressed",x===b));const [c,s]=b.dataset.p.split(",");document.getElementById("s-cash").value=c;document.getElementById("s-sal").value=s;setupBg=""});
+  document.getElementById("s-rand").onclick=()=>{const [bg,[c0,c1],[s0,s1]]=pick(BGS);const a=Math.round(rr(22,32));
+    document.getElementById("s-age").value=a;document.getElementById("s-cash").value=Math.round(rr(c0,c1)/1000)*1000;document.getElementById("s-sal").value=Math.round(rr(s0,s1)/500)*500;
+    document.getElementById("s-exp").value=Math.round(rr(14000,24000)/500)*500;document.getElementById("s-rent").value=Math.round(rr(7000,18000)/500)*500;
+    const y=Math.round(rr(2011,2035));document.getElementById("s-y").value=y;document.getElementById("s-m").value=Math.ceil(rr(0,12))||1;hint();
+    setupBg=bg;document.getElementById("s-bg").textContent=`${a} 歲，${bg}。從 ${y} 年開始。`};
+  document.getElementById("s-go").onclick=()=>{const v=id=>Math.max(0,+document.getElementById(id).value||0);
+    newGame({bg:setupBg,age:Math.min(80,Math.max(15,v("s-age")||25)),infl:(+document.getElementById("s-inf").value||0)/100,name:document.getElementById("s-name").value.trim(),y:+document.getElementById("s-y").value,m:+document.getElementById("s-m").value,
+      cash:+document.getElementById("s-cash").value||0,salary:v("s-sal"),expense:v("s-exp"),rent:v("s-rent"),
+      life:(()=>{const g=id=>document.getElementById(id).value,n=id=>Math.max(0,+g(id)||0);
+        return {mar:g("s-mar"),sp:n("s-sp"),kids:g("s-kages").split(/[,，、\s]+/).map(x=>parseInt(x)).filter(x=>x>=0&&x<60).slice(0,6),kn:g("s-kn").split(/[,，、]+/).map(x=>x.trim()).filter(Boolean),
+          house:g("s-house"),hv:n("s-hv"),hl:n("s-hl"),hy:n("s-hy")||20,huse:g("s-huse"),car:g("s-car"),cv:n("s-cv"),cl:n("s-cl"),cm:n("s-cm")||36,pet:g("s-pet"),pn:g("s-pn").trim()}})(),
+      health:Math.round(rr(65,85)),happy:Math.round(rr(50,70)),know:Math.round(rr(40,65)),social:Math.round(rr(45,70))});tab="home";render()};
+}
+// ===== 真實行情：網站上的 prices.json 由 GitHub Actions 每天自動從證交所、Yahoo Finance、CoinGecko 抓取 =====
+let LIVE=null;
+function applyLive(d){if(!d||!d.updated)return;const fx=d.usdtwd>20&&d.usdtwd<50?d.usdtwd:USD;USD=fx;
+  let n=0;ASSETS.forEach(a=>{let v=null;
+    if(a.type==="台股"||a.type==="ETF"){v=d.tw&&d.tw[a.id]}
+    else if(a.type==="美股"){if(d.us&&d.us[a.id]){a.usd=d.us[a.id];v=Math.round(a.usd*fx)}}
+    else if(a.id==="BTC"||a.id==="ETH"){if(d.crypto&&d.crypto[a.id]){a.usd=d.crypto[a.id];v=Math.round(a.usd*fx)}}
+    else if(a.id==="GOLD"){if(d.gold){a.usd=d.gold;v=Math.round(d.gold*(a.conv||1)*fx)}}
+    if(v>0){a.live=v;a.price=v;n++}});
+  const dt=new Date(d.updated);DATA_DATE=`${dt.getFullYear()}/${String(dt.getMonth()+1).padStart(2,"0")}/${String(dt.getDate()).padStart(2,"0")}`;
+  const nt=dt.getFullYear()*12+dt.getMonth();if(nt>NOW_T)NOW_T=nt;
+  LIVE={...d,n,at:dt};
+  // 剛開局、還沒過任何一個月的「現在」遊戲，直接換成真實價格
+  if(S&&S.mode==="sim"&&S.history.length<=1){ASSETS.forEach(a=>{if(a.live){S.prices[a.id]=a.live;S.p0[a.id]=a.live}})}
+}
+function liveBadge(){if(!LIVE)return "";const t=LIVE.at;return `<span class="chip live" title="資料來源：${esc((LIVE.sources||[]).join("、"))}">真實行情 ${t.getMonth()+1}/${t.getDate()} ${String(t.getHours()).padStart(2,"0")}:${String(t.getMinutes()).padStart(2,"0")} 更新</span>`}
+load();migrate();render();
+if(location.protocol.startsWith("http")&&!/claude\.ai|claudeusercontent/.test(location.host)){
+  fetch("prices.json",{cache:"no-store"}).then(r=>r.ok?r.json():null).catch(()=>null).then(d=>{
+    // 比特幣、以太幣直接從 CoinGecko 抓即時價格
+    return fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd").then(r=>r.ok?r.json():null).catch(()=>null).then(c=>{
+      if(!d&&!c)return;d=d||{updated:new Date().toISOString(),sources:[]};
+      if(c&&c.bitcoin){d.crypto={...(d.crypto||{}),BTC:c.bitcoin.usd,ETH:c.ethereum&&c.ethereum.usd};d.sources=[...(d.sources||[]),"CoinGecko（即時）"]}
+      applyLive(d);render()})})}
+</script>
+</body>
+</html>
