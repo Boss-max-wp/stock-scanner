@@ -1397,7 +1397,7 @@ document.addEventListener('change',e=>{
   el.value=v; if((k==='nx'||k==='ny')&&S[k]!==v){S.noCol=[]; selCol=null;} S[k]=v; renderAll({keepList:k!=='floors'});
 });
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.type==='number'&&e.target.dataset.k) e.target.blur();});
-function setTab(t){tab=t; $$('.steps button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t)); ['bub','ext','str','room'].forEach(k=>$('#pane-'+k).hidden=k!==t); $('#bubSheet').hidden=t!=='bub'; }
+function setTab(t){tab=t; $$('.steps button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t)); ['bub','ext','str','room'].forEach(k=>$('#pane-'+k).hidden=k!==t); $('#bubSheet').hidden=t!=='bub'; if(A) drawPlan(); }
 $('.steps').addEventListener('click',e=>{const b=e.target.closest('button'); if(b) setTab(b.dataset.tab);});
 function setView(v){const co=$('#coach'); if(co) co.hidden=v!=='design'; $('#v-design').hidden=v!=='design'; $('#v-learn').hidden=v!=='learn'; $('#v-final').hidden=v!=='final'; $('#tabDesign').setAttribute('aria-selected',v==='design'); $('#tabLearn').setAttribute('aria-selected',v==='learn'); $('#tabFinal').setAttribute('aria-selected',v==='final'); if(v==='final') showFinal();}
 function openLesson(id){setView('learn'); const el=document.getElementById('L-'+id); if(el) el.scrollIntoView({block:'start'});}
@@ -1800,12 +1800,13 @@ const STEPS={
     ['一樓不是軟弱層',()=>!S.softStory||S.floors<2,{field:'softStory'}]
   ],
   str:[
-    ['結構系統適合這個樓層數',()=>S.floors<=SYS[S.system].maxF[0],{field:'system'}],
-    ['柱距合適、每邊至少 2 跨',()=>!A.L.some(x=>/柱子隔太遠|柱距偏大|只有一跨/.test(x.title)),{field:'nx'}],
-    ['梁夠深',()=>!A.L.some(x=>/梁太淺|梁深稍微/.test(x.title)),{field:'beam'}],
-    ['樓板夠厚',()=>!A.L.some(x=>/樓板/.test(x.title)),{field:'slab'}],
-    ['柱子扛得住（使用率 60% 內）',()=>!A.L.some(x=>x.area==='結構'&&/柱/.test(x.title)&&x.sev!=='info'),{field:'col'}],
-    ['地基壓力在 80% 內',()=>!A.L.some(x=>x.area==='地基'&&x.sev!=='info'),{field:'footing'}]
+    ['結構系統適合這個樓層數',()=>S.floors<=SYS[S.system].maxF[0],{field:'system',re:/蓋 \d+ 層/}],
+    ['柱距合適、每邊至少 2 跨',()=>!A.L.some(x=>/柱子隔太遠|柱距偏大|只有一跨|柱距差太多/.test(x.title)&&x.sev!=='info'),{field:'nx',re:/柱子隔太遠|柱距偏大|只有一跨/}],
+    ['拿掉柱子的地方沒問題',()=>!A.L.some(x=>/拿掉了|柱子不到 2 根/.test(x.title)&&x.sev!=='info'),{field:'grid',re:/拿掉了(角柱|外圍)|柱子不到 2 根/}],
+    ['梁夠深',()=>!A.L.some(x=>/梁太淺|梁深稍微/.test(x.title)),{field:'beam',re:/梁太淺|梁深稍微/}],
+    ['樓板夠厚',()=>!A.L.some(x=>/樓板/.test(x.title)),{field:'slab',re:/樓板/}],
+    ['柱子扛得住（使用率 60% 內）',()=>!A.L.some(x=>/柱子扛不住|柱子太吃緊|柱子太細|柱子有點細長|強柱弱梁/.test(x.title)),{field:'col',re:/柱子扛不住|柱子太吃緊|柱子太細|柱子有點細長|強柱弱梁/}],
+    ['地基壓力在 80% 內',()=>!A.L.some(x=>x.area==='地基'&&x.sev!=='info'),{field:'footing',re:/地基|基礎|基腳|回填土|黏土/}]
   ],
   room:[
     ['沒有房間重疊',()=>!A.L.some(x=>/房間.*重疊|」和「.*重疊/.test(x.title)),{re:/」和「.*重疊/}],
@@ -1884,7 +1885,7 @@ $('#coachBody').addEventListener('click',e=>{
     $('.controls').scrollIntoView({block:'start',behavior:'smooth'}); return;}
   const sb=e.target.closest('[data-step]');
   if(sb){const s=STEPS[tab][+sb.dataset.step][2]||{};
-    if(s.field){setCtx({type:'field',k:s.field}); const el=$('#f_'+s.field); if(el){el.closest('.field').scrollIntoView({block:'center',behavior:'smooth'}); el.focus({preventScroll:true});}}
+    if(s.field){setCtx({type:'field',k:s.field}); const el=s.field==='grid'?$('#gridBox [data-span]'):$('#f_'+s.field); if(el){el.closest('.field').scrollIntoView({block:'center',behavior:'smooth'}); el.focus({preventScroll:true});}}
     else if(s.focus){const el=$('#'+s.focus); if(el){el.scrollIntoView({block:'center',behavior:'smooth'}); el.focus({preventScroll:true});}}
     else if(s.floor){const f=s.floor(); if(f){floor=f; renderAll();}}
     else { const bad=A.L.find(x=>(s.re?s.re.test(x.title):x.area==='室內')&&x.room)||A.L.find(x=>s.re&&s.re.test(x.title));
