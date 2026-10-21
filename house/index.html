@@ -1209,6 +1209,7 @@ function drawPlan(){
     [['l',sr.x+.3*u,my,hw,hs],['r',sr.x+sr.w-.3*u,my,hw,hs],['k',mx,Y(sr.y+sr.d)+.3*u,hs,hw],['f',mx,Y(sr.y)-.3*u,hs,hw]].forEach(([h,x,y,w,hh])=>{
       o+=`<rect class="hdl" data-h="${h}" x="${x-w/2-.12*u}" y="${y-hh/2-.12*u}" width="${w+.24*u}" height="${hh+.24*u}" fill="transparent"/><rect x="${x-w/2}" y="${y-hh/2}" width="${w}" height="${hh}" rx="${.04*u}" class="hdlv" stroke-width="${.03*u}" style="pointer-events:none"/>`;});}
   o+=drawWindowsPlan(u,Y);
+  if(tab!=='bub'){ const hc=c+.36*u; o+='<g class="colhit">'; A.m.ax.forEach((x,i)=>A.m.ay.forEach((yy,j)=>{o+=`<rect x="${x-hc/2}" y="${Y(yy)-hc/2}" width="${hc}" height="${hc}" fill="transparent" data-col="${i},${j}"><title>${colName(i,j)} 柱：點一下看能不能拿掉</title></rect>`;})); o+='</g>'; }
   svg.innerHTML=o;
   $('#planNo').textContent='A-10'+floor;
   $('#planInfo').textContent=`${floor}F 平面・${S.rooms.filter(r=>r.f===floor).length} 間`;
@@ -1388,7 +1389,7 @@ document.addEventListener('change',e=>{
   el.value=v; if((k==='nx'||k==='ny')&&S[k]!==v){S.noCol=[]; selCol=null;} S[k]=v; renderAll({keepList:k!=='floors'});
 });
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.type==='number'&&e.target.dataset.k) e.target.blur();});
-function setTab(t){tab=t; $$('.steps button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t)); ['bub','ext','str','room'].forEach(k=>$('#pane-'+k).hidden=k!==t); $('#bubSheet').hidden=t!=='bub'; $('#plan').classList.toggle('cols-off',t!=='str');}
+function setTab(t){tab=t; $$('.steps button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t)); ['bub','ext','str','room'].forEach(k=>$('#pane-'+k).hidden=k!==t); $('#bubSheet').hidden=t!=='bub'; }
 $('.steps').addEventListener('click',e=>{const b=e.target.closest('button'); if(b) setTab(b.dataset.tab);});
 function setView(v){const co=$('#coach'); if(co) co.hidden=v!=='design'; $('#v-design').hidden=v!=='design'; $('#v-learn').hidden=v!=='learn'; $('#v-final').hidden=v!=='final'; $('#tabDesign').setAttribute('aria-selected',v==='design'); $('#tabLearn').setAttribute('aria-selected',v==='learn'); $('#tabFinal').setAttribute('aria-selected',v==='final'); if(v==='final') showFinal();}
 function openLesson(id){setView('learn'); const el=document.getElementById('L-'+id); if(el) el.scrollIntoView({block:'start'});}
@@ -1456,7 +1457,7 @@ function liveUpdate(r){
 function liveStruct(){A=analyze(); drawPlan(); drawSec(); renderChecks(); renderReadouts(); renderCoach();}
 plan.addEventListener('pointerdown',e=>{
   const cp=e.target.closest('[data-col]');
-  if(cp&&tab==='str'){ selCol=cp.dataset.col; setCtx({type:'column'},false); anchor(plan,()=>renderAll({keepList:true})); return; }
+  if(cp){ selCol=cp.dataset.col; setCtx({type:'column'},false); anchor(plan,()=>renderAll({keepList:true})); return; }
   const ah=e.target.closest('.axh');
   if(ah){ drag={ax:ah.dataset.ax,i:+ah.dataset.i}; plan.setPointerCapture(e.pointerId); e.preventDefault(); renderCoach(); return; }
   const wp=e.target.closest('.winp');
