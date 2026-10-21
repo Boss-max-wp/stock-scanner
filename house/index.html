@@ -160,6 +160,14 @@ select,input[type=number],input[type=text],textarea{background:var(--sheet);bord
 
 /* coach */
 .c-muted{color:var(--muted)}
+.landbox{display:flex;flex-direction:column;gap:10px;border:1px solid var(--line);border-radius:6px;padding:10px;background:var(--sheet)}
+.lgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.lgrid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.lgrid label{display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--muted)}
+.lgrid .numwrap input{width:100%}
+.lgrid .numwrap{width:100%}
+.landp{fill:var(--ok);fill-opacity:.08;stroke:var(--ok)}
+.setb{fill:none;stroke:var(--ok)}
 .coach{margin:12px;border-color:var(--accent);background:var(--panel)}
 .coach-h{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--accent-soft);border-radius:8px 8px 0 0}
 .coach-title{font-family:var(--f-display);font-size:16px;letter-spacing:.08em;color:var(--accent);font-weight:700}
@@ -273,6 +281,37 @@ td.n{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:now
       <button role="tab" data-tab="room" aria-selected="false"><span class="n">STEP 4</span>室內格局</button>
     </div>
     <div class="pane" id="pane-bub">
+      <h3>我的土地（選填）</h3>
+      <label class="chk" for="landOn"><input type="checkbox" id="landOn"><span>我有一塊土地，要把房子放進去</span></label>
+      <div id="landBox" class="landbox" hidden>
+        <p class="help">站在馬路上看土地：前面是臨路那一邊。梯形的地也可以，前後寬度填不一樣就好。</p>
+        <div class="lgrid">
+          <label>前面寬（臨路）<span class="numwrap"><input type="number" id="la" data-land="a" min="3" max="60" step="0.1" inputmode="decimal"><span>m</span></span></label>
+          <label>後面寬<span class="numwrap"><input type="number" id="lb" data-land="b" min="3" max="60" step="0.1" inputmode="decimal"><span>m</span></span></label>
+          <label>深度（前到後）<span class="numwrap"><input type="number" id="lh" data-land="h" min="3" max="80" step="0.1" inputmode="decimal"><span>m</span></span></label>
+          <label>後面那邊對齊<select id="lal" data-land="align"><option value="left">靠左（右邊斜）</option><option value="center">置中（兩邊斜）</option><option value="right">靠右（左邊斜）</option></select></label>
+        </div>
+        <span id="landCustomO" hidden></span>
+        <div class="eyebrow2">退縮距離（房子要離地界多遠）</div>
+        <div class="lgrid three">
+          <label>前面<span class="numwrap"><input type="number" id="lfs" data-land="fs" min="0" max="15" step="0.5" inputmode="decimal"><span>m</span></span></label>
+          <label>後面<span class="numwrap"><input type="number" id="lbs" data-land="bs" min="0" max="15" step="0.5" inputmode="decimal"><span>m</span></span></label>
+          <label>左右兩側<span class="numwrap"><input type="number" id="lss" data-land="ss" min="0" max="10" step="0.5" inputmode="decimal"><span>m</span></span></label>
+        </div>
+        <div class="eyebrow2">法規上限（每塊地不同，查都市計畫）</div>
+        <div class="lgrid">
+          <label>建蔽率上限<span class="numwrap"><input type="number" id="lbcr" data-land="bcr" min="10" max="100" step="5" inputmode="decimal"><span>%</span></span></label>
+          <label>容積率上限<span class="numwrap"><input type="number" id="lfar" data-land="far" min="50" max="1000" step="10" inputmode="decimal"><span>%</span></span></label>
+        </div>
+        <div class="eyebrow2">房子放在哪裡（從土地前面左邊的角量）</div>
+        <div class="lgrid">
+          <label>離左邊<span class="numwrap"><input type="number" id="lhx" data-land="hx" min="-10" max="80" step="0.1" inputmode="decimal"><span>m</span></span></label>
+          <label>離前面<span class="numwrap"><input type="number" id="lhy" data-land="hy" min="-10" max="80" step="0.1" inputmode="decimal"><span>m</span></span></label>
+        </div>
+        <div class="row"><button class="btn primary sm" id="landBest">找最大的長方形</button><button class="btn sm" id="landCenter">放到土地中間</button></div>
+        <p class="help" id="landMsg"></p>
+        <div class="readout" id="landRO"></div>
+      </div>
       <h3>先決定房子外框</h3>
       <div class="field"><div class="flab"><label for="bW">面寬（左右寬）</label></div><div class="rng"><input type="range" id="bW" data-k="W" min="4" max="24" step="0.5"><span class="numwrap"><input type="number" id="obW" data-k="W" min="4" max="24" step="0.5" inputmode="decimal" aria-label="輸入數值"><span>m</span></span></div></div>
       <div class="field"><div class="flab"><label for="bD">進深（前後長）</label></div><div class="rng"><input type="range" id="bD" data-k="D" min="4" max="30" step="0.5"><span class="numwrap"><input type="number" id="obD" data-k="D" min="4" max="30" step="0.5" inputmode="decimal" aria-label="輸入數值"><span>m</span></span></div></div>
@@ -353,6 +392,7 @@ td.n{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:now
       <li><a href="#L-path">力量怎麼走</a></li>
       <li><a href="#L-process">設計流程</a></li>
       <li><a href="#L-bubble">泡泡圖</a></li>
+      <li><a href="#L-land">土地、退縮與建蔽率</a></li>
       <li><a href="#L-drawing">怎麼畫圖</a></li>
       <li><a href="#L-system">結構系統怎麼選</a></li>
       <li><a href="#L-material">材料怎麼選</a></li>
@@ -458,6 +498,31 @@ td.n{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:now
       <h3>檢查面積夠不夠</h3>
       <p>把一層樓所有泡泡的面積加起來，要<b>比房子的地板面積小</b>，而且最好只用到 80～85%，因為還要留走廊、牆壁厚度、玄關。網站會幫你算，超過會出現警告。</p>
       <p>泡泡圖畫好，按「把這層泡泡排成房間」，網站會先粗略排成長方形，你再到步驟 4 照著柱網調整。</p>
+    </section>
+
+    <section id="L-land">
+      <div class="eyebrow"></div>
+      <h2>土地、退縮與建蔽率：房子能蓋多大</h2>
+      <p>房子不是想蓋多大就蓋多大。同一塊地能蓋多大，由下面三個規定決定。</p>
+      <h3>1. 退縮：房子要離地界多遠</h3>
+      <div class="term"><b>地界</b>：你的土地和別人土地、馬路的分界線。<br><b>退縮</b>：房子的外牆要往內「退」一段距離，不能貼著地界蓋。</div>
+      <p>這是為了讓採光、通風進得來，發生火災時消防車和人有空間，也讓鄰居之間不會貼太近。前面（臨路那邊）通常退最多，有些路段還規定要留騎樓或人行道。</p>
+      <h3>2. 建蔽率：房子能蓋掉多少土地</h3>
+      <div class="calc">建蔽率 = 房子一層的面積 ÷ 土地面積
+
+例：土地 100 m²，建蔽率上限 60%
+→ 房子一層最多 60 m²，至少要留 40 m² 空地</div>
+      <h3>3. 容積率：全部樓層加起來能多大</h3>
+      <div class="calc">容積率 = 全部樓層的地板面積加起來 ÷ 土地面積
+
+例：土地 100 m²，容積率上限 200%
+→ 全部樓層加起來最多約 200 m²
+→ 每層 60 m² 的話，最多蓋 3 層（180 m²）</div>
+      <p>實際計算時，陽台、樓梯間、屋突等有些部分可以不算或少算，細節以建築師計算為準。</p>
+      <h3>梯形的土地怎麼辦</h3>
+      <p>房子還是蓋<b>長方形</b>，柱網才方正、耐震、好用。斜邊多出來的三角形空地，拿來做庭院、停車位，或放冷氣室外機、熱水器。網站的「找最大的長方形」會幫你算出放得下的最大房子。</p>
+      <h3>去哪裡查自己土地的規定</h3>
+      <div class="rule">建蔽率、容積率、退縮距離<b>每一塊地都不一樣</b>，要看它的「土地使用分區」（例如第二種住宅區、農業區）和當地的都市計畫。用土地的<b>地號</b>，到縣市政府的「都市計畫土地使用分區查詢」網站查，或打電話問縣市政府都市發展局。網站預設的 60%、200%、前 3 m、後 2 m 只是練習用的數字。</div>
     </section>
 
     <section id="L-drawing">
@@ -729,6 +794,7 @@ const DEFAULT={floors:2,storeyH:3.2,W:10,D:12,roof:'gable',roofPitch:25,wall:'br
     {id:12,f:2,n:'書房',t:'study',a:15,x:58,y:15},
     {id:13,f:2,n:'儲藏室',t:'storage',a:15,x:16,y:62}
   ],
+  land:{on:false,a:14,b:11,h:22,align:'left',fs:3,bs:2,ss:0,hx:1,hy:3,bcr:60,far:200},
   links:[[1,2],[2,3],[1,4],[5,6],[1,5],[7,8],[7,10],[7,11],[7,12],[8,9],[9,7],[10,11]]};
 
 const SCHEMA={
@@ -940,6 +1006,7 @@ function analyze(){
     if(rs.length&&cover<0.6) add('info','室內',`${fl}F 還有 ${Math.round((1-cover)*100)}% 的空間沒規劃`,'沒放房間的地方可能是走廊、玄關，也可能是忘了。','走廊也可以放一個「儲藏室」類型標示出來。','layout');
     if(!rs.length) add('info','室內',`${fl}F 還沒有任何房間`,'到「室內配置」選這一層開始放房間。','可以用「複製樓下格局」快速開始。','layout');
   }
+  landCheck(add);
   // --- bubbles
   const fpA=S.W*S.D;
   const bOrphan=S.bubbles.filter(b=>b.f>S.floors);
@@ -962,10 +1029,27 @@ function analyze(){
 
 /* ---------- plan ---------- */
 function drawPlan(){
-  const W=S.W,D=S.D,u=Math.pow(Math.max(1,Math.max(W,D)/12),0.85),m=2.5*u;
-  const svg=$('#plan'); svg.setAttribute('viewBox',`${-m} ${-m} ${W+2*m} ${D+2*m}`);
-  const {sx,sy}=A.m, Y=y=>D-y;
-  let o=`<rect x="0" y="0" width="${W}" height="${D}" class="p-slab"/>`;
+  const W=S.W,D=S.D, Y=y=>D-y;
+  const land=S.land&&S.land.on?landGeo():null, hx=land?+S.land.hx:0, hy=land?+S.land.hy:0;
+  const LP=land?land.pts.map(([x,y])=>[x-hx,Y(y-hy)]):[];
+  const bx=[0,W,...LP.map(p=>p[0])], by=[0,D,...LP.map(p=>p[1])];
+  const bw=Math.max(...bx)-Math.min(...bx), bh=Math.max(...by)-Math.min(...by);
+  const u=Math.pow(Math.max(1,Math.max(bw,bh)/12),0.85),m=2.5*u;
+  const vx=Math.min(...bx)-m, vy=Math.min(...by)-m;
+  const svg=$('#plan'); svg.setAttribute('viewBox',`${vx} ${vy} ${bw+2*m} ${bh+2*m+(land?.6*u:0)}`);
+  const {sx,sy}=A.m;
+  let o='';
+  if(land){
+    const L=S.land, fs=+L.fs, bs=+L.bs, ss=+L.ss;
+    o+=`<polygon points="${LP.map(p=>p.join(',')).join(' ')}" class="landp" stroke-width="${.07*u}"/>`;
+    const ya=fs, yb=land.h-bs;
+    if(yb>ya){ const sp=[[land.xl(ya)+ss,ya],[land.xr(ya)-ss,ya],[land.xr(yb)-ss,yb],[land.xl(yb)+ss,yb]].map(([x,y])=>[x-hx,Y(y-hy)]);
+      o+=`<polygon points="${sp.map(p=>p.join(',')).join(' ')}" class="setb" stroke-width="${.03*u}" stroke-dasharray="${.25*u} ${.15*u}"/>`; }
+    const edges=[[0,1,f1(land.a)],[1,2,f1(Math.hypot(land.o+land.b-land.a,land.h))],[2,3,f1(land.b)],[3,0,f1(Math.hypot(land.o,land.h))]];
+    edges.forEach(([i,j,t])=>{const mx=(LP[i][0]+LP[j][0])/2+(i===1?.35*u:i===3?-.35*u:0), my=(LP[i][1]+LP[j][1])/2; o+=`<text x="${mx}" y="${my+(i===0?.75*u:i===2?-.3*u:.12*u)}" class="tm" font-size="${.32*u}" text-anchor="${i===1?'start':i===3?'end':'middle'}" style="fill:var(--ok);paint-order:stroke;stroke:var(--sheet);stroke-width:${.12*u}px">${t} m</text>`;});
+    o+=`<text x="${(LP[0][0]+LP[1][0])/2}" y="${LP[0][1]+1.5*u}" class="t" font-size="${.34*u}" text-anchor="middle">道路</text>`;
+  }
+  o+=`<rect x="0" y="0" width="${W}" height="${D}" class="p-slab"/>`;
   S.rooms.filter(r=>r.f===floor).forEach(r=>{
     const T=TYPES[r.t]||TYPES.storage, bad=A.roomBad.has(r.id), sel=r.id===selId;
     const w=Math.max(r.w,0.1), d=Math.max(r.d,0.1);
@@ -1012,7 +1096,7 @@ function drawPlan(){
   const xd=W+.9*u;
   o+=`<line x1="${xd}" y1="0" x2="${xd}" y2="${D}" class="dim${dc}" stroke-width="${sw}"/>`;
   for(let j=0;j<=S.ny;j++){const y=Y(j*sy); o+=`<line x1="${xd-tk}" y1="${y+tk}" x2="${xd+tk}" y2="${y-tk}" class="dim${dc}" stroke-width="${sw*2}"/>`; if(j<S.ny){const ym=Y(j*sy+sy/2); o+=`<text x="${xd+.14*u}" y="${ym}" class="${tc}" font-size="${.28*u}" text-anchor="middle" transform="rotate(90 ${xd+.14*u} ${ym})">${f2(sy)}</text>`;}}
-  o+=`<text x="${W/2}" y="${D+2.25*u}" class="t" font-size="${.3*u}" text-anchor="middle">▲ 正面・臨路側</text>`;
+  if(!land) o+=`<text x="${W/2}" y="${D+2.25*u}" class="t" font-size="${.3*u}" text-anchor="middle">▲ 正面・臨路側</text>`;
   const sr=S.rooms.find(r=>r.id===selId&&r.f===floor);
   if(sr){const hs=.42*u, hw=.16*u, mx=sr.x+sr.w/2, my=Y(sr.y+sr.d/2);
     [['l',sr.x,my,hw,hs],['r',sr.x+sr.w,my,hw,hs],['k',mx,Y(sr.y+sr.d),hs,hw],['f',mx,Y(sr.y),hs,hw]].forEach(([h,x,y,w,hh])=>{
@@ -1133,7 +1217,7 @@ function renderReadouts(){
 
 /* ---------- checks ---------- */
 const SEVN={err:'危險',warn:'注意',info:'建議'};
-const AREA_TAB={'泡泡圖':'bub','外觀':'ext','結構':'str','地基':'str','室內':'room'};
+const AREA_TAB={'土地':'bub','泡泡圖':'bub','外觀':'ext','結構':'str','地基':'str','室內':'room'};
 function renderChecks(){
   const c={err:0,warn:0,info:0}; A.L.forEach(x=>c[x.sev]++);
   let h='';
@@ -1169,7 +1253,7 @@ function renderAll(opt){
   A=analyze();
   syncFields(); renderReadouts(); drawBubble(); drawPlan(); drawSec(); renderChecks(); renderFloorTabs();
   if(opt.keepList){markList(); markBubList();} else {renderRoomList(); renderBubList();}
-  renderCoach();
+  syncLand(); renderCoach();
   save();
 }
 
@@ -1560,6 +1644,7 @@ const TABCOACH={
 };
 const STEPS={
   bub:[
+    ['（選填）房子放進土地、不超出',()=>!S.land.on||!A.L.some(x=>x.area==='土地'&&x.sev!=='info'),{focus:'landOn'}],
     ['設定房子外框（面寬、進深、樓層）',()=>true,{focus:'bW'}],
     ['每一層都加入空間',()=>{for(let f=1;f<=S.floors;f++) if(!S.bubbles.some(b=>b.f===f)) return false; return true;},{floor:()=>{for(let f=1;f<=S.floors;f++) if(!S.bubbles.some(b=>b.f===f)) return f;}}],
     ['把要靠近的空間連線',()=>{for(let f=1;f<=S.floors;f++){const bs=S.bubbles.filter(b=>b.f===f); if(bs.length>1&&!bs.every(b=>S.links.some(l=>l[0]===b.id||l[1]===b.id))) return false;} return true;},{focus:'linkMode'}],
@@ -1595,6 +1680,7 @@ function coachContent(){
   if(ctx.type==='field'&&FC[ctx.k]) return FC[ctx.k]();
   if(ctx.type==='room'){const r=room(ctx.id); if(r&&r.f<=S.floors) return roomCoach(r,ctx.resize);}
   if(ctx.type==='bubble'){const b=bubble(ctx.id); if(b) return bubCoach(b);}
+  if(ctx.type==='land') return landCoach();
   if(ctx.type==='link') return {t:'連線：哪些空間要靠近',now:[],how:['點第一個泡泡，再點第二個，就會連一條線。','常見要連的：廚房↔餐廳、餐廳↔客廳、臥室↔浴室、樓梯↔客廳或走廊。','臥室和廚房最好不要直接連，避免油煙和噪音。'],rec:null,l:'bubble'};
   const T=TABCOACH[tab]; return {t:T.t,now:[],how:T.how,rec:null,l:T.l};
 }
@@ -1622,6 +1708,7 @@ function setCtx(c,render){ctx=c; if(render!==false) renderCoach();}
 document.addEventListener('focusin',e=>{
   const t=e.target; if(!t.closest) return;
   if(t.dataset&&t.dataset.k){setCtx({type:'field',k:t.dataset.k}); return;}
+  if(t.closest('#landBox')||t.id==='landOn'){setCtx({type:'land'}); return;}
   const ri=t.closest('#roomList .ri'); if(ri){setCtx({type:'room',id:+ri.dataset.id}); return;}
   const bi=t.closest('#bubList .ri'); if(bi){setCtx({type:'bubble',id:+bi.dataset.id}); return;}
 });
@@ -1679,6 +1766,93 @@ async function initCloud(){
     } else if(!d||localT>(d.t||0)){ pushCloud(); }
     else setSync('cloud');
   }catch(e){setSync('local');}
+}
+
+/* ---------- land (土地範圍) ---------- */
+function landGeo(){
+  const L=S.land, a=+L.a, b=+L.b, h=+L.h;
+  const o=L.align==='center'?(a-b)/2:L.align==='right'?(a-b):0;
+  const xl=y=>o*y/h, xr=y=>a+(o+b-a)*y/h;
+  return {a,b,h,o,xl,xr,area:(a+b)/2*h,pts:[[0,0],[a,0],[o+b,h],[o,h]]};
+}
+function landCheck(add){
+  const L=S.land; if(!L.on) return null;
+  const G=landGeo(), e=0.01, hx=+L.hx, hy=+L.hy;
+  const y0=hy, y1=hy+S.D;
+  const leftNeed=Math.max(G.xl(y0),G.xl(y1)), rightLim=Math.min(G.xr(y0),G.xr(y1));
+  const out=y0<-e||y1>G.h+e||hx<leftNeed-e||hx+S.W>rightLim+e;
+  const cov=S.W*S.D/G.area, far=S.W*S.D*S.floors/G.area, open=G.area-S.W*S.D;
+  if(add){
+    if(G.a<=0||G.b<=0||G.h<=0) add('err','土地','土地尺寸不對','前面寬、後面寬、深度都要大於 0。','重新輸入土地的邊長。','land');
+    else if(out) add('err','土地','房子超出土地了','房子有一部分蓋到別人的地或馬路上。','按「找最大的長方形」或「放到土地中間」，或把房子改小。','land');
+    else {
+      const sb=[];
+      if(y0<+L.fs-e) sb.push(`前面只退 ${f1(y0)} m（要 ${L.fs} m）`);
+      if(y1>G.h-L.bs+e) sb.push(`後面只退 ${f1(G.h-y1)} m（要 ${L.bs} m）`);
+      if(hx<leftNeed+(+L.ss)-e) sb.push(`左邊只退 ${f1(hx-leftNeed)} m（要 ${L.ss} m）`);
+      if(hx+S.W>rightLim-(+L.ss)+e) sb.push(`右邊只退 ${f1(rightLim-hx-S.W)} m（要 ${L.ss} m）`);
+      if(sb.length) add('warn','土地','房子離地界太近（退縮不夠）',sb.join('；')+'。','把房子往中間移，或改小一點。','land');
+    }
+    if(cov>L.bcr/100+e) add('warn','土地','建蔽率超過上限',`房子蓋掉 ${Math.round(cov*100)}% 的土地，上限 ${L.bcr}%。`,`一層面積要縮到 ${Math.floor(G.area*L.bcr/100)} m² 以下。`,'land');
+    if(far>L.far/100+e) add('warn','土地','容積率超過上限',`總樓地板是土地的 ${Math.round(far*100)}%，上限 ${L.far}%。`,`總樓地板要在 ${Math.floor(G.area*L.far/100)} m² 以下：減少樓層或縮小每層。`,'land');
+  }
+  return {G,out,cov,far,open};
+}
+function bestRect(){
+  const L=S.land, G=landGeo(), fs=+L.fs, bs=+L.bs, ss=+L.ss; let best=null;
+  for(let y0=fs; y0<=G.h-bs-4+1e-9; y0+=0.5) for(let y1=y0+4; y1<=G.h-bs+1e-9; y1+=0.5){
+    const x0=Math.max(G.xl(y0),G.xl(y1))+ss, x1=Math.min(G.xr(y0),G.xr(y1))-ss;
+    const W=Math.min(24,Math.floor((x1-x0)*2)/2), D=Math.min(30,Math.floor((y1-y0)*2)/2);
+    if(W<4||D<4) continue;
+    if(!best||W*D>best.W*best.D) best={W,D,hx:Math.ceil((x0+((x1-x0)-W)/2)*100)/100,hy:Math.ceil(y0*100)/100};
+  }
+  if(best){const lim=G.area*L.bcr/100; if(best.W*best.D>lim){const D=Math.floor(lim/best.W*2)/2; if(D>=4) best.D=D;}}
+  return best;
+}
+function centerHouse(){
+  const L=S.land, G=landGeo();
+  const hy=+L.fs+Math.max(0,(G.h-L.bs-L.fs-S.D)/2);
+  const x0=Math.max(G.xl(hy),G.xl(hy+S.D))+(+L.ss), x1=Math.min(G.xr(hy),G.xr(hy+S.D))-(+L.ss);
+  L.hy=Math.round(hy*100)/100; L.hx=Math.round((x0+Math.max(0,(x1-x0-S.W)/2))*100)/100;
+}
+function syncLand(){
+  const L=S.land; $('#landOn').checked=!!L.on; $('#landBox').hidden=!L.on;
+  $$('[data-land]').forEach(el=>{if(document.activeElement!==el) el.value=L[el.dataset.land];});
+  $('#landCustomO').hidden=true;
+  const c=landCheck(null); if(!c){$('#landRO').innerHTML=''; return;}
+  const lv=v=>v>1?'lv-err':v>0.8?'lv-warn':'lv-ok';
+  $('#landRO').innerHTML=`<span class="lbl">土地計算</span>
+    <div class="ro-row"><span>土地面積</span><span class="v">${f1(c.G.area)} m²（約 ${f1(c.G.area/3.3058)} 坪）</span></div>
+    <div class="ro-row"><span>建蔽率（房子蓋掉多少土地）</span><span class="v">${Math.round(c.cov*100)}%・上限 ${L.bcr}%</span><div class="meter"><span class="${lv(c.cov/(L.bcr/100))}" style="width:${Math.min(100,Math.max(3,c.cov/(L.bcr/100)*100))}%"></span></div></div>
+    <div class="ro-row"><span>容積率（全部樓層 ÷ 土地）</span><span class="v">${Math.round(c.far*100)}%・上限 ${L.far}%</span><div class="meter"><span class="${lv(c.far/(L.far/100))}" style="width:${Math.min(100,Math.max(3,c.far/(L.far/100)*100))}%"></span></div></div>
+    <div class="ro-row"><span>剩下的空地（庭院、停車）</span><span class="v">${f1(Math.max(0,c.open))} m²（約 ${f1(Math.max(0,c.open)/3.3058)} 坪）</span></div>`;
+}
+$('#landOn').addEventListener('change',e=>{
+  S.land.on=e.target.checked;
+  if(S.land.on){const c=landCheck(null); if(c&&c.out){const r=bestRect(); if(r) Object.assign(S,{W:r.W,D:r.D}),Object.assign(S.land,{hx:r.hx,hy:r.hy});}}
+  setCtx({type:'land'},false); renderAll();
+});
+$('#landBox').addEventListener('change',e=>{
+  const k=e.target.dataset.land; if(!k) return;
+  if(k==='align') S.land.align=e.target.value;
+  else {let v=parseFloat(e.target.value); if(isNaN(v)){e.target.value=S.land[k]; return;} const mn=parseFloat(e.target.min), mx=parseFloat(e.target.max); if(!isNaN(mn)) v=Math.max(mn,v); if(!isNaN(mx)) v=Math.min(mx,v); S.land[k]=Math.round(v*100)/100;}
+  setCtx({type:'land'},false); anchor($('#plan'),()=>renderAll({keepList:true}));
+});
+$('#landBox').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.dataset.land) e.target.blur();});
+$('#landBest').addEventListener('click',()=>{
+  const r=bestRect();
+  if(!r){$('#landMsg').textContent='扣掉退縮後，這塊地放不下 4 × 4 m 以上的房子。試著減少退縮距離。'; return;}
+  S.W=r.W; S.D=r.D; S.land.hx=r.hx; S.land.hy=r.hy;
+  $('#landMsg').textContent=`放得下 ${f1(r.W)} × ${f1(r.D)} m（每層 ${f1(r.W*r.D)} m²，約 ${f1(r.W*r.D/3.3058)} 坪）。`;
+  setCtx({type:'land'},false); renderAll();
+});
+$('#landCenter').addEventListener('click',()=>{centerHouse(); $('#landMsg').textContent='已把房子放到可以蓋的範圍正中間。'; setCtx({type:'land'},false); renderAll();});
+function landCoach(){
+  const L=S.land;
+  if(!L.on) return {t:'土地範圍（選填）',now:['勾選「我有一塊土地」就能輸入土地的形狀。'],how:['輸入土地前面（臨路）寬、後面寬、深度，梯形也可以。','網站會畫出土地，檢查房子有沒有超出、離地界夠不夠遠。','按「找最大的長方形」，會自動算出放得下的最大房子。'],rec:null,l:'land'};
+  const c=landCheck(null);
+  return {t:'把房子放進土地裡',now:[`土地 ${f1(c.G.area)} m²（約 ${f1(c.G.area/3.3058)} 坪）`, tag(!c.out,c.out?'房子超出土地':'房子在土地裡面'), tag(c.cov<=L.bcr/100,`建蔽率 ${Math.round(c.cov*100)}%（上限 ${L.bcr}%）`), tag(c.far<=L.far/100,`容積率 ${Math.round(c.far*100)}%（上限 ${L.far}%）`), `剩下空地 ${f1(Math.max(0,c.open))} m²`],
+    how:['梯形的地，房子還是蓋長方形，斜邊多出來的三角形做庭院或停車位。','退縮：房子要離地界一段距離，讓採光、通風、消防車都進得來。前面通常最多。','建蔽率、容積率、退縮距離每塊地都不一樣，要用地號去縣市政府的「都市計畫土地使用分區查詢」查。','平面圖上綠色是土地，虛線是退縮後可以蓋的範圍。'],rec:null,l:'land'};
 }
 
 buildPane('ext'); buildPane('str');
