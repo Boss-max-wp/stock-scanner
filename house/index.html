@@ -220,6 +220,7 @@ select,input[type=number],input[type=text],textarea{background:var(--sheet);bord
 .nextstep{margin-top:10px;width:100%}
 .winmax{margin:2px 0 4px}
 .stepwhy{display:block;font-weight:400;font-size:12px;color:var(--warn);margin-top:2px;padding-left:16px}
+.stepwhy.err{color:var(--err)} .steplegend{margin:6px 0 0;font-size:12px}
 .coach-done{margin:6px 0 0;color:var(--ok);font-weight:500;font-size:13.5px}
 .coach.float{position:fixed;z-index:30;margin:0;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));width:min(380px,calc(100vw - 32px));max-height:min(42vh,520px);overflow:auto;box-shadow:0 10px 30px rgba(0,0,0,.22)}
 .coach.float.closed{width:auto}
@@ -1846,8 +1847,10 @@ function renderCoach(){
     <div class="eyebrow2">怎麼做</div><ul class="coach-how">${c.how.map(x=>`<li>${x}</li>`).join('')}</ul>
     <button class="link" data-lesson="${c.l}">看完整教學 →</button></div>
     <div class="coach-steps"><div class="eyebrow2">這一步的清單（${done.filter(Boolean).length}/${steps.length}）</div>
-    <ol>${steps.map((s,i)=>{let why=''; const o=s[2]||{}; if(!done[i]&&o.re){const bad=A.L.filter(x=>o.re.test(x.title)); why=bad.length?bad.slice(0,3).map(x=>x.title).join('、')+(bad.length>3?` 等 ${bad.length} 項`:''):(o.none?o.none():'');}
-      return `<li class="${done[i]?'done':i===nextI?'next':''}"><button data-step="${i}">${done[i]?'✓':i===nextI?'→':'○'} ${s[0]}${why?`<span class="stepwhy">還沒過：${why}${o.re?'（點一下跳過去）':''}</span>`:''}</button></li>`;}).join('')}</ol>
+    <ol>${steps.map((s,i)=>{let why='', sev=''; const o=s[2]||{}; if(!done[i]&&o.re){const bad=A.L.filter(x=>o.re.test(x.title)); sev=bad.some(x=>x.sev==='err')?'err':bad.length?'warn':''; why=bad.length?bad.slice(0,3).map(x=>x.title).join('、')+(bad.length>3?` 等 ${bad.length} 項`:''):(o.none?o.none():'');}
+      const lab=sev==='err'?'危險，一定要改':sev==='warn'?'注意，可以接受，但要知道代價':'還沒過';
+      return `<li class="${done[i]?'done':i===nextI?'next':''}"><button data-step="${i}">${done[i]?'✓':sev==='warn'?'!':i===nextI?'→':'○'} ${s[0]}${why?`<span class="stepwhy ${sev}">${lab}：${why}${o.re?'（點一下看說明）':''}</span>`:''}</button></li>`;}).join('')}</ol>
+    <p class="help steplegend">✓ 通過・<span style="color:var(--warn)">! 注意（可以，但要知道代價）</span>・<span style="color:var(--err)">危險（一定要改）</span></p>
     ${nextI<0?`<p class="coach-done">這一步完成了！${tab!=='room'?'':'記得回步驟 3 再看一次柱子和地基。'}</p>`:''}
     ${tab!=='room'?`<button class="btn ${nextI<0?'primary':''} nextstep" data-next="1">前往下一步：${{bub:'步驟 2 外觀',ext:'步驟 3 柱子與地基',str:'步驟 4 室內格局'}[tab]} →</button>`:`<button class="btn nextstep" data-next="back">回步驟 3 檢查柱子與地基 →</button><button class="btn ${nextI<0?'primary':''} nextstep" data-view="final">看 3D 成品 →</button>`}</div>`;
 }
