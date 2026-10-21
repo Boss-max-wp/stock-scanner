@@ -218,6 +218,7 @@ select,input[type=number],input[type=text],textarea{background:var(--sheet);bord
 .coach-steps li.done button{color:var(--ok)}
 .coach-steps li.next button{color:var(--ink);font-weight:700;background:var(--accent-soft)}
 .nextstep{margin-top:10px;width:100%}
+.stepwhy{display:block;font-weight:400;font-size:12px;color:var(--warn);margin-top:2px;padding-left:16px}
 .coach-done{margin:6px 0 0;color:var(--ok);font-weight:500;font-size:13.5px}
 .coach.float{position:fixed;z-index:30;margin:0;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));width:min(380px,calc(100vw - 32px));max-height:min(42vh,520px);overflow:auto;box-shadow:0 10px 30px rgba(0,0,0,.22)}
 .coach.float.closed{width:auto}
@@ -1804,13 +1805,14 @@ const STEPS={
     ['地基壓力在 80% 內',()=>!A.L.some(x=>x.area==='地基'&&x.sev!=='info'),{field:'footing'}]
   ],
   room:[
-    ['沒有房間重疊',()=>!A.L.some(x=>/重疊/.test(x.title)),{}],
-    ['房間都在房子裡面',()=>!A.L.some(x=>/超出房子/.test(x.title)),{}],
-    ['居室都靠外牆',()=>!A.L.some(x=>/沒有外牆/.test(x.title)),{}],
-    ['柱子沒站在房間中間',()=>!A.L.some(x=>/中間站了/.test(x.title)),{}],
-    ['房間大小合格',()=>!A.L.some(x=>/太小|太窄/.test(x.title)),{}],
-    ['每層有樓梯且上下對齊',()=>!A.L.some(x=>/樓梯/.test(x.title)&&x.sev!=='info'),{}],
-    ['居室都開了夠大的窗（地板的 1/8）',()=>S.windows.length>0&&!A.L.some(x=>/採光不夠|窗戶超出|窗戶重疊/.test(x.title)),{}]
+    ['沒有房間重疊',()=>!A.L.some(x=>/房間.*重疊|」和「.*重疊/.test(x.title)),{re:/」和「.*重疊/}],
+    ['房間都在房子裡面',()=>!A.L.some(x=>/超出房子/.test(x.title)),{re:/超出房子/}],
+    ['居室都靠外牆',()=>!A.L.some(x=>/沒有外牆/.test(x.title)),{re:/沒有外牆/}],
+    ['柱子沒站在房間中間',()=>!A.L.some(x=>/中間站了/.test(x.title)),{re:/中間站了/}],
+    ['房間大小合格',()=>!A.L.some(x=>/太小|太窄/.test(x.title)),{re:/太小|太窄/}],
+    ['每層有樓梯且上下對齊',()=>!A.L.some(x=>/樓梯/.test(x.title)&&x.sev!=='info'),{re:/樓梯/}],
+    ['居室都開了夠大的窗（地板的 1/8）',()=>S.windows.length>0&&!A.L.some(x=>/採光不夠|窗戶超出|窗戶重疊/.test(x.title)),{re:/採光不夠|窗戶超出|窗戶重疊/,none:()=>!S.windows.length?'還沒有開任何窗戶':''}],
+    ['窗戶沒有撞到柱子或梁',()=>!A.L.some(x=>/撞到柱子|頂到梁/.test(x.title)),{re:/撞到柱子|頂到梁/}]
   ]
 };
 function coachContent(){
@@ -1840,7 +1842,8 @@ function renderCoach(){
     <div class="eyebrow2">怎麼做</div><ul class="coach-how">${c.how.map(x=>`<li>${x}</li>`).join('')}</ul>
     <button class="link" data-lesson="${c.l}">看完整教學 →</button></div>
     <div class="coach-steps"><div class="eyebrow2">這一步的清單（${done.filter(Boolean).length}/${steps.length}）</div>
-    <ol>${steps.map((s,i)=>`<li class="${done[i]?'done':i===nextI?'next':''}"><button data-step="${i}">${done[i]?'✓':i===nextI?'→':'○'} ${s[0]}</button></li>`).join('')}</ol>
+    <ol>${steps.map((s,i)=>{let why=''; const o=s[2]||{}; if(!done[i]&&o.re){const bad=A.L.filter(x=>o.re.test(x.title)); why=bad.length?bad.slice(0,3).map(x=>x.title).join('、')+(bad.length>3?` 等 ${bad.length} 項`:''):(o.none?o.none():'');}
+      return `<li class="${done[i]?'done':i===nextI?'next':''}"><button data-step="${i}">${done[i]?'✓':i===nextI?'→':'○'} ${s[0]}${why?`<span class="stepwhy">還沒過：${why}${o.re?'（點一下跳過去）':''}</span>`:''}</button></li>`;}).join('')}</ol>
     ${nextI<0?`<p class="coach-done">這一步完成了！${tab!=='room'?'':'記得回步驟 3 再看一次柱子和地基。'}</p>`:''}
     ${tab!=='room'?`<button class="btn ${nextI<0?'primary':''} nextstep" data-next="1">前往下一步：${{bub:'步驟 2 外觀',ext:'步驟 3 柱子與地基',str:'步驟 4 室內格局'}[tab]} →</button>`:`<button class="btn nextstep" data-next="back">回步驟 3 檢查柱子與地基 →</button><button class="btn ${nextI<0?'primary':''} nextstep" data-view="final">看 3D 成品 →</button>`}</div>`;
 }
@@ -1881,7 +1884,10 @@ $('#coachBody').addEventListener('click',e=>{
     if(s.field){setCtx({type:'field',k:s.field}); const el=$('#f_'+s.field); if(el){el.closest('.field').scrollIntoView({block:'center',behavior:'smooth'}); el.focus({preventScroll:true});}}
     else if(s.focus){const el=$('#'+s.focus); if(el){el.scrollIntoView({block:'center',behavior:'smooth'}); el.focus({preventScroll:true});}}
     else if(s.floor){const f=s.floor(); if(f){floor=f; renderAll();}}
-    else { const bad=A.L.find(x=>x.area==='室內'&&x.room); if(bad){const r=room(bad.room); if(r){floor=r.f; selId=r.id; setCtx({type:'room',id:r.id},false); renderAll();}} }
+    else { const bad=A.L.find(x=>(s.re?s.re.test(x.title):x.area==='室內')&&x.room)||A.L.find(x=>s.re&&s.re.test(x.title));
+      if(bad){ const fm=bad.title.match(/^(\d)F/); const r=bad.room?room(bad.room):null;
+        if(r){floor=r.f; selId=r.id; setCtx({type:'room',id:r.id},false);} else if(fm){floor=+fm[1];}
+        anchor($('#plan'),()=>renderAll({keepList:true})); const it=r&&$(`#roomList .ri[data-id="${r.id}"]`); if(it) it.scrollIntoView({block:'nearest',behavior:'smooth'}); } }
   }
 });
 // place coach: beside the drawings on wide screens, floating panel on narrow ones
