@@ -2025,13 +2025,29 @@ function roomSides(r){const e=0.01, out=[];
     if(oy1-oy0>0.3){ if(Math.abs(b.x+b.w-r.x)<e) out.push(['in:v:'+r2(r.x),oy0,oy1]); if(Math.abs(r.x+r.w-b.x)<e) out.push(['in:v:'+r2(r.x+r.w),oy0,oy1]); }
   });
   return out;}
+function winHits(w){const c=S.col/100; return sideAxes(w.side).filter(a=>w.pos<a+c/2-0.01&&w.pos+w.w>a-c/2+0.01);}
+function splitWin(w){
+  const c=S.col/100, hits=winHits(w).sort((a,b)=>a-b); let segs=[[w.pos,w.pos+w.w]];
+  hits.forEach(a=>{const lo=a-c/2-0.1, hi=a+c/2+0.1; segs=segs.flatMap(([s0,s1])=>hi<=s0||lo>=s1?[[s0,s1]]:[[s0,lo],[hi,s1]]);});
+  const r=S.rooms.find(x=>x.f===w.f&&roomWindows(x).some(y=>y.w===w)), sd=r?roomSides(r).find(z=>z[0]===w.side):null;
+  if(sd) segs=segs.map(([a,b])=>[Math.max(a,sd[1]+0.1),Math.min(b,sd[2]-0.1)]);
+  segs=segs.filter(([a,b])=>b-a>=0.4); if(!segs.length) return;
+  let id=Math.max(0,...S.windows.map(x=>x.id)); const base=Object.assign({},w);
+  S.windows=S.windows.filter(x=>x!==w);
+  segs.forEach(([a,b],k)=>{const nw=Object.assign({},base,{id:++id,pos:r2(a),w:r2(b-a)}); S.windows.push(nw); if(k===0) selWin=nw.id;});
+}
 function winMax(w){ // biggest window that fits this wall segment between columns and below the beam
   const r=S.rooms.find(x=>x.f===w.f&&roomWindows(x).some(y=>y.w===w)), sd=r?roomSides(r).find(s=>s[0]===w.side):null;
-  const c=S.col/100, beamBot=S.storeyH-S.beam/100; let lo=(sd?sd[1]:0)+0.1, hi=(sd?sd[2]:sideLen(w.side))-0.1; const mid=w.pos+w.w/2;
-  sideAxes(w.side).forEach(a=>{ if(a<=mid) lo=Math.max(lo,a+c/2+0.1); else hi=Math.min(hi,a-c/2-0.1); });
-  S.windows.filter(o=>o!==w&&o.f===w.f&&o.side===w.side).forEach(o=>{ if(o.pos+o.w<=mid) lo=Math.max(lo,o.pos+o.w+0.1); else if(o.pos>=mid) hi=Math.min(hi,o.pos-0.1); });
-  return {lo,hi,width:Math.max(0,hi-lo),top:beamBot-0.05,height:Math.max(0,beamBot-0.05-w.sill)};
+  const c=S.col/100, beamBot=S.storeyH-S.beam/100;
+  let segs=[[(sd?sd[1]:0)+0.1,(sd?sd[2]:sideLen(w.side))-0.1]];
+  const cut=(lo,hi)=>{segs=segs.flatMap(([s0,s1])=>hi<=s0||lo>=s1?[[s0,s1]]:[[s0,lo],[hi,s1]].filter(([x,y])=>y-x>0.05));};
+  sideAxes(w.side).forEach(a=>cut(a-c/2-0.1,a+c/2+0.1));
+  S.windows.filter(o=>o!==w&&o.f===w.f&&o.side===w.side).forEach(o=>cut(o.pos-0.1,o.pos+o.w+0.1));
+  const ov=([s0,s1])=>Math.min(s1,w.pos+w.w)-Math.max(s0,w.pos);
+  const best=segs.length?segs.reduce((b,x)=>ov(x)>ov(b)||(ov(x)===ov(b)&&x[1]-x[0]>b[1]-b[0])?x:b):[w.pos,w.pos];
+  return {lo:best[0],hi:best[1],width:Math.max(0,best[1]-best[0]),top:beamBot-0.05,height:Math.max(0,beamBot-0.05-w.sill)};
 }
+
 function roomWindows(r){
   const sides=roomSides(r);
   return S.windows.filter(w=>w.f===r.f).map(w=>{const sd=sides.find(s=>s[0]===w.side); if(!sd) return null; const ov=Math.min(w.pos+w.w,sd[2])-Math.max(w.pos,sd[1]); return ov>0.05?{w,ov}:null;}).filter(Boolean);
@@ -2092,12 +2108,15 @@ function renderWinPanel(){
       <div class="ri-top"><b style="flex:1">${SIDE[w.side]}${w.sill<0.05?'（落地窗）':''}</b><span class="help">${isH(w.side)?'從左邊量':'從前面量'}</span><button class="ri-del" data-delwin="${w.id}" aria-label="刪除窗戶">×</button></div>
       <div class="ri-dims">${[['pos','位置'],['w','寬'],['h','高'],['sill','窗台高']].map(([k,l])=>`<label>${l}<input type="number" step="0.05" data-wk="${k}" value="${r2(w[k])}" inputmode="decimal"></label>`).join('')}</div>
       <p class="help winmax">這段牆最大：寬 <b>${f2(mx.width)} m</b>（${f2(mx.lo)}～${f2(mx.hi)} m，離柱子和牆角各留 10 cm）・高 <b>${f2(mx.height)} m</b>（窗台 ${f2(w.sill)} m 到梁底下 ${f2(mx.top)} m）</p>
-      <div class="row"><button class="btn sm" data-winmax="${w.id}">放到最大</button><button class="btn sm" data-winfloor="${w.id}">改成落地窗</button></div></div>`;}).join('')}</div>
+      ${winHits(w).length?`<p class="help" style="color:var(--warn)">這扇窗蓋到 ${winHits(w).length} 根柱子。</p>`:''}
+      <div class="row">${winHits(w).length?`<button class="btn sm primary" data-winsplit="${w.id}">在柱子兩邊拆成 ${winHits(w).length+1} 扇</button>`:''}<button class="btn sm" data-winmax="${w.id}">放到最大</button><button class="btn sm" data-winfloor="${w.id}">改成落地窗</button></div></div>`;}).join('')}</div>
     ${sides.length?`<div class="row">${sides.map(([sd])=>`<button class="btn sm" data-addwin="${sd}">＋ ${SIDE[sd]}開窗</button>`).join('')}</div>`:''}`;
 }
 document.addEventListener('click',e=>{
   const a=e.target.closest('[data-addwin]');
   if(a){const r=room(selId); if(!r) return; selWin=newWindow(r,a.dataset.addwin); setCtx({type:'window'},false); $('#winPanel').blur&&document.activeElement&&document.activeElement.blur(); anchor($('#plan'),()=>renderAll({keepList:true})); return;}
+  const spb=e.target.closest('[data-winsplit]');
+  if(spb){const w=S.windows.find(x=>x.id===+spb.dataset.winsplit); if(w) splitWin(w); document.activeElement&&document.activeElement.blur(); setCtx({type:'window'},false); anchor($('#plan'),()=>renderAll({keepList:true})); return;}
   const mxb=e.target.closest('[data-winmax]'), flb=e.target.closest('[data-winfloor]');
   if(mxb||flb){const w=S.windows.find(x=>x.id===+(mxb||flb).dataset[mxb?'winmax':'winfloor']); if(!w) return;
     if(flb){w.sill=0;} const m=winMax(w); w.pos=r2(m.lo); w.w=r2(m.width); w.h=r2(m.height); selWin=w.id;
