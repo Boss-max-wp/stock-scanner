@@ -167,6 +167,20 @@ select,input[type=number],input[type=text],textarea{background:var(--sheet);bord
 .soil{fill:var(--soil)} .hatch{stroke:var(--muted);opacity:.45}
 .ground{stroke:var(--ink)} .roofp{fill:var(--roof);stroke:var(--ink)}
 
+/* final */
+.final{display:flex;flex-direction:column;gap:16px}
+.final3d{padding:12px;display:flex;flex-direction:column;gap:8px}
+.f3d-bar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between}
+.view3d{width:100%;aspect-ratio:16/10;max-height:72vh;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--sheet);touch-action:none}
+.view3d canvas{display:block;width:100%;height:100%}
+.shotbox{display:flex;flex-direction:column;gap:8px;border:1px solid var(--line);border-radius:6px;padding:10px}
+.shotbox img{max-width:100%;border-radius:4px}
+.spec{padding:16px;display:flex;flex-direction:column;gap:12px}
+.spec-h{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px}
+.spec-h h2{margin:2px 0 0;font-family:var(--f-display);font-size:22px;letter-spacing:.05em}
+.spec-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.spec-grid>div{display:flex;flex-direction:column;gap:3px;border:1px solid var(--line);border-radius:6px;padding:10px;background:var(--sheet);font-size:13.5px}
+.spec-grid b{font-size:12px;letter-spacing:.1em;color:var(--accent)}
 /* coach */
 .c-muted{color:var(--muted)}
 .landbox{display:flex;flex-direction:column;gap:10px;border:1px solid var(--line);border-radius:6px;padding:10px;background:var(--sheet)}
@@ -274,6 +288,7 @@ td.n{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:now
   <div class="tally" id="tally" aria-live="polite"></div>
   <nav class="views" role="tablist" aria-label="切換畫面">
     <button role="tab" id="tabDesign" aria-selected="true" data-view="design">設計</button>
+    <button role="tab" id="tabFinal" aria-selected="false" data-view="final">3D 成品</button>
     <button role="tab" id="tabLearn" aria-selected="false" data-view="learn">教學</button>
   </nav>
 </header>
@@ -396,6 +411,20 @@ td.n{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:now
   </aside>
 </main>
 
+<main id="v-final" class="final" hidden>
+  <section class="card final3d">
+    <div class="f3d-bar">
+      <div class="floor-tabs" id="mode3d" role="group" aria-label="檢視方式"><button data-m="ext" aria-pressed="true">外觀</button><button data-m="in" aria-pressed="false">室內</button><button data-m="str" aria-pressed="false">結構骨架</button></div>
+      <div class="floor-tabs" id="upto3d" hidden></div>
+      <div class="row"><button class="btn sm" id="reset3d">重設視角</button><button class="btn sm" id="shot3d">存成圖片</button><button class="btn sm" data-view="design">← 回到設計</button></div>
+    </div>
+    <div id="view3d" class="view3d"></div>
+    <p class="hint" id="msg3d"></p>
+    <p class="hint" id="hint3d"></p>
+    <div id="shotBox" class="shotbox" hidden><div class="row" style="justify-content:space-between;align-items:center"><span class="help">在圖片上按右鍵「另存圖片」，手機請長按圖片儲存。</span><button class="btn sm" id="shotClose">關閉</button></div><img id="shotImg" alt="房子 3D 圖"></div>
+  </section>
+  <section class="card spec" id="spec"></section>
+</main>
 <main id="v-learn" class="learn" hidden>
   <nav class="toc card" aria-label="教學目錄">
     <h2>目錄</h2>
@@ -1340,10 +1369,10 @@ document.addEventListener('change',e=>{
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.type==='number'&&e.target.dataset.k) e.target.blur();});
 function setTab(t){tab=t; $$('.steps button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t)); ['bub','ext','str','room'].forEach(k=>$('#pane-'+k).hidden=k!==t); $('#bubSheet').hidden=t!=='bub';}
 $('.steps').addEventListener('click',e=>{const b=e.target.closest('button'); if(b) setTab(b.dataset.tab);});
-function setView(v){const co=$('#coach'); if(co) co.hidden=v!=='design'; $('#v-design').hidden=v!=='design'; $('#v-learn').hidden=v!=='learn'; $('#tabDesign').setAttribute('aria-selected',v==='design'); $('#tabLearn').setAttribute('aria-selected',v==='learn');}
+function setView(v){const co=$('#coach'); if(co) co.hidden=v!=='design'; $('#v-design').hidden=v!=='design'; $('#v-learn').hidden=v!=='learn'; $('#v-final').hidden=v!=='final'; $('#tabDesign').setAttribute('aria-selected',v==='design'); $('#tabLearn').setAttribute('aria-selected',v==='learn'); $('#tabFinal').setAttribute('aria-selected',v==='final'); if(v==='final') showFinal();}
 function openLesson(id){setView('learn'); const el=document.getElementById('L-'+id); if(el) el.scrollIntoView({block:'start'});}
 document.addEventListener('click',e=>{
-  const v=e.target.closest('[data-view]'); if(v){setView(v.dataset.view); if(v.dataset.view==='learn') window.scrollTo(0,0); return;}
+  const v=e.target.closest('[data-view]'); if(v){setView(v.dataset.view); if(v.dataset.view!=='design') window.scrollTo(0,0); return;}
   const l=e.target.closest('[data-lesson]'); if(l){e.stopPropagation(); openLesson(l.dataset.lesson); return;}
   const fl=e.target.closest('[data-floor]'); if(fl){floor=+fl.dataset.floor; anchor(fl.closest('.sheet')||fl.closest('.pane'),()=>renderAll()); return;}
 });
@@ -1783,7 +1812,7 @@ function renderCoach(){
     <div class="coach-steps"><div class="eyebrow2">這一步的清單（${done.filter(Boolean).length}/${steps.length}）</div>
     <ol>${steps.map((s,i)=>`<li class="${done[i]?'done':i===nextI?'next':''}"><button data-step="${i}">${done[i]?'✓':i===nextI?'→':'○'} ${s[0]}</button></li>`).join('')}</ol>
     ${nextI<0?`<p class="coach-done">這一步完成了！${tab!=='room'?'':'記得回步驟 3 再看一次柱子和地基。'}</p>`:''}
-    ${tab!=='room'?`<button class="btn ${nextI<0?'primary':''} nextstep" data-next="1">前往下一步：${{bub:'步驟 2 外觀',ext:'步驟 3 柱子與地基',str:'步驟 4 室內格局'}[tab]} →</button>`:`<button class="btn nextstep" data-next="back">回步驟 3 檢查柱子與地基 →</button>`}</div>`;
+    ${tab!=='room'?`<button class="btn ${nextI<0?'primary':''} nextstep" data-next="1">前往下一步：${{bub:'步驟 2 外觀',ext:'步驟 3 柱子與地基',str:'步驟 4 室內格局'}[tab]} →</button>`:`<button class="btn nextstep" data-next="back">回步驟 3 檢查柱子與地基 →</button><button class="btn ${nextI<0?'primary':''} nextstep" data-view="final">看 3D 成品 →</button>`}</div>`;
 }
 function setCtx(c,render){ctx=c; if(render!==false) renderCoach();}
 document.addEventListener('focusin',e=>{
@@ -1982,6 +2011,169 @@ function windowCoach(){
   return {t:'開窗：位置、大小、高度',now,
     how:['採光：居室的窗戶面積至少是地板面積的 1/8（建築技術規則）。','窗台高度：一般 0.8～0.9 m；浴室 1.5 m 以上比較有隱私；小孩房可以 1.0 m 以上防止爬出去。','窗戶不能蓋到柱子，旁邊至少留 10 cm；上緣要在梁底下面。','怎麼畫：平面圖上，窗戶畫成牆上的細長框，中間一條線。在平面圖上可以直接拖曳窗戶沿著牆移動。','窗台矮牆和柱子之間要留隔離縫，避免短柱效應。'],rec:null,l:'shape'};
 }
+
+/* ---------- 成品：3D 模型 + 設計說明書 ---------- */
+const T3={mode:'ext',upTo:99,ready:false,loading:null,renderer:null,scene:null,camera:null,controls:null,root:null,needFit:true};
+function loadScript(src){return new Promise((ok,no)=>{const s=document.createElement('script'); s.src=src; s.onload=ok; s.onerror=no; document.head.appendChild(s);});}
+function ensureThree(){
+  if(window.THREE&&window.THREE.OrbitControls) return Promise.resolve();
+  if(!T3.loading) T3.loading=(window.THREE?Promise.resolve():loadScript('https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js'))
+    .then(()=>window.THREE.OrbitControls?null:loadScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js'));
+  return T3.loading;
+}
+const cssv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim()||'#888';
+function initThree(){
+  const box=$('#view3d'); const THREE=window.THREE;
+  const r=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
+  r.setPixelRatio(Math.min(2,window.devicePixelRatio||1)); r.shadowMap.enabled=true; r.shadowMap.type=THREE.PCFSoftShadowMap;
+  box.innerHTML=''; box.appendChild(r.domElement);
+  const cam=new THREE.PerspectiveCamera(40,1,0.1,500);
+  const ctl=new THREE.OrbitControls(cam,r.domElement); ctl.enableDamping=true; ctl.maxPolarAngle=Math.PI*0.495; ctl.addEventListener('change',()=>render3d());
+  Object.assign(T3,{renderer:r,camera:cam,controls:ctl,scene:new THREE.Scene(),ready:true});
+  const ro=new ResizeObserver(()=>size3d()); ro.observe(box);
+  (function loop(){requestAnimationFrame(loop); if(!$('#v-final').hidden&&T3.controls.enableDamping){T3.controls.update();}})();
+}
+function size3d(){ if(!T3.ready) return; const box=$('#view3d'); const w=box.clientWidth, h=box.clientHeight; if(!w||!h) return; T3.renderer.setSize(w,h,false); T3.camera.aspect=w/h; T3.camera.updateProjectionMatrix(); render3d(); }
+function render3d(){ if(T3.ready) T3.renderer.render(T3.scene,T3.camera); }
+function buildScene(){
+  const THREE=window.THREE, sc=new THREE.Scene(); T3.scene=sc;
+  sc.background=new THREE.Color(cssv('--sheet'));
+  const W=S.W,D=S.D,h=S.storeyH,F=S.floors, c=S.col/100, bd=S.beam/100, sl=S.slab/100, H=F*h;
+  const P=(x,y)=>[x-W/2,D/2-y]; // plan -> three (x,z)
+  const mat=(col,o)=>new THREE.MeshStandardMaterial(Object.assign({color:new THREE.Color(col),roughness:0.85,metalness:0},o||{}));
+  const M={wall:mat(S.wall==='rc'?'#d9dcd8':S.wall==='brick'?'#c9785a':S.wall==='wood'?'#b88a5a':'#e6e2da'),conc:mat('#a9b0ad'),slab:mat('#bfc4c1'),
+    roof:mat(S.roof==='gable'?'#6d4c41':'#9aa19e'),glass:mat('#8fc3dd',{transparent:true,opacity:0.45,roughness:0.1,metalness:0.2}),
+    ground:mat(S.mode3dGround||'#9bb07f'),soil:mat('#8a6e4b'),ok:mat(cssv('--ok')),warn:mat(cssv('--warn')),err:mat(cssv('--err')),frame:mat('#f4f4f2')};
+  const add=(geo,m,x,y,z,shadow=true)=>{const me=new THREE.Mesh(geo,m); me.position.set(x,y,z); if(shadow){me.castShadow=true; me.receiveShadow=true;} sc.add(me); return me;};
+  const box=(w,hh,d,m,x,y,z)=>add(new THREE.BoxGeometry(Math.max(w,0.01),Math.max(hh,0.01),Math.max(d,0.01)),m,x,y,z);
+  // light
+  sc.add(new THREE.HemisphereLight(0xffffff,0x667755,0.75));
+  const sun=new THREE.DirectionalLight(0xffffff,0.85); sun.position.set(W*0.8+10,H+20,D*0.6+14); sun.castShadow=true;
+  const sz=Math.max(W,D)*1.2+10; Object.assign(sun.shadow.camera,{left:-sz,right:sz,top:sz,bottom:-sz,near:1,far:200}); sun.shadow.mapSize.set(2048,2048); sc.add(sun);
+  const mode=T3.mode, structOnly=mode==='str', cut=mode==='in';
+  const topF=cut?Math.min(F,T3.upTo):F;
+  // ground & land
+  const gsz=Math.max(W,D)*4+40;
+  const g=add(new THREE.PlaneGeometry(gsz,gsz),structOnly?mat('#7f9466',{transparent:true,opacity:0.25}):mat('#7f9466'),0,-0.01,0,false); g.rotation.x=-Math.PI/2; g.receiveShadow=true;
+  if(S.land&&S.land.on){const G=landGeo(), hx=+S.land.hx, hy=+S.land.hy; const shp=new THREE.Shape(); G.pts.forEach(([x,y],i)=>{const [X,Z]=P(x-hx,y-hy); i?shp.lineTo(X,-Z):shp.moveTo(X,-Z);});
+    const lm=add(new THREE.ShapeGeometry(shp),mat('#c9d6b4',{transparent:structOnly,opacity:structOnly?0.3:1}),0,0.005,0,false); lm.rotation.x=-Math.PI/2; lm.receiveShadow=true;
+    const [rx0,rz0]=P(-hx+G.a/2,-hy-0.01); const road=add(new THREE.PlaneGeometry(Math.max(G.a,W)+20,6),mat('#6f7476'),rx0,0.003,rz0+3,false); road.rotation.x=-Math.PI/2; }
+  // foundations (structure mode)
+  const AX=A.m.ax, AY=A.m.ay, dep=S.fdnDepth;
+  if(structOnly){
+    AX.forEach(x=>AY.forEach(y=>{const [X,Z]=P(x,y);
+      if(S.fdn==='spread'||S.fdn==='strip'){box(S.footing,0.5,S.footing,A.flags.fdn?M.err:M.conc,X,-dep+0.25,Z); box(c*1.2,dep-0.5,c*1.2,M.conc,X,-(dep-0.5)/2,Z);}
+      else if(S.fdn==='pile'){box(Math.max(1.2,c+0.6),0.8,Math.max(1.2,c+0.6),M.conc,X,-dep+0.4,Z); add(new THREE.CylinderGeometry(0.2,0.2,5,12),M.conc,X,-dep-2.5,Z);}
+      else box(c*1.2,Math.max(0.01,dep-0.6),c*1.2,M.conc,X,-(dep-0.6)/2,Z);}));
+    if(S.fdn==='mat') box(W+0.6,0.6,D+0.6,A.flags.fdn?M.err:M.conc,0,-dep+0.3,0);
+  }
+  // ground slab
+  box(W,0.15,D,M.slab,0,0.075,0);
+  // columns, beams, slabs per floor
+  const perF=S.floors*A.m.q;
+  for(let f=1;f<=topF;f++){
+    const base=(f-1)*h, colH=(cut&&f===topF)?Math.min(h,1.2):h;
+    AX.forEach((x,i)=>AY.forEach((y,j)=>{const [X,Z]=P(x,y); const rr=A.m.tx[i]*A.m.ty[j]*perF/A.m.cap;
+      box(c,colH,c,structOnly?(rr>1?M.err:rr>0.6?M.warn:M.conc):M.conc,X,base+colH/2,Z);}));
+    if(!(cut&&f===topF)){
+      const top=f*h;
+      if(!structOnly||true){ box(W+(f===F?0.3:0.2),sl,D+(f===F?0.3:0.2),structOnly?mat('#bfc4c1',{transparent:true,opacity:0.35}):M.slab,0,top-sl/2,0); }
+      AX.forEach(x=>{const [X]=P(x,0); box(0.3,bd,D,M.conc,X,top-bd/2,0);});
+      AY.forEach(y=>{const [,Z]=P(0,y); box(W,bd,0.3,M.conc,0,top-bd/2,Z);});
+    }
+  }
+  // walls with windows (not in structure mode)
+  if(!structOnly){
+    const t=0.2;
+    const sides=[['front',W],['back',D>0?W:0],['left',D],['right',D]];
+    for(let f=1;f<=topF;f++){
+      if(f===1&&S.softStory) continue;
+      const base=(f-1)*h, wallH=(cut&&f===topF)?1.2:h-bd;
+      sides.forEach(([sd,len])=>{
+        let wins=S.windows.length?S.windows.filter(w=>w.f===f&&w.side===sd).map(w=>({pos:w.pos,w:w.w,sill:w.sill,h:w.h})):(()=>{const ax=sd==='front'||sd==='back'?AX:AY, wr=S.windowRatio/100; let hf=0.6, wf=wr/hf; if(wf>0.9){wf=0.9;hf=Math.min(0.88,wr/0.9);} const ch=h-bd; return ax.slice(0,-1).map((a,i)=>{const cw=ax[i+1]-a-c, ww=cw*wf, wh=ch*hf; return {pos:a+c/2+(cw-ww)/2,w:ww,sill:Math.min(0.9,Math.max(0.05,ch-wh-0.15)),h:wh};});})();
+        wins=wins.filter(w=>w.pos>=0&&w.pos+w.w<=len+0.01).sort((a,b)=>a.pos-b.pos);
+        const seg=(p0,p1,y0,y1,m)=>{ if(p1-p0<0.01||y1-y0<0.01) return; const L=p1-p0, mid=(p0+p1)/2, hh=y1-y0, yc=base+y0+hh/2;
+          if(sd==='front'){const [X,Z]=P(mid,0); box(L,hh,t,m,X,yc,Z-t/2);} else if(sd==='back'){const [X,Z]=P(mid,D); box(L,hh,t,m,X,yc,Z+t/2);}
+          else if(sd==='left'){const [X,Z]=P(0,mid); box(t,hh,L,m,X+t/2,yc,Z);} else {const [X,Z]=P(W,mid); box(t,hh,L,m,X-t/2,yc,Z);} };
+        let cur=0;
+        wins.forEach(w=>{ seg(cur,w.pos,0,wallH,M.wall); const top=Math.min(wallH,w.sill+w.h);
+          seg(w.pos,w.pos+w.w,0,Math.min(w.sill,wallH),M.wall); if(top<wallH) seg(w.pos,w.pos+w.w,top,wallH,M.wall);
+          if(w.sill<wallH){ const gh=top-w.sill, mid=w.pos+w.w/2, yc=base+w.sill+gh/2;
+            if(sd==='front'){const [X,Z]=P(mid,0); box(w.w,gh,0.03,M.glass,X,yc,Z-t/2);} else if(sd==='back'){const [X,Z]=P(mid,D); box(w.w,gh,0.03,M.glass,X,yc,Z+t/2);}
+            else if(sd==='left'){const [X,Z]=P(0,mid); box(0.03,gh,w.w,M.glass,X+t/2,yc,Z);} else {const [X,Z]=P(W,mid); box(0.03,gh,w.w,M.glass,X-t/2,yc,Z);} }
+          cur=w.pos+w.w; });
+        seg(cur,len,0,wallH,M.wall);
+      });
+      // interior partitions + room floors (cutaway)
+      if(cut){
+        S.rooms.filter(r=>r.f===f&&r.w>0&&r.d>0).forEach(r=>{
+          const [X,Z]=P(r.x+r.w/2,r.y+r.d/2), T=TYPES[r.t]||TYPES.other;
+          if(f===topF){ const fl=add(new THREE.PlaneGeometry(r.w-0.06,r.d-0.06),mat(T.c,{transparent:true,opacity:0.55}),X,base+0.16,Z,false); fl.rotation.x=-Math.PI/2; fl.receiveShadow=true;
+            addLabel(sc,`${r.n}`,`${f1(r.w*r.d)} m²`,X,base+1.6,Z); }
+          const ph=f===topF?1.2:h-bd, e=0.02;
+          [[r.x,r.y,r.x+r.w,r.y],[r.x,r.y+r.d,r.x+r.w,r.y+r.d],[r.x,r.y,r.x,r.y+r.d],[r.x+r.w,r.y,r.x+r.w,r.y+r.d]].forEach(([x0,y0,x1,y1])=>{
+            const ext=(y0===y1&&(y0<=e||y0>=D-e))||(x0===x1&&(x0<=e||x0>=W-e)); if(ext) return;
+            const [A0,B0]=P(x0,y0),[A1,B1]=P(x1,y1); box(Math.max(0.1,Math.abs(A1-A0)),ph,Math.max(0.1,Math.abs(B1-B0)),M.frame,(A0+A1)/2,base+ph/2+0.15,(B0+B1)/2);});
+        });
+      }
+    }
+    // roof
+    if(topF===F&&!cut){
+      if(S.roof==='gable'){
+        const rh=A.m.roofH, half=W/2+0.6, len=Math.hypot(half,rh), ang=Math.atan2(rh,W/2);
+        [-1,1].forEach(sg=>{const m=box(len,0.15,D+1.2,M.roof,sg*half/2,H+rh/2+0.05,0); m.rotation.z=-sg*ang;});
+        const shp=new THREE.Shape(); shp.moveTo(-W/2,0); shp.lineTo(W/2,0); shp.lineTo(0,rh*(W/2)/(W/2)); shp.lineTo(-W/2,0);
+        [D/2-0.05,-D/2+0.05].forEach(z=>{const gm=add(new THREE.ShapeGeometry(shp),M.wall,0,H,z); gm.material.side=THREE.DoubleSide;});
+      } else {
+        [[W,1.1,0.15,0,D/2-0.075],[W,1.1,0.15,0,-D/2+0.075],[0.15,1.1,D,-W/2+0.075,0],[0.15,1.1,D,W/2-0.075,0]].forEach(([w,hh,d,x,z])=>box(w,hh,d,M.wall,x,H+hh/2,z));
+      }
+    }
+  }
+  if(T3.needFit){ const cutH=cut?(topF-1)*h:H; const R=cut?Math.max(W,D)*1.25+4:Math.max(W,D,H)*1.6+6; T3.camera.position.set(R*0.6,cutH+R*0.75,R*0.85); T3.controls.target.set(0,cut?cutH:Math.min(H,6)/2,0); T3.needFit=false; }
+  T3.camera.far=Math.max(W,D,H)*20+100; T3.camera.updateProjectionMatrix(); T3.controls.update(); render3d();
+}
+function addLabel(sc,a,b,x,y,z){
+  const THREE=window.THREE, cv=document.createElement('canvas'), k=2; cv.width=256*k; cv.height=96*k; const g=cv.getContext('2d');
+  g.fillStyle='rgba(255,255,255,0.88)'; g.strokeStyle='rgba(20,35,42,0.6)'; g.lineWidth=3*k; const r=14*k;
+  g.beginPath(); g.moveTo(r,2*k); g.arcTo(254*k,2*k,254*k,94*k,r); g.arcTo(254*k,94*k,2*k,94*k,r); g.arcTo(2*k,94*k,2*k,2*k,r); g.arcTo(2*k,2*k,254*k,2*k,r); g.fill(); g.stroke();
+  g.fillStyle='#15232a'; g.textAlign='center'; g.font=`700 ${34*k}px "Noto Sans TC",sans-serif`; g.fillText(a,128*k,44*k); g.font=`${24*k}px "IBM Plex Mono",monospace`; g.fillStyle='#4a5a5f'; g.fillText(b,128*k,80*k);
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),depthTest:false})); sp.position.set(x,y,z); sp.scale.set(3.2,1.2,1); sp.renderOrder=10; sc.add(sp);
+}
+function renderFinalControls(){
+  $$('#mode3d [data-m]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===T3.mode));
+  const fsel=$('#upto3d'); fsel.hidden=T3.mode!=='in';
+  let hh=''; for(let f=1;f<=S.floors;f++) hh+=`<button data-upto="${f}" aria-pressed="${Math.min(T3.upTo,S.floors)===f}">${f}F</button>`; fsel.innerHTML='<span class="help">看哪一層：</span>'+hh;
+  $('#hint3d').textContent={ext:'外觀：拖曳旋轉、滾輪或雙指縮放、右鍵拖曳平移。',in:'室內：把上面的樓層和屋頂拿掉，牆切在 1.2 m 高，可以看到房間配置。',str:'結構骨架：只留柱、梁、樓板和地下的基礎。柱子顏色：灰色正常、黃色吃緊、紅色扛不住。'}[T3.mode];
+}
+function specSheet(){
+  const m=A.m, c={err:0,warn:0,info:0}; A.L.forEach(x=>c[x.sev]++);
+  const area=S.W*S.D, tot=area*S.floors, wins=S.windows.filter(w=>w.f<=S.floors);
+  const rooms=S.rooms.filter(r=>r.f<=S.floors).sort((a,b)=>a.f-b.f||(b.w*b.d)-(a.w*a.d));
+  const status=c.err?`<span class="chip c-err">還有 ${c.err} 個危險項目</span>`:c.warn?`<span class="chip c-warn">還有 ${c.warn} 個注意項目</span>`:`<span class="chip c-ok">初步檢查全部通過</span>`;
+  const land=S.land&&S.land.on?landCheck(null):null;
+  return `<div class="spec-h"><div><div class="eyebrow2">設計說明書</div><h2>我的房子</h2></div>${status}</div>
+  <div class="spec-grid">
+    <div><b>規模</b><span>${S.floors} 層樓，每層 ${f1(S.W)} × ${f1(S.D)} m</span><span>每層 ${f1(area)} m²（${f1(area/3.3058)} 坪），總計 ${f1(tot)} m²（${f1(tot/3.3058)} 坪）</span><span>樓高 ${f2(S.storeyH)} m，總高 ${f2(m.H+m.roofH)} m</span></div>
+    <div><b>外觀</b><span>${S.roof==='gable'?`斜屋頂 ${S.roofPitch}°`:'平屋頂'}・${WALL[S.wall].n}</span><span>${wins.length?`${wins.length} 扇窗，開窗率 ${effWindowRatio()}%`:`開窗率 ${S.windowRatio}%（估計）`}</span></div>
+    <div><b>結構</b><span>${SYS[S.system].n}${S.system==='rc'||S.system==='brick'?`，fc′ ${S.fc}、${S.rebar}`:''}</span><span>柱 ${S.col} cm 方柱，梁深 ${S.beam} cm，樓板 ${S.slab} cm</span><span>柱距 左右 ${m.spX.map(f2).join('/')}、前後 ${m.spY.map(f2).join('/')} m</span><span>受力最大 ${m.maxCol} 柱：使用率 ${Math.round(m.colRatio*100)}%</span></div>
+    <div><b>地基</b><span>${SOIL[S.soil].n}・${FDN[S.fdn]}${S.fdn==='spread'||S.fdn==='strip'?` ${f1(S.footing)} m`:''}，深 ${f1(S.fdnDepth)} m</span><span>使用 ${Math.round(m.fRatio*100)}%（建議 80% 內）</span></div>
+    ${land?`<div><b>土地</b><span>${f1(land.G.area)} m²（${f1(land.G.area/3.3058)} 坪）</span><span>建蔽率 ${Math.round(land.cov*100)}%・容積率 ${Math.round(land.far*100)}%</span></div>`:''}
+  </div>
+  <div class="tw"><table><tr><th>樓層</th><th>房間</th><th>類型</th><th>尺寸</th><th>面積</th><th>窗戶</th></tr>
+  ${rooms.map(r=>`<tr><td>${r.f}F</td><td>${esc(r.n)}</td><td>${(TYPES[r.t]||TYPES.other).n}</td><td class="n">${f2(r.w)} × ${f2(r.d)} m</td><td class="n">${f1(r.w*r.d)} m²（${f1(r.w*r.d/3.3058)} 坪）</td><td class="n">${S.windows.length?f2(lightArea(r))+' m²':'—'}</td></tr>`).join('')}</table></div>
+  <p class="help">這份說明書和 3D 模型是依照網站的經驗法則產生的學習成果，可以拿去和建築師討論；正式興建仍需建築師設計、結構技師簽證。</p>`;
+}
+function showFinal(){
+  $('#spec').innerHTML=specSheet(); renderFinalControls();
+  $('#msg3d').textContent='正在載入 3D…';
+  ensureThree().then(()=>{ if(!T3.ready) initThree(); $('#msg3d').textContent=''; size3d(); buildScene(); })
+    .catch(()=>{$('#msg3d').textContent='3D 載入失敗，請確認網路連線後重新整理。';});
+}
+$('#mode3d').addEventListener('click',e=>{const b=e.target.closest('[data-m]'); if(!b) return; T3.mode=b.dataset.m; T3.needFit=true; if(T3.mode==='in'&&T3.upTo>S.floors) T3.upTo=1; renderFinalControls(); if(T3.ready) buildScene();});
+$('#upto3d').addEventListener('click',e=>{const b=e.target.closest('[data-upto]'); if(!b) return; T3.upTo=+b.dataset.upto; T3.needFit=true; renderFinalControls(); if(T3.ready) buildScene();});
+$('#reset3d').addEventListener('click',()=>{T3.needFit=true; if(T3.ready) buildScene();});
+$('#shot3d').addEventListener('click',()=>{ if(!T3.ready) return; render3d(); const url=T3.renderer.domElement.toDataURL('image/png'); $('#shotBox').hidden=false; $('#shotImg').src=url; });
+$('#shotClose').addEventListener('click',()=>{$('#shotBox').hidden=true;});
 
 /* ---------- land (土地範圍) ---------- */
 function landGeo(){
