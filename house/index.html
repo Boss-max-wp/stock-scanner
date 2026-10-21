@@ -1931,15 +1931,20 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-restoreall
 
 /* ---------- auto column grid from rooms ---------- */
 function autoAxis(dir){
-  const L=dir==='x'?S.W:S.D, maxS=SYS[S.system].span[0], minS=2.5, e=0.05;
+  const L=dir==='x'?S.W:S.D, sys=SYS[S.system], good=sys.span[0], hard=sys.span[1], minS=2.5, e=0.05;
+  const rs=S.rooms.filter(r=>r.f<=S.floors&&r.w>0&&r.d>0), lo=r=>dir==='x'?r.x:r.y, hi=r=>dir==='x'?r.x+r.w:r.y+r.d;
   const w=new Map();
-  S.rooms.filter(r=>r.f<=S.floors&&r.w>0&&r.d>0).forEach(r=>{(dir==='x'?[r.x,r.x+r.w]:[r.y,r.y+r.d]).forEach(v=>{const k=Math.round(v*20)/20; if(k>e&&k<L-e) w.set(k,(w.get(k)||0)+1);});});
+  rs.forEach(r=>[lo(r),hi(r)].forEach(v=>{const k=Math.round(v*20)/20; if(k>e&&k<L-e) w.set(k,(w.get(k)||0)+1);}));
+  const cuts=c=>rs.filter(r=>c>lo(r)+e&&c<hi(r)-e).length;
   const cands=[...w.keys()].sort((a,b)=>a-b), pts=[0]; let pos=0, guard=0;
-  while(L-pos>maxS+1e-6&&guard++<20){
-    const inR=cands.filter(c=>c>=pos+minS-1e-6&&c<=pos+maxS+1e-6&&L-c>=minS-1e-6);
+  const score=(c)=>w.get(c)*1.0-cuts(c)*2.0+(c-pos)/good*0.6-(c-pos>good+1e-6?1.2:0);
+  while(L-pos>good+1e-6&&guard++<20){
+    // can we finish with one longer span without cutting anything?
+    const inR=cands.filter(c=>c>=pos+minS-1e-6&&c<=pos+hard+1e-6&&L-c>=minS-1e-6);
+    if(L-pos<=hard+1e-6&&(!inR.length||Math.max(...inR.map(score))<0.8)) break;
     let next;
-    if(inR.length){ next=inR.reduce((b,c)=>{const sc=w.get(c)+(c-pos)/maxS, sb=w.get(b)+(b-pos)/maxS; return sc>sb?c:b;}); }
-    else { const n=Math.ceil((L-pos)/maxS); next=pos+(L-pos)/n; }
+    if(inR.length){ next=inR.reduce((b,c)=>score(c)>score(b)?c:b); }
+    else { const n=Math.ceil((L-pos)/good); next=pos+(L-pos)/n; }
     pts.push(next); pos=next;
   }
   pts.push(L);
