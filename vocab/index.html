@@ -357,7 +357,24 @@ select.n{flex:none;width:100%}
     <section id="stage-form" class="card" aria-live="polite"></section>
   </section>
 
-  <p class="hint" style="text-align:center"><span id="ver">版本 10/15-17</span> · <button id="checkupd" class="linkbtn" type="button" style="font-size:inherit">檢查更新</button></p>
+  <details id="sync" class="panel" style="gap:10px">
+    <summary style="cursor:pointer;font-weight:700">📲 手機和電腦同步單字</summary>
+    <p class="hint">單字存在各自的裝置裡，不會自動互通。用這裡把一台的資料搬到另一台：</p>
+    <p class="hint"><b>1. 在有資料的那台</b>（例如手機）按「傳送同步檔」，用 AirDrop、LINE 或 Email 傳到另一台。<br><b>2. 在另一台</b>（例如電腦）按「匯入同步檔」選那個檔案。<br>兩邊的單元會<b>合併</b>，不會互相蓋掉。</p>
+    <div class="row">
+      <button id="sync-send" class="btn primary" type="button">傳送同步檔</button>
+      <label class="btn" style="display:inline-flex;align-items:center">匯入同步檔<input id="sync-file" type="file" accept=".txt,.json,text/plain,application/json" hidden></label>
+    </div>
+    <details>
+      <summary class="hint" style="cursor:pointer">沒辦法傳檔案？改用複製貼上</summary>
+      <div class="row" style="margin-top:8px"><button id="sync-copy" class="btn" type="button">複製同步碼</button></div>
+      <textarea id="sync-code" spellcheck="false" placeholder="在另一台按「複製同步碼」，再貼到這裡" style="min-height:90px;margin-top:8px"></textarea>
+      <div class="row" style="margin-top:8px"><button id="sync-paste" class="btn" type="button">匯入貼上的同步碼</button></div>
+    </details>
+    <p id="st-sync" class="status" role="status"></p>
+  </details>
+
+  <p class="hint" style="text-align:center"><span id="ver">版本 10/21-1</span> · <button id="checkupd" class="linkbtn" type="button" style="font-size:inherit">檢查更新</button></p>
 </div>
 
 <script>
@@ -1406,6 +1423,93 @@ runners.cloze.start(shuffle(EXAMPLE),true);
 setSt("cloze","右邊是範例題目。勾選你的單元後按「出題」。");
 runners.meaning.start(shuffle(EXAMPLE).map(q=>({word:q.word,zh:q.meaning,options:[q.meaning,...shuffle(EXAMPLE.filter(x=>x!==q).map(x=>x.meaning)).slice(0,3)]})),true);
 setSt("meaning","右邊是範例題目。勾選你的單元後按「開始」。");
+
+/* ---------- 手機 ↔ 電腦 同步（匯出／匯入，合併不覆蓋） ---------- */
+(function(){
+  const st=(t,err)=>{const el=$("#st-sync");el.textContent=t;el.classList.toggle("err",!!err);el.classList.toggle("ok",!err&&!!t)};
+  function gather(){const o={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith("vc-")&&k!=="vc-page")o[k]=localStorage.getItem(k)}return o}
+  const b64=u8=>{let s="";for(let i=0;i<u8.length;i+=0x8000)s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));return btoa(s)};
+  const unb64=t=>Uint8Array.from(atob(t),c=>c.charCodeAt(0));
+  async function encode(){
+    const json=JSON.stringify({app:"vocab",v:1,at:Date.now(),data:gather()});
+    const raw=new TextEncoder().encode(json);
+    if(window.CompressionStream){try{const gz=new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer());return "VCZ1:"+b64(gz)}catch(e){}}
+    return "VCJ1:"+b64(raw);
+  }
+  async function decode(t){
+    t=String(t||"").trim().replace(/\s+/g,"");
+    let bytes;
+    if(t.startsWith("VCZ1:")){if(!window.DecompressionStream)throw new Error("這個瀏覽器太舊，請更新後再試");bytes=new Uint8Array(await new Response(new Blob([unb64(t.slice(5))]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer())}
+    else if(t.startsWith("VCJ1:")) bytes=unb64(t.slice(5));
+    else if(t.startsWith("{")) bytes=new TextEncoder().encode(t);
+    else throw new Error("這不是單字機的同步碼");
+    const o=JSON.parse(new TextDecoder().decode(bytes));
+    if(!o||o.app!=="vocab"||typeof o.data!=="object") throw new Error("這不是單字機的同步碼");
+    return o.data;
+  }
+  const P=v=>{try{return JSON.parse(v)}catch(e){return undefined}};
+  const isObj=v=>v&&typeof v==="object"&&!Array.isArray(v);
+  function mergeLines(a,b){const out=String(a||"").split("\n"),keys=new Set(out.map(l=>l.trim().toLowerCase()).filter(Boolean));for(const l of String(b||"").split("\n")){const k=l.trim().toLowerCase();if(k&&!keys.has(k)){out.push(l);keys.add(k)}}return out.join("\n").replace(/^\n+|\n+$/g,"")}
+  function mergeUnits(local,inc){
+    const out=local.map(u=>({...u})); let added=0, grew=0;
+    for(const u of inc){
+      if(!u||!u.id) continue;
+      const same=out.find(x=>x.id===u.id)||out.find(x=>x.name===u.name&&x.name);
+      if(!same){out.push({...u});added++;continue}
+      const m=mergeLines(same.words,u.words); if(m!==same.words){same.words=m;grew++}
+    }
+    // 只有範例單元、沒自己的資料時，拿掉範例
+    const real=out.filter(u=>u.name!=="範例單元"); 
+    return {units:real.length?real:out,added,grew};
+  }
+  function mergeAll(inc){
+    let added=0,grew=0;
+    for(const [k,v] of Object.entries(inc)){
+      if(typeof v!=="string") continue;
+      const cur=localStorage.getItem(k);
+      if(k==="vc-units"){
+        const L=P(cur)||[], I=P(v)||[];
+        if(Array.isArray(I)){const r=mergeUnits(Array.isArray(L)?L:[],I);added=r.added;grew=r.grew;store(k,JSON.stringify(r.units))}
+        continue;
+      }
+      if(cur===null){store(k,v);continue}
+      if(k==="vc-cur"||k==="vc-words") continue;
+      const a=P(cur), b=P(v);
+      if(Array.isArray(a)&&Array.isArray(b)){const seen=new Set(a.map(x=>JSON.stringify(x)));store(k,JSON.stringify([...a,...b.filter(x=>!seen.has(JSON.stringify(x)))]))}
+      else if(isObj(a)&&isObj(b)) store(k,JSON.stringify({...b,...a}));
+    }
+    return {added,grew};
+  }
+  async function doImport(text){
+    try{
+      const data=await decode(text);
+      const {added,grew}=mergeAll(data);
+      st(`匯入成功：新增 ${added} 個單元`+(grew?`，${grew} 個單元補上新單字`:"")+"。馬上重新整理…");
+      setTimeout(()=>location.replace(location.pathname+"?v="+Date.now()+"#units"),1200);
+    }catch(e){st("匯入失敗："+(e.message||"同步碼不完整，請重新複製一次"),true)}
+  }
+  $("#sync-send").onclick=async()=>{
+    try{
+      const code=await encode();
+      const d=new Date(), name=`單字同步_${d.getMonth()+1}-${d.getDate()}.txt`;
+      const file=new File([code],name,{type:"text/plain"});
+      if(navigator.canShare&&navigator.canShare({files:[file]})){
+        try{await navigator.share({files:[file],title:"單字同步檔"});st("已傳出。到另一台按「匯入同步檔」選這個檔案。");return}
+        catch(e){if(e.name==="AbortError")return}
+      }
+      const a=document.createElement("a");a.href=URL.createObjectURL(file);a.download=name;document.body.append(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+      st(`已下載「${name}」。把它傳到另一台，再按「匯入同步檔」。`);
+    }catch(e){st("做同步檔失敗，改用下面的複製貼上試試",true)}
+  };
+  $("#sync-file").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(f) doImport(await f.text())};
+  $("#sync-copy").onclick=async()=>{
+    const code=await encode(); const ta=$("#sync-code"); ta.value=code;
+    try{await navigator.clipboard.writeText(code);st(`已複製（${code.length} 個字）。到另一台貼進框框，按「匯入貼上的同步碼」。`)}
+    catch(e){ta.focus();ta.select();st("請長按框框裡的文字，選「全選」→「拷貝」。")}
+  };
+  $("#sync-paste").onclick=()=>{const t=$("#sync-code").value;if(!t.trim()){st("請先把同步碼貼到框框裡",true);return}doImport(t)};
+})();
 /* ---------- 自動檢查新版本（主畫面 App 不會自己更新） ---------- */
 const MY_VERSION=$("#ver").textContent.replace("版本 ","");
 function reloadFresh(){location.replace(location.pathname+"?v="+Date.now()+location.hash)}
