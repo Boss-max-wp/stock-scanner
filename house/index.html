@@ -1929,13 +1929,44 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-coltoggle]
   selCol=k; setCtx({type:'column'},false); anchor($('#plan'),()=>renderAll({keepList:true}));});
 document.addEventListener('click',e=>{const b=e.target.closest('[data-restoreall]'); if(!b) return; S.noCol=[]; anchor($('#plan'),()=>renderAll({keepList:true}));});
 
+/* ---------- auto column grid from rooms ---------- */
+function autoAxis(dir){
+  const L=dir==='x'?S.W:S.D, maxS=SYS[S.system].span[0], minS=2.5, e=0.05;
+  const w=new Map();
+  S.rooms.filter(r=>r.f<=S.floors&&r.w>0&&r.d>0).forEach(r=>{(dir==='x'?[r.x,r.x+r.w]:[r.y,r.y+r.d]).forEach(v=>{const k=Math.round(v*20)/20; if(k>e&&k<L-e) w.set(k,(w.get(k)||0)+1);});});
+  const cands=[...w.keys()].sort((a,b)=>a-b), pts=[0]; let pos=0, guard=0;
+  while(L-pos>maxS+1e-6&&guard++<20){
+    const inR=cands.filter(c=>c>=pos+minS-1e-6&&c<=pos+maxS+1e-6&&L-c>=minS-1e-6);
+    let next;
+    if(inR.length){ next=inR.reduce((b,c)=>{const sc=w.get(c)+(c-pos)/maxS, sb=w.get(b)+(b-pos)/maxS; return sc>sb?c:b;}); }
+    else { const n=Math.ceil((L-pos)/maxS); next=pos+(L-pos)/n; }
+    pts.push(next); pos=next;
+  }
+  pts.push(L);
+  const sp=spans(pts).map(v=>Math.round(v*100)/100);
+  return sp.length>(dir==='x'?6:8)?null:sp;
+}
+function columnsInRooms(){let n=0; const ax=axes('x'), ay=axes('y');
+  S.rooms.filter(r=>r.f<=S.floors).forEach(r=>ax.forEach((cx,i)=>ay.forEach((cy,j)=>{ if(hasCol(i,j)&&cx>r.x+0.05&&cx<r.x+r.w-0.05&&cy>r.y+0.05&&cy<r.y+r.d-0.05) n++; }))); return n;}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-autogrid]'); if(!b) return;
+  const before=columnsInRooms(), bx=autoAxis('x'), by=autoAxis('y');
+  if(!bx||!by){$('#autoMsg').textContent='房子太大，柱子排不下，請先減少房子大小或改用鋼構。'; return;}
+  S.nx=bx.length; S.ny=by.length; S.spanX=bx; S.spanY=by; S.noCol=[]; selCol=null;
+  const after=columnsInRooms();
+  anchor($('#plan'),()=>renderAll({keepList:true}));
+  const msg=$('#autoMsg'); if(msg) msg.textContent=`已依照房間的牆排好：左右 ${bx.length} 跨（${bx.map(f2).join('、')} m），前後 ${by.length} 跨（${by.map(f2).join('、')} m）。站在房間中間的柱子：${before} 根 → ${after} 根。`;
+});
+
 /* ---------- custom column spans UI ---------- */
 function renderGridBox(){
   const box=$('#gridBox'); if(!box||box.contains(document.activeElement)) return;
   const row=(dir,label,from)=>{const a=axes(dir), sp=spans(a), custom=Array.isArray(dir==='x'?S.spanX:S.spanY)&&(dir==='x'?S.spanX:S.spanY).length===(dir==='x'?S.nx:S.ny);
     return `<div class="gridrow"><div class="flab"><span>${label}（${from}）</span>${custom?`<button class="btn sm" data-even="${dir}">平均分配</button>`:'<span class="help">目前平均分配</span>'}</div>
       <div class="spans">${sp.map((v,i)=>`<label><span>${dir==='x'?(i+1)+'→'+(i+2):String.fromCharCode(65+i)+'→'+String.fromCharCode(66+i)}</span><input type="number" step="0.05" min="0.5" data-span="${dir}" data-i="${i}" value="${r2(v)}" inputmode="decimal" aria-label="第 ${i+1} 跨"></label>`).join('')}</div></div>`;};
+  const keepMsg=$('#autoMsg')?$('#autoMsg').textContent:'';
   box.innerHTML=`<div class="flab"><label>柱子位置（每一跨的距離，m）</label><button class="why" data-lesson="span" aria-label="柱網教學">?</button></div>
+    <button class="btn primary sm" data-autogrid="1">依照我的房間自動排柱子</button>
+    <p class="help" id="autoMsg">${keepMsg||'不知道柱子怎麼放？先排好房間，再按這個，網站會把柱子放到房間的牆角上。'}</p>
     ${row('x','左右方向','從左往右')}${row('y','前後方向','從前往後')}
     <p class="help">改一跨，旁邊那一跨會自動補，總長維持房子的寬度。也可以在平面圖上<b>拖曳藍色圓圈</b>（軸線編號）移動整排柱子。</p>
     <p class="help"><b>想拿掉某一根柱子？</b>在平面圖上點那根柱子，右邊教練會告訴你能不能拿、拿掉會怎樣。${(S.noCol||[]).length?`<br>已拿掉：${S.noCol.map(k=>{const [i,j]=k.split(',').map(Number); return colName(i,j);}).join('、')} <button class="btn sm" data-restoreall="1">全部加回來</button>`:''}</p>`;
