@@ -1,0 +1,1667 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>蓋房子練習場</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+body{margin:0}
+/* Layout: a drafting office — controls on the left, drawing sheets (plan A-101, section S-201) in the middle, a live check list on the right; lessons are a long reading page with a sticky contents rail */
+:root{
+  --paper:#E9EEEC; --sheet:#FAFBFA; --panel:#FFFFFF; --ink:#15232A; --muted:#5A6A6F; --line:#C8D2D0; --grid:#E2E8E6;
+  --accent:#1B5876; --accent-ink:#FFFFFF; --accent-soft:#DCE9EF;
+  --err:#B42318; --warn:#9A5A06; --ok:#2B7A4B; --info:#3A5A8A;
+  --conc:#C3CAC7; --colfill:#9AA5A2; --wall:#DCE2DF; --glass:#BFD7E3; --soil:#E4DCCB; --roof:#AEB8B4;
+  --f-display:"Noto Serif TC","Songti TC","PMingLiU",serif;
+  --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0E1517; --sheet:#121C1F; --panel:#162125; --ink:#E0E8E6; --muted:#93A4A5; --line:#2B3A3E; --grid:#1A2629;
+  --accent:#72B5D8; --accent-ink:#0E1517; --accent-soft:#1D3340;
+  --err:#F27D70; --warn:#E9A55A; --ok:#6CC28F; --info:#93B2E2;
+  --conc:#465357; --colfill:#5D6B6F; --wall:#26333A; --glass:#24475A; --soil:#2D2922; --roof:#3E4A4E; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#0E1517; --sheet:#121C1F; --panel:#162125; --ink:#E0E8E6; --muted:#93A4A5; --line:#2B3A3E; --grid:#1A2629;
+  --accent:#72B5D8; --accent-ink:#0E1517; --accent-soft:#1D3340;
+  --err:#F27D70; --warn:#E9A55A; --ok:#6CC28F; --info:#93B2E2;
+  --conc:#465357; --colfill:#5D6B6F; --wall:#26333A; --glass:#24475A; --soil:#2D2922; --roof:#3E4A4E; color-scheme:dark}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.65;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 40px}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+/* header */
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;padding-block:18px 14px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.brand{display:flex;gap:12px;align-items:center;margin-right:auto;min-width:0}
+.brand svg{flex:none}
+.brand h1{font-family:var(--f-display);font-size:23px;line-height:1.2;margin:0;letter-spacing:.06em}
+.brand p{margin:2px 0 0;color:var(--muted);font-size:12.5px}
+.views{display:flex;border:1px solid var(--ink);border-radius:6px;overflow:hidden}
+.views button{background:transparent;border:0;padding:7px 18px;font-weight:500}
+.views button[aria-selected="true"]{background:var(--ink);color:var(--paper)}
+.tally{display:flex;gap:6px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12.5px;font-weight:500;border:1px solid currentColor}
+.chip b{font-family:var(--f-mono);font-weight:500}
+.c-err{color:var(--err)} .c-warn{color:var(--warn)} .c-info{color:var(--info)} .c-ok{color:var(--ok)}
+
+/* design layout */
+.design{display:grid;grid-template-columns:330px minmax(0,1fr) 340px;gap:16px;align-items:start}
+@media (max-width:1280px){.design{grid-template-columns:320px minmax(0,1fr)}.checks{grid-column:1/-1}}
+@media (max-width:840px){.design{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px}
+.controls{min-width:0}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line)}
+.steps button{background:transparent;border:0;border-bottom:3px solid transparent;padding:12px 2px 9px;font-weight:500;font-size:13px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1.3}
+.steps button .n{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em}
+.steps button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.pane{padding:14px 16px 18px;display:flex;flex-direction:column;gap:14px}
+.pane h3{font-family:var(--f-display);font-size:15px;margin:6px 0 -4px;letter-spacing:.04em;padding-top:10px;border-top:1px dashed var(--line)}
+.pane h3:first-child{border-top:0;padding-top:0;margin-top:0}
+.field{display:flex;flex-direction:column;gap:4px}
+.flab{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.flab label{font-weight:500}
+.why{width:22px;height:22px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:12px;line-height:1;flex:none}
+.why:hover{border-color:var(--accent);color:var(--accent)}
+.rng{display:flex;align-items:center;gap:10px}
+.rng input{flex:1;min-width:0;accent-color:var(--accent)}
+.rng output{font-family:var(--f-mono);font-variant-numeric:tabular-nums;min-width:64px;text-align:right;font-size:13px}
+.numwrap{display:flex;align-items:center;gap:4px;flex:none}
+.numwrap input{width:74px;padding:4px 6px;font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:13px;text-align:right}
+.numwrap span{font-size:12.5px;color:var(--muted);min-width:18px}
+select,input[type=number],input[type=text],textarea{background:var(--sheet);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%}
+.chk{display:flex;gap:8px;align-items:flex-start;font-weight:500}
+.chk input{margin-top:5px;accent-color:var(--err)}
+.help{margin:0;color:var(--muted);font-size:12.5px;line-height:1.55}
+.readout{background:var(--sheet);border:1px solid var(--line);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;font-size:13px}
+.readout .lbl{font-size:11px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase}
+.ro-row{display:flex;flex-direction:column;gap:3px}
+.ro-row .v{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.meter{height:6px;background:var(--grid);border-radius:3px;overflow:hidden}
+.meter span{display:block;height:100%;border-radius:3px}
+.lv-ok{background:var(--ok)} .lv-warn{background:var(--warn)} .lv-err{background:var(--err)}
+
+/* rooms */
+.floor-tabs{display:flex;gap:4px;flex-wrap:wrap}
+.floor-tabs button{border:1px solid var(--line);background:var(--sheet);border-radius:5px;padding:3px 10px;font-family:var(--f-mono);font-size:12.5px}
+.floor-tabs button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.room-list{display:flex;flex-direction:column;gap:8px}
+.ri{border:1px solid var(--line);border-radius:6px;padding:8px;display:flex;flex-direction:column;gap:6px;background:var(--sheet)}
+.ri.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.ri.bad{border-left:4px solid var(--err)}
+.ri-top{display:flex;gap:6px;align-items:center}
+.sw{width:12px;height:12px;border-radius:3px;flex:none;opacity:.8}
+.ri-top input{flex:1.3;min-width:0}
+.ri-top select{flex:1;min-width:0}
+.ri-del{border:1px solid var(--line);background:transparent;border-radius:5px;width:30px;height:32px;flex:none;color:var(--muted)}
+.ri-del:hover{color:var(--err);border-color:var(--err)}
+.ri-dims{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.ri-dims label{display:flex;flex-direction:column;font-size:11px;color:var(--muted);font-family:var(--f-mono)}
+.ri-dims input{padding:4px 6px;font-family:var(--f-mono);font-size:12.5px}
+.btn{border:1px solid var(--ink);background:transparent;border-radius:6px;padding:7px 12px;font-weight:500}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.io{border-top:1px solid var(--line);padding:12px 16px 16px}
+.io summary{cursor:pointer;font-weight:500}
+.io[open] summary{margin-bottom:8px}
+.io textarea{font-family:var(--f-mono);font-size:11.5px;margin-block:8px;resize:vertical}
+
+/* sheets */
+.sheets{display:flex;flex-direction:column;gap:16px;min-width:0}
+.sheet{margin:0;background:var(--sheet);border:1px solid var(--ink);border-radius:2px;position:relative;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:24px 24px}
+.sheet-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--sheet)}
+.sheet-head h2{margin:0;font-family:var(--f-display);font-size:16px;letter-spacing:.05em}
+.sheet svg{display:block;width:100%;height:auto;max-height:620px}
+#plan{touch-action:none}
+.tblock{display:grid;grid-template-columns:auto auto auto;border-top:1px solid var(--ink);font-size:11.5px;background:var(--sheet)}
+.tblock div{padding:5px 10px;border-right:1px solid var(--line)}
+.tblock div:last-child{border-right:0}
+.tblock b{display:block;font-size:10px;letter-spacing:.12em;color:var(--muted);font-weight:500}
+.tblock span{font-family:var(--f-mono)}
+.hint{color:var(--muted);font-size:12px}
+.plan-tools{display:flex;flex-direction:column;gap:6px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--sheet)}
+.btn.sm{padding:4px 10px;font-size:12.5px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);align-items:center}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{width:14px;height:10px;display:inline-block;border:1px solid var(--line)}
+.lg-gap{background:repeating-linear-gradient(45deg,var(--warn) 0 1.5px,transparent 1.5px 4px)}
+.lg-ov{background:var(--err);opacity:.5}
+#planStats{gap:10px;font-family:var(--f-mono)}
+.tm2{color:var(--muted)}
+.hdl{cursor:ew-resize}
+.hdl[data-h="k"],.hdl[data-h="f"]{cursor:ns-resize}
+.hdlv{fill:var(--accent);stroke:var(--sheet)}
+
+/* svg drawing classes */
+.p-slab{fill:var(--sheet)}
+.t{fill:var(--ink);font-family:var(--f-body)} .tm{fill:var(--muted);font-family:var(--f-mono)} .te{fill:var(--err);font-family:var(--f-mono)}
+.ax{stroke:var(--muted);fill:none} .bub{fill:var(--sheet);stroke:var(--muted)}
+.colp{fill:var(--ink)} .colp.bad{fill:var(--err)}
+.outline{fill:none;stroke:var(--ink)}
+.dim{stroke:var(--muted);fill:none} .dim.bad{stroke:var(--err)}
+.room rect{stroke:var(--ink);cursor:grab}
+.room.sel rect{stroke:var(--accent)}
+.room.bad rect{stroke:var(--err)}
+.room text{pointer-events:none}
+.conc{fill:var(--conc);stroke:var(--ink)} .conc.bad{fill:var(--err);fill-opacity:.35;stroke:var(--err)}
+.colfill{fill:var(--colfill);stroke:var(--ink)} .colfill.bad{fill:var(--err);fill-opacity:.55;stroke:var(--err)}
+.wallf{fill:var(--wall)} .glass{fill:var(--glass);stroke:var(--ink)}
+.soil{fill:var(--soil)} .hatch{stroke:var(--muted);opacity:.45}
+.ground{stroke:var(--ink)} .roofp{fill:var(--roof);stroke:var(--ink)}
+
+/* coach */
+.c-muted{color:var(--muted)}
+.coach{margin:12px;border-color:var(--accent);background:var(--panel)}
+.coach-h{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--accent-soft);border-radius:8px 8px 0 0}
+.coach-title{font-family:var(--f-display);font-size:16px;letter-spacing:.08em;color:var(--accent);font-weight:700}
+#coachBody{padding:12px 14px 14px;display:flex;flex-direction:column;gap:14px}
+.coach.closed #coachBody{display:none}
+.coach.closed .coach-h{border-bottom:0;border-radius:8px}
+.coach h3{margin:2px 0 6px;font-size:15.5px;line-height:1.45}
+.eyebrow2{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.14em;color:var(--muted);margin-top:4px}
+.coach-facts,.coach-how{margin:4px 0 6px;padding-left:18px;display:flex;flex-direction:column;gap:4px;font-size:13.5px;line-height:1.6}
+.coach-facts{list-style:none;padding-left:0}
+.coach-rec{display:flex;flex-direction:column;align-items:flex-start;gap:4px;margin:4px 0 8px}
+.tag{display:inline-block;padding:1px 8px;border-radius:4px;font-size:12.5px;font-weight:500}
+.tag-ok{color:var(--ok);border:1px solid var(--ok)}
+.tag-warn{color:var(--warn);border:1px solid var(--warn)}
+.coach-steps ol{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:2px}
+.coach-steps button{background:none;border:0;padding:4px 6px;text-align:left;width:100%;border-radius:5px;font-size:13.5px;color:var(--muted)}
+.coach-steps button:hover{background:var(--sheet)}
+.coach-steps li.done button{color:var(--ok)}
+.coach-steps li.next button{color:var(--ink);font-weight:700;background:var(--accent-soft)}
+.coach-done{margin:6px 0 0;color:var(--ok);font-weight:500;font-size:13.5px}
+.coach.float{position:fixed;z-index:30;margin:0;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));width:min(380px,calc(100vw - 32px));max-height:min(42vh,520px);overflow:auto;box-shadow:0 10px 30px rgba(0,0,0,.22)}
+.coach.float.closed{width:auto}
+.coach.float .coach-h{position:sticky;top:0;z-index:1}
+/* checks */
+.checks{min-width:0}
+@media (min-width:1281px){.checks{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}}
+.checks-h{padding:14px 16px 10px;border-bottom:1px solid var(--line)}
+.checks-h h2{margin:0;font-family:var(--f-display);font-size:17px;letter-spacing:.04em}
+.checks-h p{margin:4px 0 0;color:var(--muted);font-size:12.5px}
+#checks{padding:12px;display:flex;flex-direction:column;gap:10px}
+.ck{border:1px solid var(--line);border-left-width:4px;border-radius:6px;padding:10px 12px;background:var(--sheet);cursor:pointer}
+.ck:hover{border-color:var(--muted)}
+.ck-err{border-left-color:var(--err)} .ck-warn{border-left-color:var(--warn)} .ck-info{border-left-color:var(--info)}
+.ck-h{display:flex;gap:8px;align-items:center;font-size:11.5px;letter-spacing:.06em}
+.sev{font-weight:700}
+.ck-area{color:var(--muted)}
+.ck h4{margin:4px 0 2px;font-size:14.5px;line-height:1.45}
+.ck p{margin:2px 0;font-size:13px}
+.ck .fix{color:var(--muted)}
+.ck .fix b{color:var(--ink);font-weight:500}
+.link{background:none;border:0;padding:4px 0 0;color:var(--accent);font-weight:500;font-size:13px}
+.allgood{border:1px solid var(--ok);border-radius:6px;padding:12px;color:var(--ok);font-weight:500;background:var(--sheet)}
+.disclaimer{margin:0 12px 14px;font-size:12px;color:var(--muted);border-top:1px dashed var(--line);padding-top:10px}
+
+/* learn */
+.learn{display:grid;grid-template-columns:230px minmax(0,1fr);gap:28px;align-items:start}
+@media (max-width:840px){.learn{grid-template-columns:minmax(0,1fr)}.toc{position:static!important}}
+.toc{position:sticky;top:12px;padding:14px 16px}
+.toc h2{margin:0 0 8px;font-size:12px;letter-spacing:.14em;color:var(--muted)}
+.toc ol{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:4px}
+.toc a{color:var(--ink);text-decoration:none}
+.toc a:hover{color:var(--accent);text-decoration:underline}
+.toc .back{margin-top:14px;width:100%}
+article.lessons{max-width:72ch;min-width:0}
+.lessons{counter-reset:ls}
+.lessons section{counter-increment:ls}
+.lessons .eyebrow::before{content:"第 " counter(ls) " 課"}
+.bubg circle{stroke:var(--ink);cursor:grab}
+.bubg.sel circle{stroke:var(--accent)}
+.bubg.pend circle{stroke:var(--accent);stroke-dasharray:1.2 .8}
+.bubg text{pointer-events:none}
+.blink{stroke:var(--ink);opacity:.55}
+#bub{touch-action:none}
+.btn.on{background:var(--ink);color:var(--paper)}
+.lessons section{padding-block:6px 26px;border-bottom:1px solid var(--line);margin-bottom:22px;scroll-margin-top:12px}
+.lessons .eyebrow{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.14em;color:var(--accent)}
+.lessons h2{font-family:var(--f-display);font-size:24px;line-height:1.35;margin:2px 0 12px;text-wrap:balance;letter-spacing:.03em}
+.lessons h3{font-size:16px;margin:20px 0 6px}
+.lessons p,.lessons li{font-size:15px;line-height:1.85}
+.lessons ul,.lessons ol{padding-left:22px}
+.term{background:var(--accent-soft);border-radius:6px;padding:10px 14px;margin:12px 0;font-size:14px}
+.term b{color:var(--accent)}
+.rule{border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:6px;padding:10px 14px;margin:12px 0;background:var(--panel)}
+.tw{overflow-x:auto;margin:12px 0}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:13.5px;background:var(--panel)}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:var(--sheet);font-weight:500}
+td.n{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.calc{font-family:var(--f-mono);font-size:13.5px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 14px;line-height:1.9;overflow-x:auto;white-space:pre}
+.lessons figure{margin:14px 0}
+.lessons figcaption{font-size:12.5px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+
+
+<header class="top">
+  <div class="brand">
+    <svg width="38" height="38" viewBox="0 0 38 38" aria-hidden="true"><rect x="1" y="1" width="36" height="36" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 18 L19 9 L30 18" fill="none" stroke="currentColor" stroke-width="2"/><rect x="11" y="18" width="3" height="12" fill="currentColor"/><rect x="24" y="18" width="3" height="12" fill="currentColor"/><line x1="6" y1="30" x2="32" y2="30" stroke="currentColor" stroke-width="2"/><rect x="9" y="31" width="7" height="3" fill="currentColor" opacity=".5"/><rect x="22" y="31" width="7" height="3" fill="currentColor" opacity=".5"/></svg>
+    <div><h1>蓋房子練習場</h1><p>泡泡圖 → 外觀 → 柱子與地基 → 室內，教練陪你一步一步畫</p></div>
+  </div>
+  <span class="chip c-muted" id="sync">只存在這台電腦</span>
+  <div class="tally" id="tally" aria-live="polite"></div>
+  <nav class="views" role="tablist" aria-label="切換畫面">
+    <button role="tab" id="tabDesign" aria-selected="true" data-view="design">設計</button>
+    <button role="tab" id="tabLearn" aria-selected="false" data-view="learn">教學</button>
+  </nav>
+</header>
+
+<section id="coach" class="coach card" aria-label="教練">
+  <div class="coach-h"><span class="coach-title">教練</span><button class="btn sm" id="coachToggle" aria-expanded="true">收起</button></div>
+  <div id="coachBody" aria-live="polite"></div>
+</section>
+<main id="v-design" class="design">
+  <section class="controls card" aria-label="設計設定">
+    <div class="steps" role="tablist">
+      <button role="tab" data-tab="bub" aria-selected="true"><span class="n">STEP 1</span>泡泡圖</button>
+      <button role="tab" data-tab="ext" aria-selected="false"><span class="n">STEP 2</span>外觀</button>
+      <button role="tab" data-tab="str" aria-selected="false"><span class="n">STEP 3</span>柱子與地基</button>
+      <button role="tab" data-tab="room" aria-selected="false"><span class="n">STEP 4</span>室內格局</button>
+    </div>
+    <div class="pane" id="pane-bub">
+      <h3>先決定房子外框</h3>
+      <div class="field"><div class="flab"><label for="bW">面寬（左右寬）</label></div><div class="rng"><input type="range" id="bW" data-k="W" min="4" max="24" step="0.5"><span class="numwrap"><input type="number" id="obW" data-k="W" min="4" max="24" step="0.5" inputmode="decimal" aria-label="輸入數值"><span>m</span></span></div></div>
+      <div class="field"><div class="flab"><label for="bD">進深（前後長）</label></div><div class="rng"><input type="range" id="bD" data-k="D" min="4" max="30" step="0.5"><span class="numwrap"><input type="number" id="obD" data-k="D" min="4" max="30" step="0.5" inputmode="decimal" aria-label="輸入數值"><span>m</span></span></div></div>
+      <div class="field"><div class="flab"><label for="bF">樓層數</label></div><div class="rng"><input type="range" id="bF" data-k="floors" min="1" max="6" step="1"><span class="numwrap"><input type="number" id="obF" data-k="floors" min="1" max="6" step="1" inputmode="decimal" aria-label="輸入數值"><span>層</span></span></div></div>
+      <div class="readout" id="bubArea"></div>
+      <h3>再畫空間關係</h3>
+      <p class="help">先不管尺寸，只想「我要哪些空間、誰跟誰要靠近」。每個泡泡是一個空間，<b>泡泡越大代表想要的面積越大</b>，有連線代表兩個空間要相鄰。</p>
+      <div class="field">
+        <div class="flab"><label>正在畫的樓層</label><button class="why" data-lesson="bubble" aria-label="泡泡圖教學">?</button></div>
+        <div class="floor-tabs" data-floortabs></div>
+      </div>
+      <div class="row"><button class="btn" id="linkMode" aria-pressed="false">連線模式：關</button></div>
+      <p class="help" id="linkHelp">拖曳泡泡可以移動。打開「連線模式」後，依序點兩個泡泡就能連線，再點一次同樣兩個就取消。</p>
+      <div class="room-list" id="bubList"></div>
+      <div class="row"><button class="btn" id="addBub">＋ 加入泡泡</button></div>
+      <h3>畫好了嗎？</h3>
+      <p class="help">把這層的泡泡自動排成長方形房間，再到步驟 4 調整位置。排出來一定不完美，這很正常，調整的過程就是在設計。</p>
+      <div class="row"><button class="btn primary" id="toRooms">把這層泡泡排成房間</button></div>
+      <p class="help" id="toRoomsMsg"></p>
+    </div>
+    <div class="pane" id="pane-ext" hidden></div>
+    <div class="pane" id="pane-str" hidden></div>
+    <div class="pane" id="pane-room" hidden>
+      <div class="field">
+        <div class="flab"><label>正在編輯的樓層</label><button class="why" data-lesson="layout" aria-label="室內配置教學">?</button></div>
+        <div class="floor-tabs" data-floortabs></div>
+      </div>
+      <p class="help">在右邊的平面圖上可以直接<b>拖曳房間</b>移動（每次 0.5 m）。X 是從左邊量、Y 是從正面（臨路側）量，單位公尺。</p>
+      <div class="room-list" id="roomList"></div>
+      <div class="row"><button class="btn primary" id="addRoom">＋ 加入房間</button><button class="btn" id="copyBelow" hidden>複製樓下格局</button></div>
+    </div>
+    <details class="io" id="io">
+      <summary>存檔／分享設計</summary>
+      <p class="help">設計會自動存在這個瀏覽器。想換電腦或給別人看，就複製下面的設計碼，到另一邊貼上並按「讀入」。</p>
+      <textarea id="code" rows="4" aria-label="設計碼"></textarea>
+      <div class="row"><button class="btn" id="copyBtn">複製設計碼</button><button class="btn" id="loadBtn">讀入設計碼</button><button class="btn" id="resetBtn">恢復範例</button></div>
+      <p class="help" id="ioMsg"></p>
+    </details>
+  </section>
+
+  <section class="sheets" aria-label="圖面">
+    <figure class="sheet" id="bubSheet">
+      <div class="sheet-head"><h2>泡泡圖（空間關係草圖）</h2><div class="floor-tabs" data-floortabs></div></div>
+      <svg id="bub" viewBox="0 0 120 80" role="img" aria-label="泡泡圖"></svg>
+      <div class="tblock"><div><b>圖號</b><span>SK-01</span></div><div><b>內容</b><span id="bubInfo"></span></div><div><b>階段</b><span>草圖</span></div></div>
+    </figure>
+    <figure class="sheet">
+      <div class="sheet-head"><h2>平面圖</h2><div class="floor-tabs" data-floortabs></div></div>
+      <div class="plan-tools"><div class="row"><button class="btn sm" id="snapSel">選取的房間貼齊柱網</button><button class="btn sm" id="snapAll">這層全部貼齊柱網</button></div><div class="legend"><span><i class="lg-gap"></i>沒規劃到的空隙</span><span><i class="lg-ov"></i>重疊</span><span id="planStats"></span></div>
+      <p class="hint" style="margin:0">點房間選取後，拖曳中間移動；拖曳四邊的<b>小把手</b>可以改大小。靠近柱網線或其他房間的邊時，會自動吸過去。</p></div>
+      <svg id="plan" role="img" aria-label="平面圖"></svg>
+      <div class="tblock"><div><b>圖號</b><span id="planNo">A-101</span></div><div><b>內容</b><span id="planInfo"></span></div><div><b>單位</b><span>m</span></div></div>
+    </figure>
+    <figure class="sheet">
+      <div class="sheet-head"><h2>正向剖立面圖</h2><span class="hint">地面以上看正面，地面以下剖開看基礎</span></div>
+      <svg id="sec" role="img" aria-label="剖立面圖">
+      </svg>
+      <div class="tblock"><div><b>圖號</b><span>S-201</span></div><div><b>內容</b><span id="secInfo"></span></div><div><b>單位</b><span>m</span></div></div>
+    </figure>
+  </section>
+
+  <aside class="checks card" aria-label="檢查結果">
+    <div class="checks-h"><h2>安全與設計檢查</h2><p>每改一個數字就重新檢查。點一條可以跳到要改的地方。</p></div>
+    <div id="checks"></div>
+    <p class="disclaimer">這裡的數字是給初學者用的「經驗法則」粗估，用來學習和找出明顯錯誤。真的要蓋，必須請建築師設計、結構技師計算並簽證，再申請建照。</p>
+  </aside>
+</main>
+
+<main id="v-learn" class="learn" hidden>
+  <nav class="toc card" aria-label="教學目錄">
+    <h2>目錄</h2>
+    <ol>
+      <li><a href="#L-path">力量怎麼走</a></li>
+      <li><a href="#L-process">設計流程</a></li>
+      <li><a href="#L-bubble">泡泡圖</a></li>
+      <li><a href="#L-drawing">怎麼畫圖</a></li>
+      <li><a href="#L-system">結構系統怎麼選</a></li>
+      <li><a href="#L-material">材料怎麼選</a></li>
+      <li><a href="#L-span">柱網與跨距</a></li>
+      <li><a href="#L-beam">梁與樓板</a></li>
+      <li><a href="#L-column">柱子要多粗</a></li>
+      <li><a href="#L-soil">地基與土壤</a></li>
+      <li><a href="#L-seismic">耐震：地震教我們的事</a></li>
+      <li><a href="#L-shape">外型與屋頂</a></li>
+      <li><a href="#L-layout">室內配置</a></li>
+      <li><a href="#L-real">真的要蓋時</a></li>
+    </ol>
+    <button class="btn back" data-view="design">← 回到設計</button>
+  </nav>
+
+  <article class="lessons">
+    <section id="L-path">
+      <div class="eyebrow"></div>
+      <h2>先懂一件事：力量怎麼從屋頂走到地底</h2>
+      <p>房子會不會倒，只看一件事：<b>每一份重量，都有沒有一條路可以安全地傳到地底下</b>。這條路叫「載重路徑」。只要路上有一段太弱，房子就會從那裡壞掉。</p>
+      <figure>
+        <svg viewBox="0 0 620 170" width="100%" role="img" aria-label="載重路徑：樓板到梁到柱到基礎到土壤">
+          <g font-family="var(--f-body)" font-size="15" text-anchor="middle">
+            <rect x="6" y="40" width="100" height="56" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="56" y="66" fill="var(--ink)">樓板</text><text x="56" y="85" fill="var(--muted)" font-size="12">人、家具、自重</text>
+            <rect x="132" y="40" width="100" height="56" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="182" y="66" fill="var(--ink)">梁</text><text x="182" y="85" fill="var(--muted)" font-size="12">把力收集起來</text>
+            <rect x="258" y="40" width="100" height="56" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="308" y="66" fill="var(--ink)">柱</text><text x="308" y="85" fill="var(--muted)" font-size="12">往下傳</text>
+            <rect x="384" y="40" width="100" height="56" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="434" y="66" fill="var(--ink)">基礎</text><text x="434" y="85" fill="var(--muted)" font-size="12">把力攤開</text>
+            <rect x="510" y="40" width="104" height="56" rx="6" fill="var(--soil)" stroke="var(--ink)"/><text x="562" y="66" fill="var(--ink)">土壤</text><text x="562" y="85" fill="var(--muted)" font-size="12">最後承受</text>
+            <g stroke="var(--ink)" stroke-width="2" fill="var(--ink)"><line x1="108" y1="68" x2="124" y2="68"/><path d="M130 68 l-8 -5 v10z"/><line x1="234" y1="68" x2="250" y2="68"/><path d="M256 68 l-8 -5 v10z"/><line x1="360" y1="68" x2="376" y2="68"/><path d="M382 68 l-8 -5 v10z"/><line x1="486" y1="68" x2="502" y2="68"/><path d="M508 68 l-8 -5 v10z"/></g>
+            <text x="310" y="140" fill="var(--muted)" font-size="13">地震和颱風是「橫向」的力，也走同一條路，所以柱子和基礎同時要扛直的和橫的力</text>
+          </g>
+        </svg>
+      </figure>
+      <h3>房子要扛的四種力</h3>
+      <div class="term"><b>靜載重（死載重）</b>：房子自己的重量。混凝土、磚牆、磁磚都是。RC 透天每一層大約 1 公噸/平方公尺。<br><b>活載重</b>：會移動的重量，人、家具、書櫃。住宅大約 200 公斤/平方公尺。<br><b>地震力</b>：地面左右晃，房子越重，被甩的力越大。在台灣，這通常是最危險的力。<br><b>風力</b>：颱風的推力和掀屋頂的吸力。</div>
+      <p>這個工具裡，「每層樓 1.2 tf/m²」這個數字，就是把靜載重和活載重加在一起的粗估。tf 是「公噸力」，1 tf 大約是一台小汽車的重量。</p>
+    </section>
+
+    <section id="L-process">
+      <div class="eyebrow"></div>
+      <h2>設計流程：圖全部畫完，才開始蓋</h2>
+      <p>先分清楚兩件常被混在一起的事：</p>
+      <div class="term"><b>室內格局</b>：房間在哪、多大、樓梯放哪。<b>要很早決定</b>，因為它會影響柱子放哪裡。<br><b>室內裝修</b>：地板材質、油漆顏色、燈、櫃子、家具。<b>可以最後才做</b>，結構蓋好之後再決定都來得及。</div>
+      <h3>階段 A：全部在紙上完成（還不能動工）</h3>
+      <ol>
+        <li><b>列需求</b>：幾個人住？要幾間房、幾間浴室？要不要車庫？預算多少？</li>
+        <li><b>看基地</b>：地有多大、哪邊臨路、土壤是什麼、會不會淹水。土壤會決定基礎，所以要先知道。</li>
+        <li><b>畫泡泡圖</b>：先不管尺寸，只畫「要哪些空間、誰跟誰要靠近」（下一課教）。</li>
+        <li><b>決定外型</b>：面寬、進深、幾層樓、屋頂。外型「方正、對稱」最好，這是耐震的基礎。</li>
+        <li><b>格局和柱網一起排</b>：這一步最重要，兩者要<b>同時來回調整</b>。房間想放大，柱子可能要移；柱子移了，房間又要重排。</li>
+        <li><b>決定梁、柱、樓板、基礎的尺寸</b>：先用經驗法則抓，再請結構技師正式計算。</li>
+        <li><b>細部設計</b>：門窗、水電管線、排水、冷氣位置。</li>
+        <li><b>申請建照</b>：圖面核准後才可以動工。</li>
+      </ol>
+      <h3>階段 B：開始蓋</h3>
+      <ol>
+        <li>整地、開挖 → 做基礎</li>
+        <li>柱、梁、樓板一層一層往上 → 屋頂</li>
+        <li>外牆、門窗、防水</li>
+        <li>水電配管</li>
+        <li><b>室內裝修</b>：這時才做地板、油漆、櫃子</li>
+        <li>申請使用執照，入住</li>
+      </ol>
+      <div class="rule"><b>為什麼一定要先畫完？</b>蓋到一半才改格局，可能要打掉柱子或牆，又貴又危險。在紙上改只要一塊橡皮擦。</div>
+      <p>這個網站的四個步驟（泡泡圖 → 外觀 → 柱子與地基 → 室內格局）就是階段 A 的前半段。步驟 3 和 4 之間你會一直來回切換，這是正常的。</p>
+    </section>
+
+    <section id="L-bubble">
+      <div class="eyebrow"></div>
+      <h2>泡泡圖：先畫關係，再畫房間</h2>
+      <p>很多人一開始就拿尺畫長方形房間，結果畫到一半發現廚房離餐桌好遠、浴室要穿過客廳才到得了。<b>泡泡圖</b>就是用來避免這件事的：先只想「關係」，不想尺寸。</p>
+      <figure>
+        <svg viewBox="0 0 560 210" width="100%" role="img" aria-label="泡泡圖範例：客廳連餐廳，餐廳連廚房，臥室連浴室">
+          <g stroke="var(--ink)" stroke-width="2" opacity=".55"><line x1="150" y1="105" x2="290" y2="75"/><line x1="290" y1="75" x2="420" y2="60"/><line x1="150" y1="105" x2="250" y2="165"/><line x1="250" y1="165" x2="370" y2="170"/></g>
+          <g font-family="var(--f-body)" text-anchor="middle" font-size="15">
+            <circle cx="150" cy="105" r="62" fill="#3E7CB1" fill-opacity=".22" stroke="var(--ink)"/><text x="150" y="104" fill="var(--ink)">客廳</text><text x="150" y="124" fill="var(--muted)" font-size="12">40 m²</text>
+            <circle cx="290" cy="75" r="42" fill="#B5654A" fill-opacity=".22" stroke="var(--ink)"/><text x="290" y="74" fill="var(--ink)">餐廳</text><text x="290" y="94" fill="var(--muted)" font-size="12">20 m²</text>
+            <circle cx="420" cy="60" r="42" fill="#C2772B" fill-opacity=".22" stroke="var(--ink)"/><text x="420" y="59" fill="var(--ink)">廚房</text><text x="420" y="79" fill="var(--muted)" font-size="12">20 m²</text>
+            <circle cx="250" cy="165" r="38" fill="#7A5BA8" fill-opacity=".22" stroke="var(--ink)"/><text x="250" y="164" fill="var(--ink)">臥室</text><text x="250" y="184" fill="var(--muted)" font-size="12">15 m²</text>
+            <circle cx="370" cy="170" r="30" fill="#2A9D8F" fill-opacity=".22" stroke="var(--ink)"/><text x="370" y="169" fill="var(--ink)">浴室</text><text x="370" y="187" fill="var(--muted)" font-size="12">6 m²</text>
+          </g>
+        </svg>
+        <figcaption>泡泡大小 = 想要的面積；連線 = 要相鄰或很近。</figcaption>
+      </figure>
+      <h3>怎麼畫</h3>
+      <ol>
+        <li><b>列出所有空間</b>，寫上大概想要幾平方公尺（不確定就參考「室內配置」那一課的最小面積）。</li>
+        <li><b>每個空間畫一個圓</b>，越大的空間圓越大。</li>
+        <li><b>想要靠近的兩個空間，畫一條線</b>。</li>
+        <li><b>移動泡泡</b>，讓有連線的靠在一起、線盡量不要交叉。線交叉很多，通常代表動線會很亂。</li>
+        <li><b>多層樓就每層畫一張</b>，每一層都要有樓梯泡泡，而且位置要差不多。</li>
+      </ol>
+      <h3>常見的關係（可以照抄）</h3>
+      <div class="tw"><table>
+        <tr><th>這兩個要靠近</th><th>原因</th></tr>
+        <tr><td>廚房 ↔ 餐廳</td><td>端菜不用走遠</td></tr>
+        <tr><td>餐廳 ↔ 客廳</td><td>家人活動的公共區連在一起</td></tr>
+        <tr><td>臥室 ↔ 浴室</td><td>半夜上廁所不用穿過客廳</td></tr>
+        <tr><td>大門 ↔ 客廳</td><td>客人進來不會經過臥室</td></tr>
+        <tr><td>樓梯 ↔ 走廊或客廳</td><td>上下樓不用穿過別人的房間</td></tr>
+        <tr><td>臥室 ✕ 廚房</td><td>反過來：要<b>分開</b>，避免油煙和噪音</td></tr>
+      </table></div>
+      <h3>檢查面積夠不夠</h3>
+      <p>把一層樓所有泡泡的面積加起來，要<b>比房子的地板面積小</b>，而且最好只用到 80～85%，因為還要留走廊、牆壁厚度、玄關。網站會幫你算，超過會出現警告。</p>
+      <p>泡泡圖畫好，按「把這層泡泡排成房間」，網站會先粗略排成長方形，你再到步驟 4 照著柱網調整。</p>
+    </section>
+
+    <section id="L-drawing">
+      <div class="eyebrow"></div>
+      <h2>怎麼畫圖：建築圖的三種視角</h2>
+      <div class="tw"><table>
+        <tr><th>圖</th><th>怎麼看</th><th>用來看什麼</th></tr>
+        <tr><td>平面圖</td><td>在每層離地約 1.2 m 的高度水平切一刀，從上往下看</td><td>房間位置、牆、門窗、柱子、尺寸</td></tr>
+        <tr><td>立面圖</td><td>站在房子外面，正對著某一面看</td><td>外觀、窗戶比例、屋頂、總高度</td></tr>
+        <tr><td>剖面圖</td><td>垂直切一刀，看切開的斷面</td><td>樓高、梁、樓板厚度、基礎深度</td></tr>
+      </table></div>
+      <h3>看懂圖上的符號</h3>
+      <ul>
+        <li><b>軸線</b>：柱子中心連成的線，畫成「長短長」的點劃線。一個方向用數字 1、2、3，另一個方向用英文 A、B、C。所以「B2 柱」就是 B 軸和 2 軸交叉那根。</li>
+        <li><b>比例尺</b>：住宅平面通常用 1:100，意思是圖上 1 cm 等於實際 1 m。細部才用 1:50、1:20。</li>
+        <li><b>尺寸線</b>：兩端有短斜線或點，中間寫數字。建築圖習慣用公尺或公分，這裡用公尺。</li>
+        <li><b>高程</b>：「FL ±0」是一樓地板，「+3.20」表示比一樓地板高 3.2 m，「GL」是地面。</li>
+        <li><b>圖號</b>：A 開頭是建築圖，S 開頭是結構圖。這個網站的平面圖是 A-101，剖面圖是 S-201。</li>
+      </ul>
+      <p>自己用紙畫的時候：先用方格紙，一格當 0.5 m。先畫軸線和柱子，再畫外牆，最後畫內牆和門窗。</p>
+    </section>
+
+    <section id="L-system">
+      <div class="eyebrow"></div>
+      <h2>結構系統怎麼選</h2>
+      <p>「結構系統」就是房子的骨架用什麼做。這會決定柱子可以隔多遠、可以蓋幾層、多少錢。</p>
+      <div class="tw"><table>
+        <tr><th>系統</th><th>優點</th><th>缺點</th><th>柱距（經驗值）</th><th>適合樓層</th></tr>
+        <tr><td>RC 鋼筋混凝土</td><td>台灣最常見、隔音好、耐火、工班多</td><td>重、地震力大、工期長、施工品質影響很大</td><td class="n">4–6 m 舒適<br>8 m 以上要特別設計</td><td>透天到高樓都可</td></tr>
+        <tr><td>鋼構</td><td>輕、跨距大、工期快、韌性好（會彎不會脆斷）</td><td>要防火被覆、要防鏽、隔音較差、靠海要注意鹽害</td><td class="n">6–9 m<br>12 m 以上要特別設計</td><td>任何樓層</td></tr>
+        <tr><td>木構</td><td>輕所以地震力小、溫暖、蓋得快</td><td>台灣濕熱要防白蟻、防潮、防火</td><td class="n">3.6–4.5 m</td><td>建議 2 層以下</td></tr>
+        <tr><td>加強磚造</td><td>便宜、老透天常見</td><td>磚牆就是結構，不能亂打掉；開窗不能太多</td><td class="n">牆距 4 m 內</td><td>3 層以下</td></tr>
+      </table></div>
+      <p>初學者建議先用 RC 來練習，因為台灣的資料最多，觀念也最完整。</p>
+    </section>
+
+    <section id="L-material">
+      <div class="eyebrow"></div>
+      <h2>材料怎麼選</h2>
+      <h3>混凝土：看 fc′</h3>
+      <div class="term"><b>fc′（抗壓強度）</b>：一平方公分的混凝土能承受多少公斤的壓力。台灣常見 210、280、350 kgf/cm²。數字越大越強，也越貴。</div>
+      <ul>
+        <li>透天厝常用 <b>210 或 280</b>。4 層以上、柱子不想做太粗，可以用 280 或 350。</li>
+        <li>一定要做<b>氯離子檢測</b>，避免「海砂屋」：混凝土裡鹽分太多，鋼筋會生鏽膨脹，把混凝土撐裂。台灣標準 CNS 3090 規定鋼筋混凝土的氯離子含量上限是 0.15 kg/m³。</li>
+        <li>不要在現場加水：工人有時為了好灌加水，混凝土強度會大降。</li>
+      </ul>
+      <h3>鋼筋：看 SD 後面的數字</h3>
+      <div class="term"><b>SD280、SD420</b>：鋼筋的降伏強度，就是鋼筋開始「拉不回來」的力量，單位 kgf/cm²。SD420 比 SD280 強 1.5 倍。現在柱、梁主筋多用 SD420，箍筋常用 SD280 或 SD420。</div>
+      <h3>外牆</h3>
+      <div class="tw"><table>
+        <tr><th>外牆</th><th>重量</th><th>特性</th></tr>
+        <tr><td>RC 牆</td><td>重</td><td>防水、隔音最好，最常見於台灣透天</td></tr>
+        <tr><td>紅磚牆</td><td>重</td><td>便宜，但要做好防水；在 RC 構架裡的磚牆不算結構</td></tr>
+        <tr><td>ALC 輕質板</td><td>輕</td><td>減輕房子重量 → 地震力變小，但接縫要做好防水</td></tr>
+        <tr><td>木板牆</td><td>最輕</td><td>要防潮、防白蟻、防火</td></tr>
+      </table></div>
+      <p>原則：<b>房子越輕，地震力越小</b>。重的外牆會增加柱子和基礎的負擔，所以在這個工具裡換外牆材料，柱子使用率也會跟著變。</p>
+    </section>
+
+    <section id="L-span">
+      <div class="eyebrow"></div>
+      <h2>柱網與跨距：柱子要隔多遠</h2>
+      <div class="term"><b>跨距（span）</b>：兩根柱子中心之間的距離。<b>柱網</b>：所有柱子排成的格子。</div>
+      <p>跨距越大，房間越開闊，但是梁和樓板要更厚，柱子要扛的面積也更大。這是一個取捨。</p>
+      <div class="rule"><b>經驗法則（RC 住宅）</b>：柱距 4～6 m 最經濟。超過 8 m，梁會深到撞頭，要改用預力梁或鋼構。</div>
+      <ul>
+        <li>兩個方向的跨距最好接近（例如 5 × 4 m），力量分配比較平均。</li>
+        <li>每個方向至少要有 <b>2 跨（3 排柱子）</b>。只有一跨的話，一根柱子壞掉，整邊就沒有備援，這叫「缺乏贅餘度」。</li>
+        <li>柱子要上下對齊。2 樓的柱子不能「站」在 1 樓的梁中間，力會走不下去。</li>
+      </ul>
+    </section>
+
+    <section id="L-beam">
+      <div class="eyebrow"></div>
+      <h2>梁與樓板：多厚才夠</h2>
+      <div class="rule"><b>梁深經驗法則</b>：RC 梁深約為跨距的 1/10～1/12。跨距 5 m → 梁深約 42～50 cm。鋼梁約 1/20，木梁約 1/14。</div>
+      <p>梁太淺會怎樣？不會馬上斷，但會<b>下垂、裂縫、走路會晃</b>。樓板也一樣。</p>
+      <div class="rule"><b>樓板厚度經驗法則</b>：至少 12 cm，大約是短邊跨距的 1/35。浴室、陽台樓板常常會再加厚。</div>
+      <p>還要注意<b>梁下淨高</b>：樓高減掉梁深，是人實際走得到的高度。建築技術規則要求居室天花板高度至少 2.1 m，舒適的話最好 2.4 m 以上。所以樓高 3.0 m、梁深 60 cm，梁下只剩 2.4 m。</p>
+    </section>
+
+    <section id="L-column">
+      <div class="eyebrow"></div>
+      <h2>柱子要多粗才夠</h2>
+      <h3>步驟一：算它要扛多少</h3>
+      <p>一根中間的柱子，負責它周圍「半個跨距」範圍內的樓板，這叫<b>受力面積</b>（tributary area）。</p>
+      <div class="calc">柱距 5 m × 4 m → 受力面積 = 5 × 4 = 20 m²
+每層每平方公尺約 1.2 tf（RC）
+2 層樓（2F 樓板 + 屋頂）→ 20 × 1.2 × 2 = 48 tf</div>
+      <h3>步驟二：算它能扛多少</h3>
+      <div class="calc">40 × 40 cm 柱，fc′ = 280，鋼筋比 1.5%，SD420
+混凝土部分 ≈ 0.25 × 280 × 1600 cm² = 112 tf
+鋼筋部分 ≈ 0.4 × 4200 × (1.5% × 1600) = 40 tf
+合計約 152 tf → 使用率 48 ÷ 152 ≈ 32%</div>
+      <p>為什麼不用到 100%？因為地震時柱子還要承受左右的推力和彎矩。<b>只扛垂直重量就用掉 60% 以上的柱子，地震時很危險</b>。</p>
+      <h3>最小尺寸和細長比</h3>
+      <ul>
+        <li>RC 柱經驗值：2 層以下至少 30 cm，3 層 40 cm，4 層以上 45 cm 以上。</li>
+        <li><b>細長比</b> = 柱高 ÷ 柱寬。太細長的柱子會「挫屈」，就像用力壓一根細吸管，它會先彎掉。RC 柱最好在 12 以下。</li>
+      </ul>
+      <h3>強柱弱梁</h3>
+      <p>地震時一定有東西會先壞。我們希望<b>梁先壞、柱子撐住</b>：梁壞了只是一層樓板下陷，柱子壞了整棟會「疊」下來。所以柱子要比梁強，至少尺寸不要比梁深還小。</p>
+      <h3>看不到但最重要的：箍筋</h3>
+      <p>箍筋是綁在主筋外面一圈一圈的鋼筋。921 地震很多倒塌的柱子，就是箍筋太少、間距太大、彎鉤只有 90 度，一震就鬆開。正確做法：<b>柱子兩端箍筋要排密，彎鉤要做 135 度勾進柱心</b>。</p>
+    </section>
+
+    <section id="L-soil">
+      <div class="eyebrow"></div>
+      <h2>地基與土壤：最後的關卡</h2>
+      <p>基礎的工作是<b>把柱子集中的力攤開</b>，讓土壤承受得住。就像穿雪鞋走雪地不會陷下去。</p>
+      <div class="calc">基礎底下的壓力 = 柱子的力 ÷ 基礎面積
+這個壓力必須小於「土壤容許承載力」</div>
+      <div class="tw"><table>
+        <tr><th>土壤</th><th>容許承載力（粗估）</th><th>說明</th></tr>
+        <tr><td>岩盤</td><td class="n">≈ 60 tf/m²</td><td>最好的地</td></tr>
+        <tr><td>卵礫石層</td><td class="n">≈ 30 tf/m²</td><td>台中、台北盆地邊緣常見，很好</td></tr>
+        <tr><td>砂質土</td><td class="n">≈ 15 tf/m²</td><td>普通，地下水位高時要注意液化</td></tr>
+        <tr><td>黏土</td><td class="n">≈ 8 tf/m²</td><td>承載力低，會慢慢壓密沉陷</td></tr>
+        <tr><td>回填土</td><td class="n">≈ 4 tf/m²</td><td>鬆的，不可以直接放基礎</td></tr>
+      </table></div>
+      <h3>四種基礎</h3>
+      <ul>
+        <li><b>獨立基腳</b>：每根柱子底下一塊方形混凝土。最便宜，適合好土壤、低樓層。基腳之間要用<b>地梁</b>連起來，地震時才不會各走各的。</li>
+        <li><b>連續基腳</b>：沿著柱列做成長條。土壤普通、或獨立基腳大到快要碰在一起時用。</li>
+        <li><b>筏式基礎</b>：整個房子底下一整片厚板。軟土、或怕不均勻沉陷時用。</li>
+        <li><b>樁基礎</b>：打長樁穿過軟土，到下面硬的地層。回填土、很軟的黏土、高樓用。</li>
+      </ul>
+      <div class="rule"><b>深度</b>：基礎底至少要在原土面下 1 m 左右，要穿過表層的鬆土和植物根。<b>真的要蓋，一定要先做地質鑽探</b>，上面的表只是粗估。</div>
+    </section>
+
+    <section id="L-seismic">
+      <div class="eyebrow"></div>
+      <h2>耐震：地震教我們的事</h2>
+      <p>台灣在板塊交界，耐震是設計的第一優先。1999 年 921 地震倒塌的建築，大多犯了下面幾個錯。</p>
+      <h3>軟弱層（軟腳蝦）</h3>
+      <p>一樓做成騎樓、車庫、店面，牆很少；樓上做住家，牆很多。地震時上面硬、下面軟，<b>變形全部集中在一樓</b>，一樓的柱子會被折斷，整棟往下坐。這是台灣最常見的倒塌原因。解法：一樓要加剪力牆或加粗柱子，讓上下的硬度接近。</p>
+      <h3>短柱效應</h3>
+      <p>窗戶下面的矮牆（窗台）如果跟柱子砌在一起，會把柱子「夾住」，柱子能彎曲的長度變短，反而承受更大的剪力，出現 X 形裂縫後斷掉。很多學校教室就是這樣壞的。解法：矮牆和柱子之間留<b>隔離縫</b>。</p>
+      <h3>平面要方正、對稱</h3>
+      <p>L 形、細長形、柱子或牆集中在一邊的房子，地震時會<b>扭轉</b>，離中心最遠的柱子受力最大。長寬比最好在 3 以內。</p>
+      <h3>不要太高太瘦</h3>
+      <p><b>高寬比</b> = 高度 ÷ 最窄的寬度。超過 3 就要小心被推倒或傾斜，超過 4 一般住宅不建議。台灣常見的 4 米寬、5 層樓「瘦高透天」，高寬比就超過 4 了。</p>
+      <h3>施工品質</h3>
+      <p>設計再好，混凝土加水、箍筋偷工、柱子裡塞雜物，一樣會倒。<b>施工時要有人監造</b>。</p>
+    </section>
+
+    <section id="L-shape">
+      <div class="eyebrow"></div>
+      <h2>外型與屋頂</h2>
+      <ul>
+        <li><b>開窗率</b>：窗戶越多牆越少。在 RC 構架裡，填充牆不是主結構，但牆少一樣會讓整體變軟；在加強磚造，牆就是結構，開窗率最好 35% 以下。</li>
+        <li><b>斜屋頂坡度</b>：台灣雨大，坡度太緩（15° 以下）容易積水、漏水；太陡（45° 以上）颱風時受風面大。一般 20°～35° 很好。</li>
+        <li><b>平屋頂</b>：要做 1～2% 的排水坡度和足夠的落水頭，防水層要做好。屋頂女兒牆（欄杆）高度依建築技術規則至少 1.1 m。</li>
+        <li><b>樓高</b>：住宅一般 3.0～3.4 m。太矮會壓迫，太高會讓柱子變細長、樓梯變長。</li>
+      </ul>
+    </section>
+
+    <section id="L-layout">
+      <div class="eyebrow"></div>
+      <h2>室內配置：住起來舒服的規則</h2>
+      <h3>採光和通風</h3>
+      <p>臥室、客廳、書房這種會長時間待的「居室」，一定要<b>貼著外牆</b>才能開窗。建築技術規則要求居室的採光面積至少是地板面積的 1/8。沒有窗戶的房間只能當儲藏室、更衣室。</p>
+      <h3>房間大小（舒適經驗值）</h3>
+      <div class="tw"><table>
+        <tr><th>房間</th><th>最小面積</th><th>最小寬度</th><th>說明</th></tr>
+        <tr><td>臥室</td><td class="n">7 m²（約 2 坪）</td><td class="n">2.4 m</td><td>雙人床 1.5×1.9 m，旁邊要能走路</td></tr>
+        <tr><td>客廳</td><td class="n">12 m²</td><td class="n">3.0 m</td><td>沙發到電視至少 2.5 m</td></tr>
+        <tr><td>廚房</td><td class="n">4 m²</td><td class="n">1.6 m</td><td>一字型流理台 + 走道</td></tr>
+        <tr><td>浴室</td><td class="n">2.5 m²</td><td class="n">1.2 m</td><td>馬桶 + 洗手台 + 淋浴</td></tr>
+        <tr><td>車庫</td><td class="n">15 m²</td><td class="n">2.8 m</td><td>一台小客車</td></tr>
+      </table></div>
+      <h3>樓梯</h3>
+      <p>舒適的樓梯每階<b>高 17～18 cm、深 26～28 cm</b>。樓高 3.2 m 大約要 18 階。直的樓梯需要約 4.5 m 長、1 m 寬；U 形迴轉樓梯約 3.3 m 長、2.1 m 寬（兩段並排加一個平台）。樓梯在每一層的位置要<b>上下對齊</b>。</p>
+      <h3>其他小規則</h3>
+      <ul>
+        <li><b>不要讓柱子站在房間中間</b>：房間的牆最好沿著柱網走。</li>
+        <li><b>浴室、廚房上下對齊</b>：排水管才能直直往下。浴室在臥室正上方，會有沖水聲，漏水也會滴到床上。</li>
+        <li><b>動線</b>：從大門到客廳、廚房到餐桌、臥室到浴室，路線要短，不要穿過別人的房間。</li>
+        <li>一坪約 3.3 m²。台灣說「30 坪」通常是含公設或雨遮的總面積。</li>
+      </ul>
+    </section>
+
+    <section id="L-real">
+      <div class="eyebrow"></div>
+      <h2>真的要蓋時</h2>
+      <p>這個網站可以讓你理解原理、抓出明顯的錯誤，但它<b>不能代替正式的結構計算</b>。真正的設計還要算地震力分配、彎矩、剪力、配筋、接頭細節，並符合建築技術規則和耐震設計規範。</p>
+      <ol>
+        <li>找<b>建築師</b>：整理需求、設計、畫正式圖面、申請建照。</li>
+        <li><b>結構技師</b>計算並簽證，決定每根柱、梁、基礎的尺寸和配筋。</li>
+        <li><b>地質鑽探</b>：知道真正的土壤狀況。</li>
+        <li>施工期間要有<b>監造</b>，鋼筋綁好、混凝土澆置前都要檢查。</li>
+      </ol>
+      <p>你自己先用這個工具把想法畫清楚，再拿去跟建築師討論，會溝通得很有效率。</p>
+    </section>
+  </article>
+</main>
+
+<script>
+(function(){
+'use strict';
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const KEY='house-lab-v1';
+const clone=o=>JSON.parse(JSON.stringify(o));
+const r2=n=>Math.round(n*100)/100;
+const f2=n=>(Math.round(n*100)/100).toFixed(2);
+const f1=n=>(Math.round(n*10)/10).toFixed(1);
+
+const TYPES={
+  living:{n:'客廳',min:12,minW:3.0,c:'#3E7CB1',light:true},
+  bedroom:{n:'臥室',min:7,minW:2.4,c:'#7A5BA8',light:true},
+  study:{n:'書房',min:5,minW:2.1,c:'#4C8C4A',light:true},
+  dining:{n:'餐廳',min:6,minW:2.4,c:'#B5654A'},
+  kitchen:{n:'廚房',min:4,minW:1.6,c:'#C2772B'},
+  bath:{n:'浴室',min:2.5,minW:1.2,c:'#2A9D8F'},
+  stair:{n:'樓梯',min:0,minW:0,c:'#6B7278'},
+  storage:{n:'儲藏室',min:0,minW:0,c:'#8C7A5B'},
+  garage:{n:'車庫',min:15,minW:2.8,c:'#5F6B73'},
+  gym:{n:'健身房',min:8,minW:2.4,c:'#D0544E',light:true},
+  multi:{n:'多功能室／遊戲室',min:6,minW:2.4,c:'#5B9BD5',light:true},
+  altar:{n:'神明廳',min:6,minW:2.4,c:'#C9A227',light:true},
+  closet:{n:'更衣室',min:3,minW:1.5,c:'#9C6B98'},
+  laundry:{n:'洗衣間／工作陽台',min:2.5,minW:1.2,c:'#4FA3A5'},
+  balcony:{n:'陽台',min:2,minW:1.0,c:'#7FA650',light:true},
+  entry:{n:'玄關',min:2,minW:1.2,c:'#A67C52'},
+  hall:{n:'走廊',min:0,minW:0.9,c:'#8A9499'},
+  other:{n:'其他',min:0,minW:0,c:'#7D7D7D'}
+};
+const SYS={
+  rc:{n:'RC 鋼筋混凝土',q:1.2,span:[6,8],beamDiv:12,minCol:f=>f<=2?30:f<=3?40:45,slend:[12,16],maxF:[6,8]},
+  steel:{n:'鋼構',q:0.9,span:[9,12],beamDiv:20,minCol:()=>20,slend:[25,35],maxF:[8,12]},
+  wood:{n:'木構',q:0.6,span:[4.5,6],beamDiv:14,minCol:f=>f<=1?12:15,slend:[20,28],maxF:[2,3]},
+  brick:{n:'加強磚造',q:1.3,span:[4,5],beamDiv:12,minCol:()=>25,slend:[12,16],maxF:[2,3]}
+};
+const WALL={rc:{n:'RC 牆',q:0.15},brick:{n:'紅磚牆',q:0.1},alc:{n:'ALC 輕質板',q:0},wood:{n:'木板牆',q:-0.05}};
+const SOIL={rock:{n:'岩盤',qa:60},gravel:{n:'卵礫石層',qa:30},sand:{n:'砂質土',qa:15},clay:{n:'黏土',qa:8},fill:{n:'回填土',qa:4}};
+const PILE={rock:150,gravel:90,sand:55,clay:40,fill:40};
+const FDN={spread:'獨立基腳',strip:'連續基腳',mat:'筏式基礎',pile:'樁基礎'};
+
+const DEFAULT={floors:2,storeyH:3.2,W:10,D:12,roof:'gable',roofPitch:25,wall:'brick',windowRatio:30,softStory:false,
+  system:'rc',nx:2,ny:3,col:40,beam:50,slab:15,fc:280,rebar:'SD420',
+  soil:'sand',fdn:'spread',footing:2.0,fdnDepth:1.5,
+  rooms:[
+    {id:1,f:1,n:'客廳',t:'living',x:0,y:0,w:5,d:8},
+    {id:2,f:1,n:'廚房',t:'kitchen',x:5,y:0,w:5,d:4},
+    {id:3,f:1,n:'樓梯',t:'stair',x:5,y:4,w:2.5,d:4},
+    {id:4,f:1,n:'浴室',t:'bath',x:7.5,y:4,w:2.5,d:4},
+    {id:5,f:1,n:'孝親房',t:'bedroom',x:0,y:8,w:5,d:4},
+    {id:6,f:1,n:'餐廳',t:'dining',x:5,y:8,w:5,d:4},
+    {id:7,f:2,n:'主臥',t:'bedroom',x:0,y:0,w:5,d:5},
+    {id:8,f:2,n:'次臥',t:'bedroom',x:5,y:0,w:5,d:4},
+    {id:9,f:2,n:'樓梯',t:'stair',x:5,y:4,w:2.5,d:4},
+    {id:10,f:2,n:'浴室',t:'bath',x:7.5,y:4,w:2.5,d:4},
+    {id:11,f:2,n:'書房',t:'study',x:0,y:5,w:5,d:3},
+    {id:12,f:2,n:'小孩房',t:'bedroom',x:0,y:8,w:5,d:4},
+    {id:13,f:2,n:'儲藏室',t:'storage',x:5,y:8,w:5,d:4}
+  ],
+  bubbles:[
+    {id:1,f:1,n:'客廳',t:'living',a:40,x:45,y:38},
+    {id:2,f:1,n:'餐廳',t:'dining',a:20,x:74,y:30},
+    {id:3,f:1,n:'廚房',t:'kitchen',a:20,x:100,y:20},
+    {id:4,f:1,n:'樓梯',t:'stair',a:10,x:68,y:62},
+    {id:5,f:1,n:'孝親房',t:'bedroom',a:20,x:16,y:24},
+    {id:6,f:1,n:'浴室',t:'bath',a:10,x:22,y:60},
+    {id:7,f:2,n:'樓梯',t:'stair',a:10,x:60,y:42},
+    {id:8,f:2,n:'主臥',t:'bedroom',a:25,x:24,y:22},
+    {id:9,f:2,n:'浴室',t:'bath',a:10,x:40,y:58},
+    {id:10,f:2,n:'次臥',t:'bedroom',a:20,x:92,y:20},
+    {id:11,f:2,n:'小孩房',t:'bedroom',a:20,x:92,y:60},
+    {id:12,f:2,n:'書房',t:'study',a:15,x:58,y:15},
+    {id:13,f:2,n:'儲藏室',t:'storage',a:15,x:16,y:62}
+  ],
+  links:[[1,2],[2,3],[1,4],[5,6],[1,5],[7,8],[7,10],[7,11],[7,12],[8,9],[9,7],[10,11]]};
+
+const SCHEMA={
+  ext:[
+    {h:'房子的大小'},
+    {k:'floors',label:'樓層數',type:'range',min:1,max:6,step:1,unit:' 層',lesson:'seismic'},
+    {k:'storeyH',label:'每層樓高',type:'range',min:2.4,max:4.5,step:0.1,unit:' m',help:'從這層地板到上一層地板的高度，含樓板和梁。',lesson:'beam'},
+    {k:'W',label:'面寬（左右寬）',type:'range',min:4,max:24,step:0.5,unit:' m',help:'站在馬路上看，房子有多寬。',lesson:'seismic'},
+    {k:'D',label:'進深（前後長）',type:'range',min:4,max:30,step:0.5,unit:' m',lesson:'seismic'},
+    {h:'外觀'},
+    {k:'roof',label:'屋頂',type:'select',opts:[['gable','斜屋頂（兩面斜）'],['flat','平屋頂']],lesson:'shape'},
+    {k:'roofPitch',label:'屋頂坡度',type:'range',min:5,max:60,step:1,unit:'°',show:s=>s.roof==='gable',lesson:'shape'},
+    {k:'wall',label:'外牆材料',type:'select',opts:[['rc','RC 鋼筋混凝土牆（重）'],['brick','紅磚牆（重）'],['alc','ALC 輕質板（輕）'],['wood','木板牆（最輕）']],lesson:'material'},
+    {k:'windowRatio',label:'開窗率',type:'range',min:5,max:80,step:5,unit:'%',help:'牆面上有多少比例是窗戶。',lesson:'shape'},
+    {k:'softStory',label:'一樓做成開放車庫或店面（牆很少）',type:'check',lesson:'seismic'},
+    {readout:'ext'}
+  ],
+  str:[
+    {h:'結構系統與材料'},
+    {k:'system',label:'結構系統',type:'select',opts:[['rc','RC 鋼筋混凝土'],['steel','鋼構'],['wood','木構'],['brick','加強磚造']],lesson:'system'},
+    {k:'fc',label:'混凝土強度 fc′',type:'select',num:true,opts:[[210,'210 kgf/cm²'],[280,'280 kgf/cm²'],[350,'350 kgf/cm²']],show:s=>s.system==='rc'||s.system==='brick',lesson:'material'},
+    {k:'rebar',label:'鋼筋等級',type:'select',opts:[['SD280','SD280'],['SD420','SD420']],show:s=>s.system==='rc'||s.system==='brick',lesson:'material'},
+    {h:'柱網'},
+    {k:'nx',label:'左右方向分幾跨',type:'range',min:1,max:6,step:1,unit:' 跨',help:'跨數 + 1 = 這個方向的柱子排數。',lesson:'span'},
+    {k:'ny',label:'前後方向分幾跨',type:'range',min:1,max:8,step:1,unit:' 跨',lesson:'span'},
+    {k:'col',label:'柱子寬度（方柱）',type:'range',min:10,max:80,step:5,unit:' cm',lesson:'column'},
+    {k:'beam',label:'梁深',type:'range',min:20,max:100,step:5,unit:' cm',help:'梁從樓板往下突出的總高度。',lesson:'beam'},
+    {k:'slab',label:'樓板厚度',type:'range',min:8,max:30,step:1,unit:' cm',lesson:'beam'},
+    {readout:'str'},
+    {h:'地基'},
+    {k:'soil',label:'土壤種類',type:'select',opts:[['rock','岩盤'],['gravel','卵礫石層'],['sand','砂質土'],['clay','黏土'],['fill','回填土']],help:'不知道的話先選砂質土。真的要蓋一定要做地質鑽探。',lesson:'soil'},
+    {k:'fdn',label:'基礎型式',type:'select',opts:[['spread','獨立基腳'],['strip','連續基腳'],['mat','筏式基礎'],['pile','樁基礎']],lesson:'soil'},
+    {k:'footing',label:s=>s.fdn==='strip'?'基腳寬度':'基腳邊長（正方形）',type:'range',min:0.8,max:4,step:0.1,unit:' m',show:s=>s.fdn==='spread'||s.fdn==='strip',lesson:'soil'},
+    {k:'fdnDepth',label:'基礎底深度',type:'range',min:0.3,max:4,step:0.1,unit:' m',help:'從地面往下量到基礎底部。',lesson:'soil'},
+    {readout:'fdn'}
+  ]
+};
+
+let S, floor=1, selId=null, tab='bub', drag=null, A=null;
+let selBub=null, pend=null, linkMode=false, bdrag=null;
+const bubble=id=>S.bubbles.find(b=>b.id===id);
+const linked=(a,b)=>S.links.some(l=>(l[0]===a&&l[1]===b)||(l[0]===b&&l[1]===a));
+
+let lastJ='', localT=0, legacyLocal=false;
+function load(){
+  try{localT=+(localStorage.getItem(KEY+'-t')||0); const j=localStorage.getItem(KEY); if(j){legacyLocal=!localT;S=Object.assign(clone(DEFAULT),JSON.parse(j)); lastJ=JSON.stringify(S); return;}}catch(e){}
+  S=clone(DEFAULT); lastJ=JSON.stringify(S);
+}
+function save(){const j=JSON.stringify(S); if(j===lastJ) return; lastJ=j; localT=Date.now(); try{localStorage.setItem(KEY,j); localStorage.setItem(KEY+'-t',String(localT));}catch(e){} pushCloud();}
+const room=id=>S.rooms.find(r=>r.id===id);
+
+/* ---------- controls ---------- */
+function buildPane(key){
+  const el=$('#pane-'+key); let h='';
+  SCHEMA[key].forEach(f=>{
+    if(f.h){h+=`<h3>${f.h}</h3>`;return;}
+    if(f.readout){h+=`<div class="readout" id="ro-${f.readout}"></div>`;return;}
+    const id='f_'+f.k; let ctl='';
+    if(f.type==='range') ctl=`<div class="rng"><input type="range" id="${id}" data-k="${f.k}" min="${f.min}" max="${f.max}" step="${f.step}" aria-label="${typeof f.label==='string'?f.label:''}滑桿"><span class="numwrap"><input type="number" id="o_${f.k}" data-k="${f.k}" min="${f.min}" max="${f.max}" step="${f.step}" inputmode="decimal" aria-label="輸入數值"><span>${f.unit.trim()}</span></span></div>`;
+    else if(f.type==='select') ctl=`<select id="${id}" data-k="${f.k}">${f.opts.map(o=>`<option value="${o[0]}">${o[1]}</option>`).join('')}</select>`;
+    const why=f.lesson?`<button class="why" data-lesson="${f.lesson}" aria-label="看教學">?</button>`:'';
+    if(f.type==='check'){
+      h+=`<div class="field" data-field="${f.k}"><div class="flab"><label class="chk" for="${id}"><input type="checkbox" id="${id}" data-k="${f.k}"><span>${f.label}</span></label>${why}</div>${f.help?`<p class="help">${f.help}</p>`:''}</div>`;
+      return;
+    }
+    h+=`<div class="field" data-field="${f.k}"><div class="flab"><label for="${id}" id="l_${f.k}"></label>${why}</div>${ctl}${f.help?`<p class="help">${f.help}</p>`:''}</div>`;
+  });
+  el.insertAdjacentHTML('afterbegin',h);
+}
+function syncFields(){
+  ['ext','str'].forEach(k=>SCHEMA[k].forEach(f=>{
+    if(!f.k) return;
+    const wrap=document.querySelector(`[data-field="${f.k}"]`); if(!wrap) return;
+    wrap.hidden=f.show?!f.show(S):false;
+    const lab=$('#l_'+f.k); if(lab) lab.textContent=typeof f.label==='function'?f.label(S):f.label;
+    const inp=$('#f_'+f.k);
+    if(f.type==='check') inp.checked=!!S[f.k];
+    else if(String(inp.value)!==String(S[f.k])) inp.value=S[f.k];
+    const o=$('#o_'+f.k);
+    if(o&&document.activeElement!==o) o.value=S[f.k];
+  }));
+}
+
+/* ---------- analysis ---------- */
+function analyze(){
+  const L=[]; const add=(sev,area,title,msg,fix,lesson,extra)=>L.push(Object.assign({sev,area,title,msg,fix,lesson},extra||{}));
+  const sys=SYS[S.system], soil=SOIL[S.soil];
+  const sx=S.W/S.nx, sy=S.D/S.ny, Lmax=Math.max(sx,sy), Lmin=Math.min(sx,sy);
+  const q=sys.q+WALL[S.wall].q;
+  const trib=sx*sy, P=trib*S.floors*q;
+  const Ag=S.col*S.col, fy=S.rebar==='SD420'?4200:2800, lam=S.storeyH*100/S.col;
+  let cap;
+  if(S.system==='steel') cap=0.16*Ag*0.5*2500/1000;
+  else if(S.system==='wood') cap=70*Ag*Math.max(0.25,1-Math.pow(lam/50,2))/1000;
+  else cap=(0.25*S.fc*Ag+0.4*fy*0.015*Ag)/1000;
+  const colRatio=P/cap;
+  const H=S.floors*S.storeyH;
+  const roofH=S.roof==='gable'?(S.W/2)*Math.tan(S.roofPitch*Math.PI/180):1.1;
+  const Wtot=S.W*S.D*S.floors*q;
+  const flags={span:false,col:false,fdn:false};
+
+  // --- global / exterior
+  const hw=H/Math.min(S.W,S.D);
+  if(hw>4){add('err','外觀','房子太高太瘦，容易被推倒',`高寬比 ${f1(hw)}（高 ${f1(H)} m ÷ 最窄 ${f1(Math.min(S.W,S.D))} m），超過 4。`,'減少樓層，或把房子加寬。','seismic');}
+  else if(hw>3){add('warn','外觀','高寬比偏大',`高寬比 ${f1(hw)}，超過 3。地震和颱風時頂部晃動大。`,'控制在 3 以內最安心，或請結構技師特別檢核傾倒。','seismic');}
+  const pr=Math.max(S.W,S.D)/Math.min(S.W,S.D);
+  if(pr>3) add('warn','外觀','平面太細長，地震時容易扭轉',`長寬比 ${f1(pr)}，超過 3。`,'讓平面接近方形，或在中間加伸縮縫分成兩棟。','seismic');
+  if(S.floors>sys.maxF[1]) add('err','結構',`${sys.n} 蓋 ${S.floors} 層太多了`,`${sys.n}一般不超過 ${sys.maxF[1]} 層。`,`改用 RC 或鋼構，或減少樓層。`,'system');
+  else if(S.floors>sys.maxF[0]) add('warn','結構',`${sys.n} 蓋 ${S.floors} 層已經到上限`,`${sys.n}建議 ${sys.maxF[0]} 層以下。`,'需要結構技師特別設計。','system');
+  if(S.softStory){
+    if(S.floors>=2) add('err','外觀','一樓是「軟弱層」（軟腳蝦）','一樓牆很少、樓上牆很多，地震時變形會全部集中在一樓柱子，這是 921 最常見的倒塌原因。','一樓加剪力牆或斜撐，或把一樓柱子大幅加粗。','seismic');
+    else add('info','外觀','一樓開放空間牆很少','單層樓風險較低，但仍要確認兩個方向都有足夠的牆或構架。','角落保留一些實牆。','seismic');
+  }
+  if(S.system==='brick'){
+    if(S.windowRatio>50) add('err','外觀','加強磚造開太多窗','加強磚造的磚牆就是結構，開窗率 '+S.windowRatio+'% 會讓牆不夠抵抗地震。','開窗率降到 35% 以下，或改用 RC 構架。','shape');
+    else if(S.windowRatio>35) add('warn','外觀','加強磚造開窗偏多','開窗率 '+S.windowRatio+'%，磚牆就是結構，牆少就弱。','降到 35% 以下比較安心。','shape');
+  } else if(S.windowRatio>60) add('warn','外觀','窗戶非常多','開窗率 '+S.windowRatio+'%，牆很少整體會變軟，夏天也很熱。','降到 50% 以下，或用剪力牆或斜撐補強。','shape');
+  if(S.system==='wood'&&(S.wall==='rc'||S.wall==='brick')) add('err','結構','木構配重的外牆','木構架很輕，配上 RC 或紅磚外牆會讓重量和地震力大增。','木構請配木板牆或 ALC 輕質板。','material');
+  if(S.roof==='gable'){
+    if(S.roofPitch<15) add('warn','外觀','屋頂坡度太緩，容易漏水',`坡度 ${S.roofPitch}°。台灣雨大，太緩的斜屋頂排水慢。`,'改成 20°～35°。','shape');
+    else if(S.roofPitch>45) add('warn','外觀','屋頂太陡，颱風受風大',`坡度 ${S.roofPitch}°，屋頂高 ${f1(roofH)} m。`,'改成 20°～35°。','shape');
+  } else add('info','外觀','平屋頂記得做排水坡和防水','平屋頂要有 1～2% 的排水坡度、足夠的落水頭，女兒牆至少 1.1 m。','規劃好落水頭位置，防水層做到女兒牆上。','shape');
+  const clear=S.storeyH-S.beam/100;
+  if(clear<2.1) add('err','結構','梁下太矮，會撞頭',`樓高 ${f1(S.storeyH)} m − 梁深 ${S.beam} cm = 梁下淨高 ${f2(clear)} m，低於 2.1 m。`,'加高樓高，或縮短跨距讓梁變淺。','beam');
+  else if(clear<2.4) add('warn','結構','梁下淨高偏低',`梁下淨高 ${f2(clear)} m，住起來會有壓迫感。`,'樓高 3.0 m 以上、或梁深減少。','beam');
+
+  // --- structure
+  const spanTxt=`柱距 左右 ${f2(sx)} m、前後 ${f2(sy)} m`;
+  if(Lmax>sys.span[1]){flags.span=true; add('err','結構','柱子隔太遠了',`${spanTxt}。${sys.n}超過 ${sys.span[1]} m 需要特殊設計。`,'增加跨數（多放幾排柱子）。','span');}
+  else if(Lmax>sys.span[0]){flags.span=true; add('warn','結構','柱距偏大',`${spanTxt}，${sys.n}在 ${sys.span[0]} m 以內最經濟。`,'增加跨數，或把梁和樓板加深。','span');}
+  if((S.nx===1||S.ny===1)&&S.floors>=2) add('warn','結構','有一個方向只有一跨','只有兩排柱子，任何一根壞掉就沒有備援（缺乏贅餘度）。','每個方向至少 2 跨（3 排柱子）。','span');
+  const reqBeam=Lmax*100/sys.beamDiv;
+  if(S.beam<reqBeam*0.75) add('err','結構','梁太淺，會下垂開裂',`最大跨距 ${f2(Lmax)} m，梁深建議約 ${Math.ceil(reqBeam/5)*5} cm，現在只有 ${S.beam} cm。`,`梁深加到 ${Math.ceil(reqBeam/5)*5} cm，或縮短跨距。`,'beam');
+  else if(S.beam<reqBeam) add('warn','結構','梁深稍微不夠',`跨距 ${f2(Lmax)} m 建議梁深約 ${Math.ceil(reqBeam/5)*5} cm（跨距 ÷ ${sys.beamDiv}），現在 ${S.beam} cm。`,`梁深加到 ${Math.ceil(reqBeam/5)*5} cm。`,'beam');
+  if(S.system!=='wood'){
+    const reqSlab=Math.max(12,Lmin*100/35);
+    if(S.slab<10) add('err','結構','樓板太薄',`樓板 ${S.slab} cm，鋼筋保護層加上兩層鋼筋就放不下了。`,'至少 12 cm。','beam');
+    else if(S.slab<reqSlab) add('warn','結構','樓板偏薄',`短邊跨距 ${f2(Lmin)} m，樓板建議至少 ${Math.ceil(reqSlab)} cm，現在 ${S.slab} cm。`,`改成 ${Math.ceil(reqSlab)} cm 以上。`,'beam');
+  }
+  const minC=sys.minCol(S.floors);
+  if(S.col<minC){flags.col=true; add('warn','結構','柱子太細',`${S.floors} 層的${sys.n}，柱子經驗上至少 ${minC} cm，現在 ${S.col} cm。`,`加粗到 ${minC} cm 以上。`,'column');}
+  if(colRatio>1){flags.col=true; add('err','結構','柱子扛不住，會被壓壞',`中間柱子約要扛 ${f1(P)} tf，但只能扛約 ${f1(cap)} tf（使用率 ${Math.round(colRatio*100)}%）。`,'加粗柱子、提高材料強度，或增加柱子減少每根的受力面積。','column');}
+  else if(colRatio>0.6){flags.col=true; add('warn','結構','柱子太吃緊，地震時沒餘裕',`光是垂直重量就用掉 ${Math.round(colRatio*100)}%。地震時柱子還要扛左右推力。`,'把使用率壓到 60% 以下：加粗柱子或縮短柱距。','column');}
+  if(lam>sys.slend[1]){flags.col=true; add('err','結構','柱子太細長，會挫屈',`細長比 ${f1(lam)}（樓高 ${S.storeyH} m ÷ 柱寬 ${S.col} cm），超過 ${sys.slend[1]}。`,'加粗柱子或降低樓高。','column');}
+  else if(lam>sys.slend[0]){flags.col=true; add('warn','結構','柱子有點細長',`細長比 ${f1(lam)}，建議 ${sys.slend[0]} 以下。`,'加粗柱子。','column');}
+  if((S.system==='rc'||S.system==='brick')&&S.col<S.beam*0.8){flags.col=true; add('warn','結構','柱比梁細，違反「強柱弱梁」',`柱寬 ${S.col} cm 小於梁深 ${S.beam} cm 太多。地震時可能柱子先壞。`,'柱子加粗，讓柱寬至少接近梁深。','column');}
+  if((S.system==='rc'||S.system==='brick')&&S.fc<=210&&S.floors>=4) add('info','結構','4 層以上可考慮提高混凝土強度','fc′ 210 用在 4 層以上，柱子會需要做得很粗。','改用 280。','material');
+  if((S.system==='rc'||S.system==='brick')&&S.rebar==='SD280'&&S.floors>=3) add('info','結構','主筋可考慮用 SD420','3 層以上用 SD420 可以減少鋼筋量，柱梁接頭比較不擁擠。','主筋改 SD420。','material');
+
+  // --- foundation
+  let fp, fRatio, fUnit='tf/m²', fCapTxt;
+  if(S.fdn==='spread'){fp=P/(S.footing*S.footing)+S.fdnDepth*2.0; fRatio=fp/soil.qa;}
+  else if(S.fdn==='strip'){const b=S.footing; const Af=b*((S.nx+1)*S.D+(S.ny+1)*S.W)-(S.nx+1)*(S.ny+1)*b*b; fp=Wtot/Math.max(Af,0.1)+S.fdnDepth*2.0; fRatio=fp/soil.qa;}
+  else if(S.fdn==='mat'){fp=Wtot/((S.W+0.6)*(S.D+0.6))+1.0; fRatio=fp/soil.qa;}
+  else {fp=P; fRatio=P/PILE[S.soil]; fUnit='tf/根';}
+  fCapTxt=S.fdn==='pile'?`${PILE[S.soil]} tf/根`:`${soil.qa} tf/m²`;
+  if(S.fdn!=='pile'){
+    if(fRatio>1){flags.fdn=true; add('err','地基','地基會壓陷土壤',`基礎底下壓力約 ${f1(fp)} tf/m²，${soil.n}只能承受約 ${soil.qa} tf/m²（${Math.round(fRatio*100)}%）。`,S.fdn==='spread'?'加大基腳，或改連續基腳、筏式基礎。':S.fdn==='strip'?'加寬基腳，或改筏式基礎、樁基礎。':'改用樁基礎，或減輕房子重量。','soil');}
+    else if(fRatio>0.8){flags.fdn=true; add('warn','地基','地基壓力接近土壤極限',`基礎底下壓力約 ${f1(fp)} tf/m²，是${soil.n}承載力的 ${Math.round(fRatio*100)}%。土壤不均勻時可能沉陷。`,S.fdn==='spread'?'基腳加大一點，壓到 80% 以下。':'加大基礎面積。','soil');}
+  } else {
+    if(fRatio>1) add('warn','地基','每根柱子底下需要多根樁',`中柱約 ${f1(P)} tf，單樁在${soil.n}粗估約 ${PILE[S.soil]} tf。`,`每根柱子下面放 ${Math.ceil(fRatio)} 根樁，用樁帽連起來。`,'soil');
+    if(S.soil==='rock') add('info','地基','岩盤上不太需要打樁','岩盤承載力很好，獨立基腳通常就夠了，省很多錢。','改獨立基腳試試看。','soil');
+  }
+  if(S.soil==='fill'&&(S.fdn==='spread'||S.fdn==='strip')){flags.fdn=true; add('err','地基','回填土上不能直接放基腳','回填土是鬆的，會不均勻沉陷，房子會傾斜、牆會裂。','改用樁基礎打到下面的原土，或把回填土挖掉換成級配並夯實。','soil');}
+  if(S.soil==='clay'&&S.fdn==='spread'&&S.floors>=3) add('warn','地基','黏土上用獨立基腳容易不均勻沉陷','黏土會慢慢壓密，每根柱子沉的量不一樣，牆會斜裂。','改筏式基礎，或至少用地梁把基腳牢牢連起來。','soil');
+  if(S.fdn==='spread'&&S.footing>Lmin-0.3){flags.fdn=true; add('warn','地基','基腳大到快碰在一起',`基腳 ${f1(S.footing)} m，柱距最短只有 ${f2(Lmin)} m。`,'改用連續基腳或筏式基礎，比較省也比較穩。','soil');}
+  if(S.fdnDepth<0.6){flags.fdn=true; add('err','地基','基礎太淺',`基礎底只在地面下 ${f1(S.fdnDepth)} m，還在表層鬆土和植物根裡。`,'至少 1 m 以上。','soil');}
+  else if(S.fdnDepth<1.0) add('warn','地基','基礎有點淺',`${f1(S.fdnDepth)} m，建議至少 1 m 到達原土層。`,'加深到 1～1.5 m。','soil');
+  if(S.fdn==='spread'&&S.footing<S.col/100+0.6) add('warn','地基','基腳比柱子大不了多少','基腳每邊至少要比柱子多出約 30 cm，才能把力攤開。',`基腳至少 ${f1(S.col/100+0.6)} m。`,'soil');
+
+  // --- rooms
+  const roomBad=new Set();
+  const orphan=S.rooms.filter(r=>r.f>S.floors);
+  if(orphan.length) add('info','室內',`有 ${orphan.length} 個房間在已刪掉的樓層`,'你減少了樓層數，這些房間暫時不顯示也不檢查。','增加樓層數就會再出現，或到該樓層刪除。','layout');
+  const nRis=Math.ceil(S.storeyH/0.18), straightL=(nRis-1)*0.26, uL=(Math.ceil(nRis/2)-1)*0.26+1.2;
+  const inter=(a,b)=>Math.max(0,Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x))*Math.max(0,Math.min(a.y+a.d,b.y+b.d)-Math.max(a.y,b.y));
+  const e=0.01;
+  for(let fl=1;fl<=S.floors;fl++){
+    const rs=S.rooms.filter(r=>r.f===fl);
+    rs.forEach(r=>{
+      const T=TYPES[r.t], tag={room:r.id};
+      if(r.w<=0||r.d<=0){roomBad.add(r.id); add('err','室內',`${fl}F「${r.n}」尺寸不對`,'寬或深是 0。','把寬和深都設成大於 0。','layout',tag); return;}
+      if(r.x<-e||r.y<-e||r.x+r.w>S.W+e||r.y+r.d>S.D+e){roomBad.add(r.id); add('err','室內',`${fl}F「${r.n}」超出房子外面`,`房子是 ${S.W} × ${S.D} m，這個房間跑出去了。`,'移回房子範圍內，或縮小。','layout',tag);}
+      const ar=r.w*r.d, mw=Math.min(r.w,r.d);
+      if(T.min&&ar<T.min-e){roomBad.add(r.id); add('warn','室內',`${fl}F「${r.n}」太小`,`${T.n}只有 ${f1(ar)} m²，建議至少 ${T.min} m²。`,'把房間放大。','layout',tag);}
+      else if(T.minW&&mw<T.minW-e){roomBad.add(r.id); add('warn','室內',`${fl}F「${r.n}」太窄`,`最窄只有 ${f1(mw)} m，${T.n}建議至少 ${T.minW} m 寬。`,'加寬。','layout',tag);}
+      if(T.light){const ext=r.x<=e||r.y<=e||r.x+r.w>=S.W-e||r.y+r.d>=S.D-e;
+        if(!ext){roomBad.add(r.id); add('warn','室內',`${fl}F「${r.n}」沒有外牆，不能開窗`,`${T.n}是要長時間待的居室，需要窗戶採光通風。`,'移到靠外牆的位置，或把它改成儲藏室。','layout',tag);}}
+      let inside=0;
+      for(let i=0;i<=S.nx;i++)for(let j=0;j<=S.ny;j++){const cx=i*sx, cy=j*sy; if(cx>r.x+0.05&&cx<r.x+r.w-0.05&&cy>r.y+0.05&&cy<r.y+r.d-0.05) inside++;}
+      if(inside){roomBad.add(r.id); add('warn','室內',`${fl}F「${r.n}」中間站了 ${inside} 根柱子`,'柱子在房間正中央很難擺家具，也代表牆沒有沿著柱網走。','讓房間的邊對齊柱子（平面圖上的點劃線）。','layout',tag);}
+      if(r.t==='stair'){
+        const lo=Math.max(r.w,r.d), sh=Math.min(r.w,r.d);
+        const ok=(lo>=straightL-e&&sh>=1.0-e)||(lo>=uL-e&&sh>=2.1-e);
+        if(!ok){roomBad.add(r.id); add('warn','室內',`${fl}F 樓梯空間不夠`,`樓高 ${S.storeyH} m 約需 ${nRis} 階。直梯需約 ${f1(straightL)} × 1.0 m，U 形梯需約 ${f1(uL)} × 2.1 m，現在 ${f1(r.w)} × ${f1(r.d)} m。`,'放大樓梯間。','layout',tag);}
+      }
+    });
+    for(let a=0;a<rs.length;a++)for(let b=a+1;b<rs.length;b++){
+      if(inter(rs[a],rs[b])>0.01){roomBad.add(rs[a].id);roomBad.add(rs[b].id); add('err','室內',`${fl}F「${rs[a].n}」和「${rs[b].n}」重疊`,'兩個房間佔用同一塊地板。','移開其中一個。','layout',{room:rs[b].id});}
+    }
+    if(S.floors>1){
+      const st=rs.filter(r=>r.t==='stair');
+      if(!st.length) add('err','室內',`${fl}F 沒有樓梯`,'多層樓每一層都要有樓梯空間。','加入一個「樓梯」房間，位置跟其他樓層對齊。','layout');
+      if(fl<S.floors&&st.length){const up=S.rooms.filter(r=>r.f===fl+1&&r.t==='stair'); if(up.length&&!st.some(s=>up.some(u=>inter(s,u)>0.5))) add('warn','室內',`${fl}F 和 ${fl+1}F 的樓梯沒對齊`,'樓梯要上下重疊，才走得上去。','把兩層的樓梯移到同一個位置。','layout',{room:up[0].id});}
+    }
+    if(rs.some(r=>r.t==='bedroom')&&!rs.some(r=>r.t==='bath')&&S.floors>1) add('info','室內',`${fl}F 有臥室但沒有浴室`,'半夜要跑上跑下。','這層加一間浴室，最好跟樓下浴室上下對齊。','layout');
+    if(fl>1) rs.filter(r=>r.t==='bath').forEach(b=>{const below=S.rooms.filter(r=>r.f===fl-1&&r.t==='bedroom'&&inter(r,b)>0.5); if(below.length) add('info','室內',`${fl}F 浴室在臥室正上方`,`「${b.n}」底下是 ${fl-1}F「${below[0].n}」。會聽到排水聲，漏水會滴到床上。`,'浴室盡量疊在樓下浴室或廚房上面。','layout',{room:b.id});});
+    const cover=rs.reduce((s,r)=>s+Math.max(0,r.w*r.d),0)/(S.W*S.D);
+    if(rs.length&&cover<0.6) add('info','室內',`${fl}F 還有 ${Math.round((1-cover)*100)}% 的空間沒規劃`,'沒放房間的地方可能是走廊、玄關，也可能是忘了。','走廊也可以放一個「儲藏室」類型標示出來。','layout');
+    if(!rs.length) add('info','室內',`${fl}F 還沒有任何房間`,'到「室內配置」選這一層開始放房間。','可以用「複製樓下格局」快速開始。','layout');
+  }
+  // --- bubbles
+  const fpA=S.W*S.D;
+  const bOrphan=S.bubbles.filter(b=>b.f>S.floors);
+  if(bOrphan.length) add('info','泡泡圖',`有 ${bOrphan.length} 個泡泡在已刪掉的樓層`,'減少樓層後，這些泡泡暫時不顯示。','增加樓層數，或改到別的樓層。','bubble');
+  for(let fl=1;fl<=S.floors;fl++){
+    const bs=S.bubbles.filter(b=>b.f===fl); if(!bs.length) continue;
+    const sum=bs.reduce((s,b)=>s+Math.max(0,b.a||0),0);
+    if(sum>fpA) add('warn','泡泡圖',`${fl}F 想要的空間比房子還大`,`泡泡加起來 ${Math.round(sum)} m²，但房子一層只有 ${Math.round(fpA)} m²。`,'把房子加大（步驟 2），或縮小、刪掉一些空間、移到別層。','bubble');
+    else if(sum>fpA*0.85) add('info','泡泡圖',`${fl}F 幾乎沒有空間留給走廊和牆`,`泡泡用掉 ${Math.round(sum/fpA*100)}%，建議 85% 以內。`,'稍微縮小幾個泡泡，或把房子加大一點。','bubble');
+    const near=(id,pred)=>{const n1=bs.filter(o=>o.id!==id&&linked(id,o.id)); if(n1.some(pred)) return true; return n1.some(m=>bs.some(o=>o.id!==id&&o.id!==m.id&&linked(m.id,o.id)&&pred(o)));};
+    if(bs.some(b=>b.t==='bath')) bs.filter(b=>b.t==='bedroom').forEach(b=>{ if(!near(b.id,o=>o.t==='bath')) add('info','泡泡圖',`${fl}F「${b.n}」離浴室太遠`,'臥室和浴室之間沒有連線，也沒有經過一個空間就能到。','把它連到浴室，或連到一個有通往浴室的空間（例如樓梯、走廊）。','bubble',{bub:b.id}); });
+    bs.filter(b=>b.t==='kitchen').forEach(b=>{ if(!bs.some(o=>(o.t==='dining'||o.t==='living')&&linked(b.id,o.id))) add('info','泡泡圖',`${fl}F 廚房沒有連到餐廳或客廳`,'端菜要繞遠路。','把廚房和餐廳連起來。','bubble',{bub:b.id}); });
+    bs.filter(b=>b.t==='bedroom').forEach(b=>{ const k=bs.find(o=>o.t==='kitchen'&&linked(b.id,o.id)); if(k) add('info','泡泡圖',`${fl}F「${b.n}」直接連著廚房`,'油煙和噪音會進臥室。','中間隔一個餐廳或走廊。','bubble',{bub:b.id}); });
+    if(S.floors>1&&!bs.some(b=>b.t==='stair')) add('warn','泡泡圖',`${fl}F 的泡泡圖沒有樓梯`,'多層樓每一層都要有樓梯。','加一個「樓梯」泡泡，位置跟其他樓層差不多。','bubble');
+  }
+  const ord={err:0,warn:1,info:2};
+  L.sort((a,b)=>ord[a.sev]-ord[b.sev]);
+  return {L,m:{sx,sy,q,trib,P,cap,colRatio,H,roofH,Wtot,fp,fRatio,fUnit,fCapTxt,lam,hw,clear},flags,roomBad};
+}
+
+/* ---------- plan ---------- */
+function drawPlan(){
+  const W=S.W,D=S.D,u=Math.pow(Math.max(1,Math.max(W,D)/12),0.85),m=2.5*u;
+  const svg=$('#plan'); svg.setAttribute('viewBox',`${-m} ${-m} ${W+2*m} ${D+2*m}`);
+  const {sx,sy}=A.m, Y=y=>D-y;
+  let o=`<rect x="0" y="0" width="${W}" height="${D}" class="p-slab"/>`;
+  S.rooms.filter(r=>r.f===floor).forEach(r=>{
+    const T=TYPES[r.t]||TYPES.storage, bad=A.roomBad.has(r.id), sel=r.id===selId;
+    const w=Math.max(r.w,0.1), d=Math.max(r.d,0.1);
+    const fs=Math.max(0.16,Math.min(0.42*u,w/(Math.max(2,r.n.length)*1.15),d/2.8));
+    const cx=r.x+w/2, cy=Y(r.y+d/2);
+    o+=`<g class="room${sel?' sel':''}${bad?' bad':''}" data-id="${r.id}"><rect x="${r.x}" y="${Y(r.y+d)}" width="${w}" height="${d}" fill="${T.c}" fill-opacity="${sel?.32:.18}" stroke-width="${(sel?.07:.035)*u}"${bad?` stroke-dasharray="${.18*u} ${.1*u}"`:''}/>`+
+      `<text x="${cx}" y="${cy}" class="t" font-size="${fs}" text-anchor="middle" font-weight="500">${esc(r.n)}</text>`+
+      `<text x="${cx}" y="${cy+fs*1.15}" class="tm" font-size="${fs*.75}" text-anchor="middle">${f1(r.w*r.d)} m²</text></g>`;
+  });
+  // gaps & overlaps overlay
+  const fr=S.rooms.filter(r=>r.f===floor&&r.w>0&&r.d>0);
+  let gapA=0, ovA=0;
+  if(fr.length){
+    const cl=(v,mx)=>Math.min(mx,Math.max(0,v));
+    const gx=[...new Set([0,W,...fr.flatMap(r=>[cl(r.x,W),cl(r.x+r.w,W)])].map(v=>Math.round(v*1000)/1000))].sort((a,b)=>a-b);
+    const gy=[...new Set([0,D,...fr.flatMap(r=>[cl(r.y,D),cl(r.y+r.d,D)])].map(v=>Math.round(v*1000)/1000))].sort((a,b)=>a-b);
+    o+=`<defs><pattern id="gapp" width="${.3*u}" height="${.3*u}" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="${.3*u}" stroke="var(--warn)" stroke-width="${.05*u}"/></pattern></defs><g style="pointer-events:none">`;
+    for(let i=0;i<gx.length-1;i++)for(let j=0;j<gy.length-1;j++){
+      const x0=gx[i],x1=gx[i+1],y0=gy[j],y1=gy[j+1]; if(x1-x0<0.02||y1-y0<0.02) continue;
+      const mx=(x0+x1)/2, my=(y0+y1)/2;
+      const c=fr.filter(r=>mx>r.x&&mx<r.x+r.w&&my>r.y&&my<r.y+r.d).length;
+      const a=(x1-x0)*(y1-y0);
+      if(c===0){gapA+=a; o+=`<rect x="${x0}" y="${Y(y1)}" width="${x1-x0}" height="${y1-y0}" fill="url(#gapp)" opacity=".7"/>`;}
+      else if(c>1){ovA+=a; o+=`<rect x="${x0}" y="${Y(y1)}" width="${x1-x0}" height="${y1-y0}" fill="var(--err)" fill-opacity=".45"/>`;}
+    }
+    o+=`</g>`;
+  }
+  const st=$('#planStats'); if(st) st.innerHTML=fr.length?`<span class="${gapA>0.05?'c-warn':'tm2'}">空隙 ${f1(gapA)} m²</span><span class="${ovA>0.05?'c-err':'tm2'}">重疊 ${f1(ovA)} m²</span>`:'';
+  const da=`${.4*u} ${.12*u} ${.06*u} ${.12*u}`;
+  for(let i=0;i<=S.nx;i++){const x=i*sx;
+    o+=`<line x1="${x}" y1="${-1.5*u}" x2="${x}" y2="${D+.3*u}" class="ax" stroke-width="${.02*u}" stroke-dasharray="${da}"/><circle cx="${x}" cy="${-1.85*u}" r="${.33*u}" class="bub" stroke-width="${.03*u}"/><text x="${x}" y="${-1.85*u+.12*u}" class="t" font-size="${.32*u}" text-anchor="middle">${i+1}</text>`;}
+  for(let j=0;j<=S.ny;j++){const y=Y(j*sy);
+    o+=`<line x1="${-1.5*u}" y1="${y}" x2="${W+.3*u}" y2="${y}" class="ax" stroke-width="${.02*u}" stroke-dasharray="${da}"/><circle cx="${-1.85*u}" cy="${y}" r="${.33*u}" class="bub" stroke-width="${.03*u}"/><text x="${-1.85*u}" y="${y+.12*u}" class="t" font-size="${.32*u}" text-anchor="middle">${String.fromCharCode(65+j)}</text>`;}
+  o+=`<rect x="0" y="0" width="${W}" height="${D}" class="outline" stroke-width="${.09*u}"/>`;
+  const c=S.col/100;
+  for(let i=0;i<=S.nx;i++)for(let j=0;j<=S.ny;j++) o+=`<rect x="${i*sx-c/2}" y="${Y(j*sy)-c/2}" width="${c}" height="${c}" class="colp${A.flags.col?' bad':''}"/>`;
+  // dims
+  const tk=.14*u, sw=.02*u, dc=A.flags.span?' bad':'', tc=A.flags.span?'te':'tm';
+  let yd=D+.9*u;
+  o+=`<line x1="0" y1="${yd}" x2="${W}" y2="${yd}" class="dim${dc}" stroke-width="${sw}"/>`;
+  for(let i=0;i<=S.nx;i++){const x=i*sx; o+=`<line x1="${x-tk}" y1="${yd+tk}" x2="${x+tk}" y2="${yd-tk}" class="dim${dc}" stroke-width="${sw*2}"/>`; if(i<S.nx) o+=`<text x="${x+sx/2}" y="${yd-.14*u}" class="${tc}" font-size="${.28*u}" text-anchor="middle">${f2(sx)}</text>`;}
+  const yd2=D+1.55*u;
+  o+=`<line x1="0" y1="${yd2}" x2="${W}" y2="${yd2}" class="dim" stroke-width="${sw}"/><line x1="${-tk}" y1="${yd2+tk}" x2="${tk}" y2="${yd2-tk}" class="dim" stroke-width="${sw*2}"/><line x1="${W-tk}" y1="${yd2+tk}" x2="${W+tk}" y2="${yd2-tk}" class="dim" stroke-width="${sw*2}"/><text x="${W/2}" y="${yd2-.14*u}" class="tm" font-size="${.28*u}" text-anchor="middle">${f2(W)}</text>`;
+  const xd=W+.9*u;
+  o+=`<line x1="${xd}" y1="0" x2="${xd}" y2="${D}" class="dim${dc}" stroke-width="${sw}"/>`;
+  for(let j=0;j<=S.ny;j++){const y=Y(j*sy); o+=`<line x1="${xd-tk}" y1="${y+tk}" x2="${xd+tk}" y2="${y-tk}" class="dim${dc}" stroke-width="${sw*2}"/>`; if(j<S.ny){const ym=Y(j*sy+sy/2); o+=`<text x="${xd+.14*u}" y="${ym}" class="${tc}" font-size="${.28*u}" text-anchor="middle" transform="rotate(90 ${xd+.14*u} ${ym})">${f2(sy)}</text>`;}}
+  o+=`<text x="${W/2}" y="${D+2.25*u}" class="t" font-size="${.3*u}" text-anchor="middle">▲ 正面・臨路側</text>`;
+  const sr=S.rooms.find(r=>r.id===selId&&r.f===floor);
+  if(sr){const hs=.42*u, hw=.16*u, mx=sr.x+sr.w/2, my=Y(sr.y+sr.d/2);
+    [['l',sr.x,my,hw,hs],['r',sr.x+sr.w,my,hw,hs],['k',mx,Y(sr.y+sr.d),hs,hw],['f',mx,Y(sr.y),hs,hw]].forEach(([h,x,y,w,hh])=>{
+      o+=`<rect class="hdl" data-h="${h}" x="${x-w/2-.12*u}" y="${y-hh/2-.12*u}" width="${w+.24*u}" height="${hh+.24*u}" fill="transparent"/><rect x="${x-w/2}" y="${y-hh/2}" width="${w}" height="${hh}" rx="${.04*u}" class="hdlv" stroke-width="${.03*u}" style="pointer-events:none"/>`;});}
+  svg.innerHTML=o;
+  $('#planNo').textContent='A-10'+floor;
+  $('#planInfo').textContent=`${floor}F 平面・${S.rooms.filter(r=>r.f===floor).length} 間`;
+}
+
+/* ---------- section ---------- */
+function drawSec(){
+  const W=S.W,{sx,H,roofH}=A.m, dep=S.fdnDepth, pile=S.fdn==='pile', h=S.storeyH, c=S.col/100, bd=S.beam/100, sl=S.slab/100;
+  const top=H+roofH+0.3, bot=dep+(pile?5:0)+0.5;
+  const u=Math.pow(Math.max(1,Math.max(W,top+bot)/12),0.85);
+  const mX=2.6*u, mT=0.7*u, mB=0.9*u;
+  const svg=$('#sec'); svg.setAttribute('viewBox',`${-mX} ${-(top+mT)} ${W+2*mX} ${top+mT+bot+mB}`);
+  const fb=A.flags.fdn?' bad':'', cb=A.flags.col?' bad':'';
+  let o=`<defs><pattern id="soilp" width="${.45*u}" height="${.45*u}" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="${.45*u}" class="hatch" stroke-width="${.025*u}"/></pattern></defs>`;
+  o+=`<rect x="${-mX}" y="0" width="${W+2*mX}" height="${bot+mB}" class="soil"/><rect x="${-mX}" y="0" width="${W+2*mX}" height="${bot+mB}" fill="url(#soilp)"/>`;
+  // foundations
+  const xs=[]; for(let i=0;i<=S.nx;i++) xs.push(i*sx);
+  if(S.fdn==='mat'){
+    o+=`<rect x="-0.3" y="${dep-0.6}" width="${W+0.6}" height="0.6" class="conc${fb}" stroke-width="${.025*u}"/>`;
+    xs.forEach(x=>o+=`<rect x="${x-c*.6}" y="0" width="${c*1.2}" height="${Math.max(0,dep-0.6)}" class="conc" stroke-width="${.02*u}"/>`);
+  } else {
+    if(dep>0.6) o+=`<rect x="0" y="0" width="${W}" height="0.5" class="conc" stroke-width="${.02*u}"/>`;
+    xs.forEach(x=>{
+      if(pile){const cw=Math.max(1.2,c+0.6);
+        o+=`<rect x="${x-0.2}" y="${dep}" width="0.4" height="5" class="conc${fb}" stroke-width="${.02*u}"/><rect x="${x-cw/2}" y="${dep-0.8}" width="${cw}" height="0.8" class="conc${fb}" stroke-width="${.025*u}"/><rect x="${x-c*.6}" y="0" width="${c*1.2}" height="${Math.max(0,dep-0.8)}" class="conc" stroke-width="${.02*u}"/>`;
+      } else {const b=S.footing;
+        o+=`<rect x="${x-b/2}" y="${dep-0.5}" width="${b}" height="0.5" class="conc${fb}" stroke-width="${.025*u}"/><rect x="${x-c*.6}" y="0" width="${c*1.2}" height="${Math.max(0,dep-0.5)}" class="conc" stroke-width="${.02*u}"/>`;
+      }
+    });
+  }
+  o+=`<line x1="${-mX}" y1="0" x2="${W+mX}" y2="0" class="ground" stroke-width="${.05*u}"/>`;
+  // walls & windows
+  const wr=S.windowRatio/100;
+  let hf=0.6, wf=wr/hf; if(wf>0.9){wf=0.9; hf=Math.min(0.88,wr/0.9);}
+  for(let s=0;s<S.floors;s++){
+    const base=s*h, ch=Math.max(0.2,h-bd);
+    for(let i=0;i<S.nx;i++){
+      const x0=i*sx+c/2, cw=Math.max(0.1,sx-c);
+      if(s===0&&S.softStory){o+=`<text x="${x0+cw/2}" y="${-(base+ch/2)}" class="te" font-size="${.28*u}" text-anchor="middle">開放</text>`; continue;}
+      o+=`<rect x="${x0}" y="${-(base+ch)}" width="${cw}" height="${ch}" class="wallf"/>`;
+      const ww=cw*wf, wh=ch*hf, wx=x0+(cw-ww)/2, wyb=base+Math.min(0.9,Math.max(0.05,ch-wh-0.15));
+      o+=`<rect x="${wx}" y="${-(wyb+wh)}" width="${ww}" height="${wh}" class="glass" stroke-width="${.02*u}"/>`;
+    }
+  }
+  // columns
+  xs.forEach(x=>o+=`<rect x="${x-c/2}" y="${-H}" width="${c}" height="${H}" class="colfill${cb}" stroke-width="${.02*u}"/>`);
+  // slabs/beams
+  o+=`<rect x="0" y="-0.15" width="${W}" height="0.15" class="conc" stroke-width="${.02*u}"/>`;
+  for(let k=1;k<=S.floors;k++){const L=k*h;
+    o+=`<rect x="0" y="${-L}" width="${W}" height="${bd}" class="conc" stroke-width="${.02*u}"/><rect x="-0.3" y="${-L}" width="${W+0.6}" height="${sl}" class="colfill" stroke-width="${.02*u}"/>`;}
+  if(S.roof==='gable') o+=`<polygon points="${-0.6},${-H} ${W/2},${-(H+roofH)} ${W+0.6},${-H} ${W+0.6},${-H+0.2} ${W/2},${-(H+roofH)+0.2} ${-0.6},${-H+0.2}" class="roofp" stroke-width="${.03*u}"/>`;
+  else o+=`<rect x="0" y="${-(H+1.1)}" width="0.15" height="1.1" class="conc" stroke-width="${.02*u}"/><rect x="${W-0.15}" y="${-(H+1.1)}" width="0.15" height="1.1" class="conc" stroke-width="${.02*u}"/>`;
+  // dims & levels
+  const xd=W+0.9*u, tk=.13*u, sw=.02*u, fs=.28*u;
+  o+=`<line x1="${xd}" y1="0" x2="${xd}" y2="${-H}" class="dim" stroke-width="${sw}"/>`;
+  for(let k=0;k<=S.floors;k++){const y=-k*h; o+=`<line x1="${xd-tk}" y1="${y+tk}" x2="${xd+tk}" y2="${y-tk}" class="dim" stroke-width="${sw*2}"/>`; if(k<S.floors) o+=`<text x="${xd+.15*u}" y="${y-h/2}" class="tm" font-size="${fs}" transform="rotate(90 ${xd+.15*u} ${y-h/2})" text-anchor="middle">${f2(h)}</text>`;}
+  for(let k=0;k<=S.floors;k++){const y=-k*h, lab=k===S.floors?'RF':(k+1)+'F'; o+=`<text x="${-0.45*u}" y="${y-.08*u}" class="tm" font-size="${fs}" text-anchor="end">${lab} ${k===0?'±0':'+'+f2(k*h)}</text>`;}
+  o+=`<text x="${-0.45*u}" y="${dep+.1*u}" class="${A.flags.fdn?'te':'tm'}" font-size="${fs}" text-anchor="end">基礎底 −${f2(dep)}</text>`;
+  o+=`<line x1="${-0.4*u}" y1="${dep}" x2="${-0.05}" y2="${dep}" class="dim" stroke-width="${sw}"/>`;
+  o+=`<text x="${-0.45*u}" y="${.4*u}" class="tm" font-size="${fs}" text-anchor="end">GL</text>`;
+  o+=`<text x="${W+.3*u}" y="${Math.min(bot+mB*.5, dep+1.0)}" class="t" font-size="${fs}">${SOIL[S.soil].n}</text>`;
+  svg.innerHTML=o;
+  $('#secInfo').textContent=`${SYS[S.system].n}・${FDN[S.fdn]}`;
+}
+
+/* ---------- bubbles ---------- */
+const bR=a=>Math.max(3.2,Math.sqrt(Math.max(1,a))*1.55);
+function drawBubble(){
+  const bs=S.bubbles.filter(b=>b.f===floor);
+  const bad=new Set(A.L.filter(x=>x.bub).map(x=>x.bub));
+  let o='';
+  S.links.forEach(l=>{const a=bubble(l[0]),b=bubble(l[1]); if(a&&b&&a.f===floor&&b.f===floor) o+=`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" class="blink" stroke-width=".5"/>`;});
+  bs.forEach(b=>{
+    const T=TYPES[b.t]||TYPES.storage, r=bR(b.a), cls=(b.id===selBub?' sel':'')+(b.id===pend?' pend':'');
+    const fs=Math.max(1.6,Math.min(3,r*2/(Math.max(2,b.n.length)*1.1)));
+    o+=`<g class="bubg${cls}" data-id="${b.id}"><circle cx="${b.x}" cy="${b.y}" r="${r}" fill="${T.c}" fill-opacity="${b.id===selBub?.38:.22}" stroke-width="${b.id===selBub||b.id===pend?.55:.25}"/>`+
+      `<text x="${b.x}" y="${b.y+fs*.2}" class="t" font-size="${fs}" text-anchor="middle" font-weight="500">${esc(b.n)}</text>`+
+      `<text x="${b.x}" y="${b.y+fs*1.25}" class="${bad.has(b.id)?'te':'tm'}" font-size="${fs*.7}" text-anchor="middle">${Math.round(b.a)} m²</text></g>`;
+  });
+  if(!bs.length) o+=`<text x="60" y="40" class="tm" font-size="2.6" text-anchor="middle">${floor}F 還沒有泡泡，按左邊「加入泡泡」開始</text>`;
+  $('#bub').innerHTML=o;
+  const sum=bs.reduce((s,b)=>s+(b.a||0),0);
+  $('#bubInfo').textContent=`${floor}F・${bs.length} 個空間・${Math.round(sum)} / ${Math.round(S.W*S.D)} m²`;
+  [['bW','W',' m',1],['bD','D',' m',1],['bF','floors',' 層',0]].forEach(([id,k,u,dec])=>{const el=$('#'+id); if(String(el.value)!==String(S[k])) el.value=S[k]; const o=$('#o'+id); if(document.activeElement!==o) o.value=S[k];});
+  const per=S.W*S.D, tot=per*S.floors;
+  $('#bubArea').innerHTML=`<span class="lbl">房子大小</span><div class="ro-row"><span>每層</span><span class="v">${f1(S.W)} × ${f1(S.D)} = ${f1(per)} m²（約 ${f1(per/3.3058)} 坪）</span></div><div class="ro-row"><span>全部 ${S.floors} 層合計</span><span class="v">${f1(tot)} m²（約 ${f1(tot/3.3058)} 坪）</span></div><div class="ro-row"><span>這層泡泡用掉</span><span class="v">${Math.round(sum)} m²（${Math.round(sum/per*100)}%，建議 85% 內）</span>${meter(sum/per/0.85*0.6)}</div>`;
+}
+function renderBubList(){
+  const bs=S.bubbles.filter(b=>b.f===floor);
+  $('#bubList').innerHTML=bs.map(b=>`<div class="ri${b.id===selBub?' sel':''}" data-id="${b.id}">
+    <div class="ri-top"><span class="sw" style="background:${TYPES[b.t].c}"></span><input type="text" id="bn${b.id}" data-bp="n" value="${esc(b.n)}" aria-label="空間名稱"><select id="bt${b.id}" data-bp="t" aria-label="空間類型">${typeOpts.replace(`value="${b.t}"`,`value="${b.t}" selected`)}</select><button class="ri-del" aria-label="刪除${esc(b.n)}">×</button></div>
+    <div class="ri-dims" style="grid-template-columns:1fr 1fr"><label>想要的面積 m²<input type="number" id="ba${b.id}" data-bp="a" min="1" step="1" value="${b.a}"></label><label>大約坪數<input type="text" value="${f1(b.a/3.3058)} 坪" disabled></label></div></div>`).join('');
+}
+function markBubList(){$$('#bubList .ri').forEach(el=>el.classList.toggle('sel',+el.dataset.id===selBub));}
+
+/* ---------- readouts ---------- */
+function meter(r){const p=Math.min(100,Math.round(r*100)); const lv=r>1?'lv-err':r>0.6?'lv-warn':'lv-ok'; return `<div class="meter"><span class="${lv}" style="width:${Math.max(3,p)}%"></span></div>`;}
+function renderReadouts(){
+  const m=A.m, area=S.W*S.D*S.floors;
+  $('#ro-ext').innerHTML=`<span class="lbl">即時計算</span>
+    <div class="ro-row"><span>總高度（含屋頂）</span><span class="v">${f2(m.H+m.roofH)} m</span></div>
+    <div class="ro-row"><span>總樓地板面積</span><span class="v">${f1(area)} m² ≈ ${f1(area/3.3058)} 坪</span></div>
+    <div class="ro-row"><span>高寬比（建議 3 以內）</span><span class="v">${f2(m.hw)}</span>${meter(m.hw/4.5)}</div>`;
+  $('#ro-str').innerHTML=`<span class="lbl">即時計算</span>
+    <div class="ro-row"><span>柱距</span><span class="v">左右 ${f2(m.sx)} m × 前後 ${f2(m.sy)} m</span></div>
+    <div class="ro-row"><span>一根中間柱子要扛</span><span class="v">≈ ${f1(m.P)} tf</span><span class="help">= 受力面積 ${f1(m.trib)} m² × ${S.floors} 層 × ${f2(m.q)} tf/m²</span></div>
+    <div class="ro-row"><span>柱子大約能扛</span><span class="v">≈ ${f1(m.cap)} tf・使用率 ${Math.round(m.colRatio*100)}%（建議 60% 內）</span>${meter(m.colRatio/1)}</div>
+    <div class="ro-row"><span>梁下淨高</span><span class="v">${f2(m.clear)} m</span></div>`;
+  const fr=A.m.fRatio;
+  $('#ro-fdn').innerHTML=`<span class="lbl">即時計算</span>
+    <div class="ro-row"><span>房子總重（粗估）</span><span class="v">≈ ${Math.round(m.Wtot)} tf</span></div>
+    <div class="ro-row"><span>${S.fdn==='pile'?'每根樁要扛':'基礎底下壓力'}</span><span class="v">≈ ${f1(m.fp)} ${m.fUnit}・可承受 ${m.fCapTxt}</span>${meter(fr/1.25)}<span class="help">使用 ${Math.round(fr*100)}%，建議 80% 以內</span></div>`;
+}
+
+/* ---------- checks ---------- */
+const SEVN={err:'危險',warn:'注意',info:'建議'};
+const AREA_TAB={'泡泡圖':'bub','外觀':'ext','結構':'str','地基':'str','室內':'room'};
+function renderChecks(){
+  const c={err:0,warn:0,info:0}; A.L.forEach(x=>c[x.sev]++);
+  let h='';
+  if(!c.err&&!c.warn) h+=`<div class="allgood">目前沒有「危險」或「注意」項目，初步看起來站得住。</div>`;
+  h+=A.L.map((x,i)=>`<article class="ck ck-${x.sev}" data-i="${i}" tabindex="0"><div class="ck-h"><span class="sev c-${x.sev}">${SEVN[x.sev]}</span><span class="ck-area">${x.area}</span></div><h4>${x.title}</h4><p>${x.msg}</p><p class="fix"><b>怎麼改：</b>${x.fix}</p><button class="link" data-lesson="${x.lesson}">為什麼？看教學 →</button></article>`).join('');
+  $('#checks').innerHTML=h;
+  $('#tally').innerHTML=(c.err?`<span class="chip c-err">危險 <b>${c.err}</b></span>`:'')+(c.warn?`<span class="chip c-warn">注意 <b>${c.warn}</b></span>`:'')+(c.info?`<span class="chip c-info">建議 <b>${c.info}</b></span>`:'')+(!c.err&&!c.warn?`<span class="chip c-ok">初步安全</span>`:'');
+}
+
+/* ---------- rooms list ---------- */
+const typeOpts=Object.entries(TYPES).map(([k,v])=>`<option value="${k}">${v.n}</option>`).join('');
+function esc(s){return String(s).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));}
+function renderRoomList(){
+  const rs=S.rooms.filter(r=>r.f===floor);
+  $('#roomList').innerHTML=rs.length?rs.map(r=>`<div class="ri${r.id===selId?' sel':''}${A.roomBad.has(r.id)?' bad':''}" data-id="${r.id}">
+    <div class="ri-top"><span class="sw" style="background:${TYPES[r.t].c}"></span><input type="text" id="rn${r.id}" data-p="n" value="${esc(r.n)}" aria-label="房間名稱"><select id="rt${r.id}" data-p="t" aria-label="房間類型">${typeOpts.replace(`value="${r.t}"`,`value="${r.t}" selected`)}</select><button class="ri-del" aria-label="刪除${esc(r.n)}">×</button></div>
+    <div class="ri-dims">${['x','y','w','d'].map(p=>`<label>${{x:'X',y:'Y',w:'寬',d:'深'}[p]}<input type="number" id="r${p}${r.id}" data-p="${p}" step="any" value="${r2(r[p])}"></label>`).join('')}</div></div>`).join('')
+    :`<p class="help">${floor}F 還沒有房間。按「加入房間」開始，或複製樓下格局。</p>`;
+  $('#copyBelow').hidden=!(floor>1&&!rs.length&&S.rooms.some(r=>r.f===floor-1));
+}
+function markList(){
+  $$('#roomList .ri').forEach(el=>{const id=+el.dataset.id; el.classList.toggle('sel',id===selId); el.classList.toggle('bad',A.roomBad.has(id));
+    const r=room(id); if(r) ['x','y','w','d'].forEach(k=>{const i=el.querySelector(`[data-p="${k}"]`); if(i&&document.activeElement!==i&&parseFloat(i.value)!==r2(r[k])) i.value=r2(r[k]);});});
+}
+function renderFloorTabs(){
+  let h=''; for(let f=1;f<=S.floors;f++) h+=`<button data-floor="${f}" aria-pressed="${f===floor}">${f}F</button>`;
+  $$('[data-floortabs]').forEach(el=>el.innerHTML=h);
+}
+
+function renderAll(opt){
+  opt=opt||{};
+  if(floor>S.floors) floor=S.floors;
+  A=analyze();
+  syncFields(); renderReadouts(); drawBubble(); drawPlan(); drawSec(); renderChecks(); renderFloorTabs();
+  if(opt.keepList){markList(); markBubList();} else {renderRoomList(); renderBubList();}
+  renderCoach();
+  save();
+}
+
+/* ---------- events ---------- */
+document.addEventListener('input',e=>{
+  const k=e.target.dataset&&e.target.dataset.k; if(!k) return;
+  if(e.target.type==='number') return;
+  const f=[...SCHEMA.ext,...SCHEMA.str].find(x=>x.k===k);
+  let v;
+  if(f.type==='check') v=e.target.checked;
+  else if(f.type==='range'||f.num) v=parseFloat(e.target.value);
+  else v=e.target.value;
+  S[k]=v; renderAll({keepList:k!=='floors'});
+});
+document.addEventListener('change',e=>{
+  const el=e.target, k=el.dataset&&el.dataset.k; if(!k||el.type!=='number') return;
+  let v=parseFloat(el.value);
+  if(isNaN(v)){el.value=S[k]; return;}
+  const mn=parseFloat(el.min), mx=parseFloat(el.max), st=parseFloat(el.step)||1;
+  v=Math.min(mx,Math.max(mn,Math.round(v/st)*st)); v=Math.round(v*100)/100;
+  el.value=v; S[k]=v; renderAll({keepList:k!=='floors'});
+});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.type==='number'&&e.target.dataset.k) e.target.blur();});
+function setTab(t){tab=t; $$('.steps button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t)); ['bub','ext','str','room'].forEach(k=>$('#pane-'+k).hidden=k!==t); $('#bubSheet').hidden=t!=='bub';}
+$('.steps').addEventListener('click',e=>{const b=e.target.closest('button'); if(b) setTab(b.dataset.tab);});
+function setView(v){const co=$('#coach'); if(co) co.hidden=v!=='design'; $('#v-design').hidden=v!=='design'; $('#v-learn').hidden=v!=='learn'; $('#tabDesign').setAttribute('aria-selected',v==='design'); $('#tabLearn').setAttribute('aria-selected',v==='learn');}
+function openLesson(id){setView('learn'); const el=document.getElementById('L-'+id); if(el) el.scrollIntoView({block:'start'});}
+document.addEventListener('click',e=>{
+  const v=e.target.closest('[data-view]'); if(v){setView(v.dataset.view); if(v.dataset.view==='learn') window.scrollTo(0,0); return;}
+  const l=e.target.closest('[data-lesson]'); if(l){e.stopPropagation(); openLesson(l.dataset.lesson); return;}
+  const fl=e.target.closest('[data-floor]'); if(fl){floor=+fl.dataset.floor; anchor(fl.closest('.sheet')||fl.closest('.pane'),()=>renderAll()); return;}
+});
+$('#checks').addEventListener('click',e=>{
+  const c=e.target.closest('.ck'); if(!c||e.target.closest('[data-lesson]')) return;
+  const it=A.L[+c.dataset.i];
+  if(it.room){const r=room(it.room); if(r){floor=r.f; selId=r.id;}}
+  if(it.bub){const b=bubble(it.bub); if(b){floor=b.f; selBub=b.id;}}
+  setTab(AREA_TAB[it.area]||'ext'); renderAll();
+  if(window.innerWidth<1281) $('.controls').scrollIntoView({block:'start',behavior:'smooth'});
+});
+$('#checks').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.classList.contains('ck')) e.target.click();});
+const rl=$('#roomList');
+rl.addEventListener('input',e=>{
+  const it=e.target.closest('.ri'); if(!it) return; const r=room(+it.dataset.id); const p=e.target.dataset.p;
+  if(p==='n') r.n=e.target.value;
+  else if(p==='t'){r.t=e.target.value; it.querySelector('.sw').style.background=TYPES[r.t].c;}
+  else {const v=parseFloat(e.target.value); if(!isNaN(v)) r[p]=v; else return;}
+  selId=r.id; renderAll({keepList:true});
+});
+rl.addEventListener('focusin',e=>{const it=e.target.closest('.ri'); if(it&&+it.dataset.id!==selId){selId=+it.dataset.id; drawPlan(); markList();}});
+rl.addEventListener('click',e=>{
+  if(e.target.closest('.ri-del')){const id=+e.target.closest('.ri').dataset.id; S.rooms=S.rooms.filter(r=>r.id!==id); if(selId===id) selId=null; renderAll(); return;}
+});
+$('#addRoom').addEventListener('click',()=>{
+  const id=Math.max(0,...S.rooms.map(r=>r.id))+1;
+  S.rooms.push({id,f:floor,n:'新房間',t:'bedroom',x:0,y:0,w:3,d:3}); selId=id; renderAll();
+  const el=$('#rn'+id); if(el){el.focus(); el.select();}
+});
+$('#copyBelow').addEventListener('click',()=>{
+  let id=Math.max(0,...S.rooms.map(r=>r.id));
+  S.rooms.filter(r=>r.f===floor-1).forEach(r=>S.rooms.push(Object.assign({},r,{id:++id,f:floor})));
+  renderAll();
+});
+
+// keep an element at the same place on screen while things above it change
+function anchor(el,fn){ if(!el){fn();return;} const t=el.getBoundingClientRect().top; fn(); const d=el.getBoundingClientRect().top-t; if(Math.abs(d)>0.5) window.scrollBy(0,d); }
+// drag on plan: move + resize with magnetic snapping
+const plan=$('#plan');
+function pt(e){const p=plan.createSVGPoint(); p.x=e.clientX; p.y=e.clientY; const q=p.matrixTransform(plan.getScreenCTM().inverse()); return {x:q.x,y:S.D-q.y};}
+const q4=v=>Math.round(v*4)/4;
+function targets(exId){
+  const xs=[0,S.W], ys=[0,S.D];
+  for(let i=1;i<S.nx;i++) xs.push(i*S.W/S.nx);
+  for(let j=1;j<S.ny;j++) ys.push(j*S.D/S.ny);
+  S.rooms.filter(r=>r.f===floor&&r.id!==exId).forEach(r=>{xs.push(r.x,r.x+r.w); ys.push(r.y,r.y+r.d);});
+  return {xs,ys};
+}
+function near(v,arr,tol){let best=null,bd=tol; arr.forEach(a=>{const d=Math.abs(a-v); if(d<bd){bd=d; best=a;}}); return best===null?null:{v:best,d:bd};}
+const magTol=()=>0.35*Math.pow(Math.max(1,Math.max(S.W,S.D)/12),0.85);
+function snapPos(raw,size,arr,max){
+  const tol=magTol(), a=near(raw,arr,tol), b=near(raw+size,arr,tol);
+  let v; if(a&&(!b||a.d<=b.d)) v=a.v; else if(b) v=b.v-size; else v=q4(raw);
+  return Math.min(Math.max(0,v),Math.max(0,max-size));
+}
+function snapEdge(raw,arr,max){const n=near(raw,arr,magTol()); return Math.min(max,Math.max(0,n?n.v:q4(raw)));}
+function liveUpdate(r){
+  A=analyze(); drawPlan(); renderChecks(); markList();
+  const it=$(`#roomList .ri[data-id="${r.id}"]`); if(it) ['x','y','w','d'].forEach(k=>{it.querySelector(`[data-p="${k}"]`).value=r2(r[k]);});
+}
+plan.addEventListener('pointerdown',e=>{
+  const h=e.target.closest('.hdl');
+  if(h&&selId!=null){
+    const r=room(selId); drag={id:r.id,h:h.dataset.h,x1:r.x+r.w,y1:r.y+r.d,T:targets(r.id)};
+    plan.setPointerCapture(e.pointerId); e.preventDefault(); return;
+  }
+  const g=e.target.closest('.room');
+  if(!g){ if(selId!=null){selId=null; drawPlan(); markList();} return; }
+  const r=room(+g.dataset.id); const p=pt(e);
+  selId=r.id; drag={id:r.id,dx:p.x-r.x,dy:p.y-r.y,T:targets(r.id)};
+  plan.setPointerCapture(e.pointerId); e.preventDefault();
+  anchor(plan,()=>{ if(tab!=='room') setTab('room'); renderAll({keepList:true}); });
+});
+plan.addEventListener('pointermove',e=>{
+  if(!drag) return; const r=room(drag.id); if(!r) return; const p=pt(e), T=drag.T, MIN=0.5;
+  const before=r.x+','+r.y+','+r.w+','+r.d;
+  if(!drag.h){
+    r.x=snapPos(p.x-drag.dx,r.w,T.xs,S.W); r.y=snapPos(p.y-drag.dy,r.d,T.ys,S.D);
+  } else if(drag.h==='l'){ const v=Math.min(snapEdge(p.x,T.xs,S.W),drag.x1-MIN); r.x=v; r.w=drag.x1-v; }
+  else if(drag.h==='r'){ const v=Math.max(snapEdge(p.x,T.xs,S.W),r.x+MIN); r.w=v-r.x; }
+  else if(drag.h==='f'){ const v=Math.min(snapEdge(p.y,T.ys,S.D),drag.y1-MIN); r.y=v; r.d=drag.y1-v; }
+  else if(drag.h==='k'){ const v=Math.max(snapEdge(p.y,T.ys,S.D),r.y+MIN); r.d=v-r.y; }
+  ['x','y','w','d'].forEach(k=>r[k]=Math.round(r[k]*1000)/1000);
+  if(before!==r.x+','+r.y+','+r.w+','+r.d) liveUpdate(r);
+});
+const endDrag=()=>{if(drag){drag=null; anchor(plan,()=>renderAll({keepList:true}));}};
+plan.addEventListener('pointerup',endDrag); plan.addEventListener('pointercancel',endDrag);
+// snap to column grid
+function snapRoomToGrid(r,tol){
+  const ax=[0,S.W]; for(let i=1;i<S.nx;i++) ax.push(i*S.W/S.nx);
+  const ay=[0,S.D]; for(let j=1;j<S.ny;j++) ay.push(j*S.D/S.ny);
+  const nr=(v,arr)=>{const n=near(v,arr,tol); return n?n.v:v;};
+  let x0=nr(r.x,ax), x1=nr(r.x+r.w,ax), y0=nr(r.y,ay), y1=nr(r.y+r.d,ay);
+  if(x1-x0<0.5){x0=r.x; x1=r.x+r.w;} if(y1-y0<0.5){y0=r.y; y1=r.y+r.d;}
+  r.x=Math.round(x0*1000)/1000; r.w=Math.round((x1-x0)*1000)/1000; r.y=Math.round(y0*1000)/1000; r.d=Math.round((y1-y0)*1000)/1000;
+}
+$('#snapSel').addEventListener('click',()=>{
+  const r=S.rooms.find(x=>x.id===selId&&x.f===floor);
+  if(!r){$('#planStats').insertAdjacentHTML('beforeend','<span class="c-warn">先點一個房間</span>'); return;}
+  snapRoomToGrid(r,Infinity); anchor(plan,()=>renderAll({keepList:true}));
+});
+$('#snapAll').addEventListener('click',()=>{
+  S.rooms.filter(r=>r.f===floor).forEach(r=>snapRoomToGrid(r,1.0)); anchor(plan,()=>renderAll({keepList:true}));
+});
+
+// save / share
+$('#io').addEventListener('toggle',()=>{if($('#io').open) $('#code').value=JSON.stringify(S);});
+$('#copyBtn').addEventListener('click',()=>{
+  const ta=$('#code'); ta.value=JSON.stringify(S);
+  navigator.clipboard.writeText(ta.value).then(()=>$('#ioMsg').textContent='已複製設計碼。').catch(()=>{ta.focus(); ta.select(); $('#ioMsg').textContent='已選取設計碼，請按 Ctrl+C 或長按複製。';});
+});
+$('#loadBtn').addEventListener('click',()=>{
+  try{const o=JSON.parse($('#code').value); if(!o||!Array.isArray(o.rooms)) throw 0; S=Object.assign(clone(DEFAULT),o); floor=1; selId=null; renderAll(); $('#ioMsg').textContent='已讀入設計。';}
+  catch(e){$('#ioMsg').textContent='讀不懂這段設計碼。請確認有完整複製，從 { 開始到 } 結束。';}
+});
+let resetArm=false;
+$('#resetBtn').addEventListener('click',()=>{
+  if(!resetArm){resetArm=true; $('#resetBtn').textContent='再按一次確認恢復'; setTimeout(()=>{resetArm=false; $('#resetBtn').textContent='恢復範例';},3000); return;}
+  S=clone(DEFAULT); floor=1; selId=null; resetArm=false; $('#resetBtn').textContent='恢復範例'; renderAll(); $('#ioMsg').textContent='已恢復成範例設計。';
+});
+
+// bubble events
+const bl=$('#bubList');
+bl.addEventListener('input',e=>{
+  const it=e.target.closest('.ri'); if(!it) return; const b=bubble(+it.dataset.id); const p=e.target.dataset.bp; if(!p) return;
+  if(p==='n') b.n=e.target.value;
+  else if(p==='t'){b.t=e.target.value; it.querySelector('.sw').style.background=TYPES[b.t].c;}
+  else {const v=parseFloat(e.target.value); if(isNaN(v)||v<=0) return; b.a=v; it.querySelector('input[disabled]').value=f1(v/3.3058)+' 坪';}
+  selBub=b.id; renderAll({keepList:true});
+});
+bl.addEventListener('focusin',e=>{const it=e.target.closest('.ri'); if(it&&+it.dataset.id!==selBub){selBub=+it.dataset.id; drawBubble(); markBubList();}});
+bl.addEventListener('click',e=>{
+  if(!e.target.closest('.ri-del')) return;
+  const id=+e.target.closest('.ri').dataset.id;
+  S.bubbles=S.bubbles.filter(b=>b.id!==id); S.links=S.links.filter(l=>l[0]!==id&&l[1]!==id);
+  if(selBub===id) selBub=null; if(pend===id) pend=null; renderAll();
+});
+$('#addBub').addEventListener('click',()=>{
+  const id=Math.max(0,...S.bubbles.map(b=>b.id))+1;
+  S.bubbles.push({id,f:floor,n:'新空間',t:'bedroom',a:12,x:60+(Math.random()*20-10),y:40+(Math.random()*16-8)}); selBub=id; renderAll();
+  const el=$('#bn'+id); if(el){el.focus(); el.select();}
+});
+$('#linkMode').addEventListener('click',()=>{
+  linkMode=!linkMode; pend=null;
+  const b=$('#linkMode'); b.classList.toggle('on',linkMode); b.setAttribute('aria-pressed',linkMode); b.textContent='連線模式：'+(linkMode?'開':'關');
+  $('#linkHelp').textContent=linkMode?'現在點第一個泡泡，再點第二個，就會連線（已經連的會取消）。':'拖曳泡泡可以移動。打開「連線模式」後，依序點兩個泡泡就能連線，再點一次同樣兩個就取消。';
+  drawBubble();
+});
+const bsvg=$('#bub');
+function bpt(e){const p=bsvg.createSVGPoint(); p.x=e.clientX; p.y=e.clientY; return p.matrixTransform(bsvg.getScreenCTM().inverse());}
+bsvg.addEventListener('pointerdown',e=>{
+  const g=e.target.closest('.bubg');
+  if(!g){pend=null; drawBubble(); return;}
+  const b=bubble(+g.dataset.id); selBub=b.id;
+  if(linkMode){
+    if(pend===null) pend=b.id;
+    else if(pend===b.id) pend=null;
+    else { const i=S.links.findIndex(l=>(l[0]===pend&&l[1]===b.id)||(l[0]===b.id&&l[1]===pend)); if(i>=0) S.links.splice(i,1); else S.links.push([pend,b.id]); pend=null; }
+    renderAll({keepList:true}); return;
+  }
+  const p=bpt(e); bdrag={id:b.id,dx:p.x-b.x,dy:p.y-b.y};
+  bsvg.setPointerCapture(e.pointerId); e.preventDefault(); drawBubble(); markBubList();
+});
+bsvg.addEventListener('pointermove',e=>{
+  if(!bdrag) return; const b=bubble(bdrag.id), p=bpt(e), r=bR(b.a);
+  b.x=Math.min(120-r,Math.max(r,p.x-bdrag.dx)); b.y=Math.min(80-r,Math.max(r,p.y-bdrag.dy)); drawBubble();
+});
+const endB=()=>{if(bdrag){bdrag=null; save();}};
+bsvg.addEventListener('pointerup',endB); bsvg.addEventListener('pointercancel',endB);
+let convArm=false;
+$('#toRooms').addEventListener('click',()=>{
+  const bs=S.bubbles.filter(b=>b.f===floor).slice().sort((a,b)=>b.a-a.a);
+  const msg=$('#toRoomsMsg');
+  if(!bs.length){msg.textContent=floor+'F 還沒有泡泡。'; return;}
+  const existing=S.rooms.filter(r=>r.f===floor).length;
+  if(existing&&!convArm){convArm=true; $('#toRooms').textContent='再按一次：取代 '+floor+'F 的 '+existing+' 間房間'; setTimeout(()=>{convArm=false; $('#toRooms').textContent='把這層泡泡排成房間';},4000); return;}
+  convArm=false; $('#toRooms').textContent='把這層泡泡排成房間';
+  S.rooms=S.rooms.filter(r=>r.f!==floor);
+  let id=Math.max(0,...S.rooms.map(r=>r.id)), x=0, y=0, rowH=0;
+  const sn=v=>Math.max(0.5,Math.round(v*2)/2);
+  bs.forEach(b=>{
+    let w=Math.min(S.W,sn(Math.sqrt(b.a))); let d=sn(b.a/w);
+    if(x+w>S.W+0.01){x=0; y+=rowH; rowH=0;}
+    S.rooms.push({id:++id,f:floor,n:b.n,t:b.t,x,y,w,d}); x+=w; rowH=Math.max(rowH,d);
+  });
+  selId=null; setTab('room'); renderAll();
+  msg.textContent='';
+  if(window.innerWidth<1281) $('.controls').scrollIntoView({block:'start',behavior:'smooth'});
+});
+
+/* ---------- coach (教練) ---------- */
+let ctx={type:'tab'}, coachOpen=true;
+try{coachOpen=localStorage.getItem('house-lab-coach')!=='0';}catch(e){}
+const tag=(ok,txt)=>`<span class="tag ${ok?'tag-ok':'tag-warn'}">${ok?'✓':'!'} ${txt}</span>`;
+function colCap(c){
+  const Ag=c*c, fy=S.rebar==='SD420'?4200:2800, lam=S.storeyH*100/c;
+  if(S.system==='steel') return 0.16*Ag*0.5*2500/1000;
+  if(S.system==='wood') return 70*Ag*Math.max(0.25,1-Math.pow(lam/50,2))/1000;
+  return (0.25*S.fc*Ag+0.4*fy*0.015*Ag)/1000;
+}
+function recs(){
+  const sys=SYS[S.system], m=A.m, R={};
+  const bays=L=>Math.max(1,Math.ceil(L/sys.span[0]-1e-9));
+  R.nx=Math.min(6,bays(S.W)); R.ny=Math.min(8,bays(S.D));
+  if(S.floors>=2){ if(R.nx<2&&S.W>=6) R.nx=2; if(R.ny<2&&S.D>=6) R.ny=2; }
+  R.beam=Math.min(100,Math.ceil(Math.max(m.sx,m.sy)*100/sys.beamDiv/5)*5);
+  R.slab=Math.min(30,Math.ceil(Math.max(12,Math.min(m.sx,m.sy)*100/35)));
+  R.col=null;
+  for(let c=10;c<=80;c+=5){
+    const lam=S.storeyH*100/c;
+    if(m.P/colCap(c)<=0.6&&lam<=sys.slend[0]&&c>=sys.minCol(S.floors)&&(!(S.system==='rc'||S.system==='brick')||c>=S.beam*0.8)){R.col=c;break;}
+  }
+  const den=0.8*SOIL[S.soil].qa-S.fdnDepth*2;
+  R.footing=den>0?Math.max(S.col/100+0.6,Math.ceil(Math.sqrt(m.P/den)*10)/10):null;
+  if(R.footing&&R.footing>4) R.footing=null;
+  R.storeyH=Math.min(4.5,Math.ceil((S.beam/100+2.4)*10)/10);
+  R.floorsMax=Math.max(1,Math.min(6,Math.floor(3*Math.min(S.W,S.D)/S.storeyH)));
+  R.fdn=S.soil==='fill'?'pile':(S.soil==='clay'&&S.floors>=3)?'mat':(R.footing&&R.footing>Math.min(m.sx,m.sy)-0.3)||!R.footing?'mat':'spread';
+  return R;
+}
+const fmtV=(k,v)=>{const f=[...SCHEMA.ext,...SCHEMA.str].find(x=>x.k===k); if(!f) return v; if(f.type==='check') return String(v)==='true'?'勾選':'取消勾選'; if(f.opts){const o=f.opts.find(o=>String(o[0])===String(v)); return o?o[1]:v;} return v+(f.unit||'');};
+const recBtn=(k,v,why)=>v==null||String(v)===String(S[k])?'':`<button class="btn sm primary" data-rec="${k}" data-v="${v}">套用建議：${fmtV(k,v)}</button>${why?`<span class="help">${why}</span>`:''}`;
+
+const FC={
+  floors:()=>{const m=A.m,R=recs(); return {t:'樓層數：決定房子有多高',
+    now:[`${S.floors} 層，牆頂高 ${f1(m.H)} m`, tag(m.hw<=3,`高寬比 ${f2(m.hw)}（建議 3 以內）`)],
+    how:['樓層越多，每根柱子要扛的樓板就越多，柱子和地基都要跟著變大。',`你的房子最窄 ${f1(Math.min(S.W,S.D))} m，照高寬比 3 來算，大約最多蓋 ${R.floorsMax} 層。`,'改完樓層後，記得到步驟 3 看柱子使用率。'],
+    rec:S.floors>R.floorsMax?['floors',R.floorsMax,'讓高寬比回到 3 以內']:null, l:'seismic'};},
+  storeyH:()=>{const m=A.m,R=recs(); return {t:'每層樓高',
+    now:[`樓高 ${f2(S.storeyH)} m − 梁深 ${S.beam} cm = 梁下淨高 ${f2(m.clear)} m`, tag(m.clear>=2.4,'淨高 2.4 m 以上住起來才舒服')],
+    how:['樓高 = 你想要的淨高（2.4～2.7 m）＋ 梁深 ＋ 天花板裡的管線空間。','太高會讓柱子變細長、樓梯變長；太矮會撞頭。','住宅常見 3.0～3.4 m。'],
+    rec:m.clear<2.4?['storeyH',R.storeyH,'讓梁下有 2.4 m']:null, l:'beam'};},
+  W:()=>FC.D(), D:()=>{const per=S.W*S.D, pr=Math.max(S.W,S.D)/Math.min(S.W,S.D); return {t:'面寬和進深：房子的外框',
+    now:[`${f1(S.W)} × ${f1(S.D)} m = 每層 ${f1(per)} m²（約 ${f1(per/3.3058)} 坪）`, tag(pr<=3,`長寬比 ${f1(pr)}（建議 3 以內，越方正越耐震）`)],
+    how:['先把泡泡圖一層的面積加起來，再除以 0.85（留走廊和牆）。','用這個面積除以進深，就是需要的面寬。','台灣透天常見面寬 5～8 m、進深 12～18 m。'],
+    rec:null, l:'seismic'};},
+  roof:()=>FC.roofPitch(), roofPitch:()=>{const g=S.roof==='gable'; return {t:g?'斜屋頂的坡度':'平屋頂',
+    now:g?[`坡度 ${S.roofPitch}°，屋頂高 ${f1(A.m.roofH)} m`, tag(S.roofPitch>=20&&S.roofPitch<=35,'20°～35° 最適合台灣')]:['平屋頂可以當曬衣場、種菜，但防水最要小心。'],
+    how:g?['太緩（15° 以下）：雨水流不快，容易漏水。','太陡（45° 以上）：颱風時受風面積大。','畫立面圖時，屋頂高度 = 面寬的一半 × tan(坡度)。']:['屋頂要做 1～2% 的排水坡度，往落水頭流。','女兒牆（屋頂欄杆）至少 1.1 m 高。','防水層要往上包到女兒牆。'],
+    rec:g&&(S.roofPitch<20||S.roofPitch>35)?['roofPitch',25,'']:null, l:'shape'};},
+  wall:()=>({t:'外牆材料：重量會影響地震力',
+    now:[`現在每層樓約 ${f2(A.m.q)} tf/m²（含外牆）`],
+    how:['房子越重，地震時被甩的力越大，柱子和地基也要越大。','RC 牆防水隔音最好；ALC 輕質板可以減輕重量。','換材料後，看步驟 3 的柱子使用率怎麼變。'],
+    rec:S.system==='wood'&&(S.wall==='rc'||S.wall==='brick')?['wall','wood','木構要配輕的牆']:null, l:'material'}),
+  windowRatio:()=>{const lim=S.system==='brick'?35:50; return {t:'開窗率：窗戶和牆的平衡',
+    now:[`開窗率 ${S.windowRatio}%`, tag(S.windowRatio<=lim,`${S.system==='brick'?'加強磚造':'這個系統'}建議 ${lim}% 以內`)],
+    how:['窗戶多，採光好，但牆少，整棟會變軟。','每個居室的窗戶面積至少要是地板面積的 1/8。','窗台矮牆不要和柱子砌死，要留隔離縫，避免短柱效應。'],
+    rec:S.windowRatio>lim?['windowRatio',lim,'']:null, l:'shape'};},
+  softStory:()=>({t:'一樓開放空間 = 軟弱層風險',
+    now:[tag(!S.softStory||S.floors<2, S.softStory?'一樓牆很少，樓上牆很多':'一樓有牆，上下硬度接近')],
+    how:['地震時，變形會集中在最軟的那一層，那一層的柱子會被折斷。','真的要做車庫，就在角落保留實牆或加剪力牆。','921 地震很多倒塌的房子就是這樣。'],
+    rec:S.softStory&&S.floors>=2?['softStory',false,'先取消，之後在一樓角落補牆']:null, l:'seismic'}),
+  system:()=>({t:'結構系統：骨架用什麼做',
+    now:[`${SYS[S.system].n}：柱距 ${SYS[S.system].span[0]} m 以內最經濟，建議 ${SYS[S.system].maxF[0]} 層以內`],
+    how:['初學建議用 RC，台灣資料最多。','鋼構輕、跨距大，適合想要大空間。','木構輕但要防白蟻、防潮；加強磚造牆就是結構，不能亂打掉。'],
+    rec:null, l:'system'}),
+  fc:()=>({t:'混凝土強度 fc′',
+    now:[`fc′ ${S.fc} kgf/cm²：每平方公分能承受 ${S.fc} 公斤`,`現在柱子能扛約 ${f1(A.m.cap)} tf`],
+    how:['數字越大越強，柱子可以做細一點，但比較貴。','透天常用 210 或 280。','一定要做氯離子檢測，避免海砂屋。'],
+    rec:S.fc<280&&S.floors>=4?['fc',280,'4 層以上']:null, l:'material'}),
+  rebar:()=>FC.fc(),
+  nx:()=>FC.ny(), ny:()=>{const m=A.m,R=recs(),sys=SYS[S.system]; return {t:'排柱網：柱子要隔多遠',
+    now:[`左右 ${S.nx} 跨 → 柱距 ${f2(m.sx)} m`,`前後 ${S.ny} 跨 → 柱距 ${f2(m.sy)} m`, tag(Math.max(m.sx,m.sy)<=sys.span[0],`${sys.n}柱距 ${sys.span[0]} m 以內最經濟`)],
+    how:['① 用面寬 ÷ 想要的柱距（RC 抓 4～6 m），取整數就是跨數。','② 每個方向至少 2 跨（3 排柱子），一根壞了還有備援。','③ 怎麼畫：在平面圖上先畫點劃線（軸線），左右用 1、2、3，前後用 A、B、C，柱子畫在交叉點。','④ 房間的牆盡量沿著軸線走，柱子就不會站在房間中間。'],
+    rec:(R.nx!==S.nx)?['nx',R.nx,'左右方向']:(R.ny!==S.ny)?['ny',R.ny,'前後方向']:null, l:'span'};},
+  col:()=>{const m=A.m,R=recs(),sys=SYS[S.system]; return {t:'柱子：這根要扛多少',
+    now:[`一根中間柱子負責 ${f2(m.sx)} × ${f2(m.sy)} = ${f1(m.trib)} m² 的樓板`,`要扛：${f1(m.trib)} m² × ${S.floors} 層 × ${f2(m.q)} tf/m² ≈ <b>${f1(m.P)} tf</b>`,`${S.col} cm 柱能扛 ≈ ${f1(m.cap)} tf`, tag(m.colRatio<=0.6,`使用率 ${Math.round(m.colRatio*100)}%（建議 60% 內，留給地震）`), tag(m.lam<=sys.slend[0],`細長比 ${f1(m.lam)}（建議 ${sys.slend[0]} 以下）`)],
+    how:['① 算受力面積：柱子周圍各半個跨距。','② 乘上樓層數和每層重量，就是要扛的力。','③ 選柱寬讓使用率在 60% 以下，而且不要比梁深細太多（強柱弱梁）。','④ 怎麼畫：平面圖上畫在軸線交叉點的實心方塊，標柱號（例如 B2 柱）。上下樓的柱子要在同一個位置。','⑤ 看不到但最重要：柱子兩端箍筋要排密，彎鉤做 135 度。'],
+    rec:R.col!=null&&R.col!==S.col?['col',R.col,'滿足使用率、細長比、強柱弱梁的最小尺寸']:null, l:'column'};},
+  beam:()=>{const m=A.m,R=recs(),sys=SYS[S.system],L=Math.max(m.sx,m.sy); return {t:'梁：把樓板的力收集到柱子',
+    now:[`最大跨距 ${f2(L)} m ÷ ${sys.beamDiv} ≈ 建議梁深 ${R.beam} cm`, tag(S.beam>=L*100/sys.beamDiv,`現在 ${S.beam} cm`), `梁下淨高 ${f2(m.clear)} m`],
+    how:['梁深經驗法則：RC 約跨距 ÷ 10～12，鋼梁 ÷ 20，木梁 ÷ 14。','梁太淺不會馬上斷，但會下垂、裂縫、走路會晃。','怎麼畫：平面圖上沿軸線畫虛線（梁在樓板下面看不到），剖面圖上畫成樓板下突出的長方形。'],
+    rec:R.beam!==S.beam&&S.beam<R.beam?['beam',R.beam,'']:null, l:'beam'};},
+  slab:()=>{const m=A.m,R=recs(); return {t:'樓板厚度',
+    now:[`短邊跨距 ${f2(Math.min(m.sx,m.sy))} m → 建議至少 ${R.slab} cm`, tag(S.slab>=R.slab,`現在 ${S.slab} cm`)],
+    how:['至少 12 cm，大約短邊跨距 ÷ 35。','太薄會晃、會裂，樓上走路樓下聽得到。','浴室、陽台常會再加厚，因為要做洩水坡度和防水。'],
+    rec:S.slab<R.slab?['slab',R.slab,'']:null, l:'beam'};},
+  soil:()=>({t:'土壤：地基最後的關卡',
+    now:[`${SOIL[S.soil].n}：容許承載力約 ${SOIL[S.soil].qa} tf/m²`],
+    how:['意思是：每平方公尺的土，大約只能承受這麼多公噸的重量。','不知道的話先選砂質土。真的要蓋一定要做地質鑽探。','回填土是鬆的，不能直接放基礎。'],
+    rec:null, l:'soil'}),
+  fdn:()=>{const R=recs(); return {t:'基礎型式',
+    now:[`${FDN[S.fdn]}`, S.fdn==='pile'?`每根樁要扛 ≈ ${f1(A.m.fp)} tf`:`基礎底下壓力 ≈ ${f1(A.m.fp)} tf/m²，可承受 ${A.m.fCapTxt}`],
+    how:['好土＋低樓層 → 獨立基腳（最便宜）。','獨立基腳大到快碰在一起 → 連續基腳或筏式基礎。','軟土或怕不均勻下沉 → 筏式基礎；回填土、很軟的土 → 樁基礎。','怎麼畫：剖面圖地面線以下畫基礎，平面圖另畫一張「基礎平面圖」。'],
+    rec:R.fdn!==S.fdn?['fdn',R.fdn,'依你的土壤和樓層']:null, l:'soil'};},
+  footing:()=>{const R=recs(); return {t:'基腳要多大',
+    now:[`中柱約 ${f1(A.m.P)} tf，基腳 ${f1(S.footing)} × ${f1(S.footing)} m`,`壓力 ≈ ${f1(A.m.fp)} tf/m²，${SOIL[S.soil].n}約可承受 ${SOIL[S.soil].qa}`, tag(A.m.fRatio<=0.8,`使用 ${Math.round(A.m.fRatio*100)}%（建議 80% 內）`)],
+    how:['① 壓力 = 柱子的力 ÷ 基腳面積（再加上基腳和土的重量）。','② 壓力要比土壤承載力小，留 20% 餘裕。','③ 基腳之間要用地梁連起來，地震時才不會各走各的。'],
+    rec:S.fdn==='spread'&&R.footing&&Math.abs(R.footing-S.footing)>0.05&&A.m.fRatio>0.8?['footing',R.footing,'讓壓力降到 80% 以下']:null, l:'soil'};},
+  fdnDepth:()=>({t:'基礎要埋多深',
+    now:[`基礎底在地面下 ${f1(S.fdnDepth)} m`, tag(S.fdnDepth>=1,'建議至少 1 m')],
+    how:['表層的土比較鬆，還有植物的根，基礎要穿過去到原土層。','太淺：大雨沖刷、地震時容易移動。','太深：開挖費用高，挖到地下水更麻煩。'],
+    rec:S.fdnDepth<1?['fdnDepth',1.5,'']:null, l:'soil'})
+};
+const ROOMTIP={
+  bedroom:'雙人床 1.5 × 1.9 m，兩側各留 0.6 m 走道 → 寬至少 2.7 m；床尾留 0.8 m 再放衣櫃（深 0.6 m）。',
+  living:'三人沙發約 2.1 × 0.9 m，沙發到電視最好 2.5 m 以上。',
+  study:'書桌 1.2 × 0.6 m，椅子後面要留 0.8 m 才拉得開。',
+  dining:'四人餐桌 1.2 × 0.8 m，每邊拉開椅子再加 0.7 m。',
+  kitchen:'流理台深 0.6 m，前面走道至少 0.9 m。油煙要能排到外面。',
+  bath:'馬桶需要 0.8 m 寬 × 1.2 m 深的空間。浴室最好上下樓對齊，排水管才能直直往下。',
+  stair:'',
+  storage:'儲藏室可以不用窗戶，放在房子中間採光差的位置剛好。',
+  garage:'一台小客車約 1.8 × 4.6 m，四周要留開門空間，所以至少 2.8 × 5.5 m。',
+  gym:'跑步機約 0.8 × 2.0 m，四周留 0.6 m；重訓區地板要加強，最好放一樓。',
+  multi:'多功能室可以當遊戲室或客房，最好靠外牆有窗。',
+  altar:'神明廳通常在最高樓層的前面、面向外，要有窗戶通風。',
+  closet:'更衣室常放在主臥和浴室中間，掛衣區深 0.6 m，走道 0.8 m。',
+  laundry:'洗衣機約 0.6 × 0.6 m，要有排水和通風，常放在後陽台。',
+  balcony:'陽台要靠外牆，地板要比室內低 2～3 cm 並做洩水坡。',
+  entry:'玄關放鞋櫃（深 0.4 m）和換鞋空間，寬至少 1.2 m。',
+  hall:'走廊寬至少 0.9 m，兩個人要錯身最好 1.2 m。',
+  other:''
+};
+function roomCoach(r,resizing){
+  const T=TYPES[r.t]||TYPES.other, ar=r.w*r.d, mw=Math.min(r.w,r.d), e=0.01;
+  const ext=r.x<=e||r.y<=e||r.x+r.w>=S.W-e||r.y+r.d>=S.D-e;
+  let cols=0; const {sx,sy}=A.m;
+  for(let i=0;i<=S.nx;i++)for(let j=0;j<=S.ny;j++){const cx=i*sx,cy=j*sy; if(cx>r.x+0.05&&cx<r.x+r.w-0.05&&cy>r.y+0.05&&cy<r.y+r.d-0.05) cols++;}
+  const now=[`${f2(r.w)} × ${f2(r.d)} m = ${f1(ar)} m²（約 ${f1(ar/3.3058)} 坪）`];
+  if(T.min) now.push(tag(ar>=T.min-e&&mw>=(T.minW||0)-e,`${T.n}建議至少 ${T.min} m²、寬 ${T.minW} m`));
+  if(T.light) now.push(tag(ext,ext?'有碰到外牆，可以開窗':'沒有碰到外牆，不能開窗'));
+  now.push(tag(!cols,cols?`房間中間有 ${cols} 根柱子`:'沒有柱子站在房間中間'));
+  let tip=ROOMTIP[r.t]||'';
+  if(r.t==='stair'){const n=Math.ceil(S.storeyH/0.18); tip=`樓高 ${S.storeyH} m ÷ 每階 18 cm ≈ ${n} 階。直梯要約 ${f1((n-1)*0.26)} × 1.0 m；U 形梯要約 ${f1((Math.ceil(n/2)-1)*0.26+1.2)} × 2.1 m。每層樓梯位置要對齊。`;}
+  return {t:`${resizing?'正在調整':'正在擺'}「${esc(r.n)}」（${T.n}）`, now,
+    how:[resizing?'拖曳把手時，靠近柱網線、外牆或其他房間的邊就會自動吸過去。':'拖曳房間中間可以移動；點房間後拖四邊的小把手可以改大小。', tip, '房間的邊盡量貼著點劃線（柱網），柱子就會剛好藏在牆裡。'].filter(Boolean),
+    rec:null, l:'layout'};
+}
+const BUBREF={living:'15～25',bedroom:'9～16',study:'6～9',dining:'8～12',kitchen:'6～10',bath:'4～6',stair:'8～10',storage:'3～8',garage:'15～18',gym:'8～15',multi:'8～15',altar:'6～10',closet:'3～6',laundry:'3～5',balcony:'3～6',entry:'3～4',hall:'—',other:'—'};
+function bubCoach(b){
+  const T=TYPES[b.t]||TYPES.other, n=S.links.filter(l=>l[0]===b.id||l[1]===b.id).length;
+  return {t:`泡泡「${esc(b.n)}」`, now:[`想要 ${Math.round(b.a)} m²（約 ${f1(b.a/3.3058)} 坪）`,`${T.n}的舒適大小：${BUBREF[b.t]} m²`, tag(n>0,n?`連到 ${n} 個空間`:'還沒連到任何空間')],
+    how:['泡泡大小只是「想要多大」，不用很準，差 20% 沒關係。','打開「連線模式」，把要靠近的空間連起來，例如臥室連浴室、廚房連餐廳。','有連線的泡泡拖近一點，盡量讓線不要交叉。'], rec:null, l:'bubble'};
+}
+const TABCOACH={
+  bub:{t:'步驟 1：先畫泡泡圖',how:['先在上面設定房子的面寬、進深和樓層數。','每一層加入你要的空間，填上想要的面積。','把要靠近的空間連線，最後按「把這層泡泡排成房間」。'],l:'bubble'},
+  ext:{t:'步驟 2：決定外觀',how:['樓層數和樓高決定房子多高；面寬和進深決定多大。','屋頂、外牆、開窗率決定外觀，也會影響重量和耐震。','點任何一個設定，我會告訴你它代表什麼、現在的數字好不好。'],l:'shape'},
+  str:{t:'步驟 3：柱子與地基',how:['照順序：結構系統 → 柱網（跨數）→ 梁 → 樓板 → 柱子 → 土壤 → 基礎。','每個設定都有「套用建議」按鈕，可以先用建議值，再看它怎麼算出來的。','柱子和基礎的進度條都在綠色，就代表力量走得到地底。'],l:'path'},
+  room:{t:'步驟 4：排室內格局',how:['點平面圖上的房間，拖中間移動、拖四邊的把手改大小。','房間的邊貼著柱網線，柱子就藏在牆裡。','黃色斜線是空隙、紅色是重疊，兩個都變 0 就排好了。'],l:'layout'}
+};
+const STEPS={
+  bub:[
+    ['設定房子外框（面寬、進深、樓層）',()=>true,{focus:'bW'}],
+    ['每一層都加入空間',()=>{for(let f=1;f<=S.floors;f++) if(!S.bubbles.some(b=>b.f===f)) return false; return true;},{floor:()=>{for(let f=1;f<=S.floors;f++) if(!S.bubbles.some(b=>b.f===f)) return f;}}],
+    ['把要靠近的空間連線',()=>{for(let f=1;f<=S.floors;f++){const bs=S.bubbles.filter(b=>b.f===f); if(bs.length>1&&!bs.every(b=>S.links.some(l=>l[0]===b.id||l[1]===b.id))) return false;} return true;},{focus:'linkMode'}],
+    ['每層面積不超過房子的 85%',()=>!A.L.some(x=>x.area==='泡泡圖'&&/空間比房子|幾乎沒有空間/.test(x.title)),{focus:'bW'}],
+    ['每一層都排成房間',()=>{for(let f=1;f<=S.floors;f++) if(!S.rooms.some(r=>r.f===f)) return false; return true;},{focus:'toRooms'}]
+  ],
+  ext:[
+    ['樓高夠，梁下不會撞頭',()=>A.m.clear>=2.4,{field:'storeyH'}],
+    ['高寬比在 3 以內',()=>A.m.hw<=3,{field:'floors'}],
+    ['平面方正（長寬比 3 內）',()=>Math.max(S.W,S.D)/Math.min(S.W,S.D)<=3,{field:'D'}],
+    ['屋頂坡度合適',()=>S.roof==='flat'||(S.roofPitch>=15&&S.roofPitch<=45),{field:'roofPitch'}],
+    ['開窗率合適',()=>!A.L.some(x=>/開太多窗|開窗偏多|窗戶非常多/.test(x.title)),{field:'windowRatio'}],
+    ['一樓不是軟弱層',()=>!S.softStory||S.floors<2,{field:'softStory'}]
+  ],
+  str:[
+    ['結構系統適合這個樓層數',()=>S.floors<=SYS[S.system].maxF[0],{field:'system'}],
+    ['柱距合適、每邊至少 2 跨',()=>!A.L.some(x=>/柱子隔太遠|柱距偏大|只有一跨/.test(x.title)),{field:'nx'}],
+    ['梁夠深',()=>!A.L.some(x=>/梁太淺|梁深稍微/.test(x.title)),{field:'beam'}],
+    ['樓板夠厚',()=>!A.L.some(x=>/樓板/.test(x.title)),{field:'slab'}],
+    ['柱子扛得住（使用率 60% 內）',()=>!A.L.some(x=>x.area==='結構'&&/柱/.test(x.title)&&x.sev!=='info'),{field:'col'}],
+    ['地基壓力在 80% 內',()=>!A.L.some(x=>x.area==='地基'&&x.sev!=='info'),{field:'footing'}]
+  ],
+  room:[
+    ['沒有房間重疊',()=>!A.L.some(x=>/重疊/.test(x.title)),{}],
+    ['房間都在房子裡面',()=>!A.L.some(x=>/超出房子/.test(x.title)),{}],
+    ['居室都靠外牆',()=>!A.L.some(x=>/沒有外牆/.test(x.title)),{}],
+    ['柱子沒站在房間中間',()=>!A.L.some(x=>/中間站了/.test(x.title)),{}],
+    ['房間大小合格',()=>!A.L.some(x=>/太小|太窄/.test(x.title)),{}],
+    ['每層有樓梯且上下對齊',()=>!A.L.some(x=>/樓梯/.test(x.title)&&x.sev!=='info'),{}]
+  ]
+};
+function coachContent(){
+  if(ctx.type==='field'&&FC[ctx.k]) return FC[ctx.k]();
+  if(ctx.type==='room'){const r=room(ctx.id); if(r&&r.f<=S.floors) return roomCoach(r,ctx.resize);}
+  if(ctx.type==='bubble'){const b=bubble(ctx.id); if(b) return bubCoach(b);}
+  if(ctx.type==='link') return {t:'連線：哪些空間要靠近',now:[],how:['點第一個泡泡，再點第二個，就會連一條線。','常見要連的：廚房↔餐廳、餐廳↔客廳、臥室↔浴室、樓梯↔客廳或走廊。','臥室和廚房最好不要直接連，避免油煙和噪音。'],rec:null,l:'bubble'};
+  const T=TABCOACH[tab]; return {t:T.t,now:[],how:T.how,rec:null,l:T.l};
+}
+function renderCoach(){
+  const box=$('#coach'); if(!box) return;
+  box.classList.toggle('closed',!coachOpen);
+  $('#coachToggle').textContent=coachOpen?'收起':'打開教練';
+  $('#coachToggle').setAttribute('aria-expanded',coachOpen);
+  if(!coachOpen) return;
+  let c; try{c=coachContent();}catch(err){c=coachContent.call(null,ctx={type:'tab'});}
+  const rec=c.rec?recBtn(c.rec[0],c.rec[1],c.rec[2]):'';
+  const steps=STEPS[tab]||[];
+  const done=steps.map(s=>{try{return !!s[1]();}catch(e){return false;}});
+  const nextI=done.indexOf(false);
+  $('#coachBody').innerHTML=`<div class="coach-now"><div class="eyebrow2">現在在做</div><h3>${c.t}</h3>
+    ${c.now&&c.now.length?`<ul class="coach-facts">${c.now.map(x=>`<li>${x}</li>`).join('')}</ul>`:''}
+    ${rec?`<div class="coach-rec">${rec}</div>`:''}
+    <div class="eyebrow2">怎麼做</div><ul class="coach-how">${c.how.map(x=>`<li>${x}</li>`).join('')}</ul>
+    <button class="link" data-lesson="${c.l}">看完整教學 →</button></div>
+    <div class="coach-steps"><div class="eyebrow2">這一步的清單（${done.filter(Boolean).length}/${steps.length}）</div>
+    <ol>${steps.map((s,i)=>`<li class="${done[i]?'done':i===nextI?'next':''}"><button data-step="${i}">${done[i]?'✓':i===nextI?'→':'○'} ${s[0]}</button></li>`).join('')}</ol>
+    ${nextI<0?`<p class="coach-done">這一步完成了！${tab!=='room'?'可以到下一個步驟。':'記得回步驟 3 再看一次柱子和地基。'}</p>`:''}</div>`;
+}
+function setCtx(c,render){ctx=c; if(render!==false) renderCoach();}
+document.addEventListener('focusin',e=>{
+  const t=e.target; if(!t.closest) return;
+  if(t.dataset&&t.dataset.k){setCtx({type:'field',k:t.dataset.k}); return;}
+  const ri=t.closest('#roomList .ri'); if(ri){setCtx({type:'room',id:+ri.dataset.id}); return;}
+  const bi=t.closest('#bubList .ri'); if(bi){setCtx({type:'bubble',id:+bi.dataset.id}); return;}
+});
+document.addEventListener('pointerdown',e=>{const t=e.target; if(t.dataset&&t.dataset.k) setCtx({type:'field',k:t.dataset.k});},true);
+$('#plan').addEventListener('pointerdown',e=>{
+  if(e.target.closest('.hdl')&&selId!=null){ctx={type:'room',id:selId,resize:true}; return;}
+  const g=e.target.closest('.room'); if(g) ctx={type:'room',id:+g.dataset.id};
+},true);
+$('#bub').addEventListener('pointerdown',e=>{
+  const g=e.target.closest('.bubg'); if(!g) return;
+  ctx=linkMode?{type:'link'}:{type:'bubble',id:+g.dataset.id};
+},true);
+$('#linkMode').addEventListener('click',()=>setCtx(linkMode?{type:'link'}:{type:'tab'}));
+$('.steps').addEventListener('click',()=>setCtx({type:'tab'}));
+$('#coachToggle').addEventListener('click',()=>{coachOpen=!coachOpen; try{localStorage.setItem('house-lab-coach',coachOpen?'1':'0');}catch(e){} renderCoach();});
+$('#coachBody').addEventListener('click',e=>{
+  const rb=e.target.closest('[data-rec]');
+  if(rb){const k=rb.dataset.rec, f=[...SCHEMA.ext,...SCHEMA.str].find(x=>x.k===k); let v=rb.dataset.v;
+    if(f.type==='check') v=v==='true'; else if(f.type==='range'||f.num) v=parseFloat(v);
+    S[k]=v; renderAll({keepList:k!=='floors'}); return;}
+  const sb=e.target.closest('[data-step]');
+  if(sb){const s=STEPS[tab][+sb.dataset.step][2]||{};
+    if(s.field){setCtx({type:'field',k:s.field}); const el=$('#f_'+s.field); if(el){el.closest('.field').scrollIntoView({block:'center',behavior:'smooth'}); el.focus({preventScroll:true});}}
+    else if(s.focus){const el=$('#'+s.focus); if(el){el.scrollIntoView({block:'center',behavior:'smooth'}); el.focus({preventScroll:true});}}
+    else if(s.floor){const f=s.floor(); if(f){floor=f; renderAll();}}
+    else { const bad=A.L.find(x=>x.area==='室內'&&x.room); if(bad){const r=room(bad.room); if(r){floor=r.f; selId=r.id; setCtx({type:'room',id:r.id},false); renderAll();}} }
+  }
+});
+// place coach: beside the drawings on wide screens, floating panel on narrow ones
+const mqWide=window.matchMedia('(min-width:1281px)');
+function placeCoach(){const c=$('#coach'); if(mqWide.matches){c.classList.remove('float'); $('.checks').prepend(c);} else {c.classList.add('float'); document.body.appendChild(c);}}
+if(mqWide.addEventListener) mqWide.addEventListener('change',placeCoach); placeCoach();
+
+/* ---------- cloud save (follows the user's account across computers) ---------- */
+let cloudRef=null, cloudTimer=null;
+function setSync(s){const el=$('#sync'); if(!el) return; el.className='chip '+(s==='cloud'?'c-ok':s==='saving'?'c-info':'c-muted'); el.textContent=s==='cloud'?'☁ 已存到你的帳號':s==='saving'?'☁ 儲存中…':'只存在這台電腦'; el.title=s==='local'?'登入 claude.ai 開啟這個網頁，設計就會跟著帳號走':'換電腦登入同一個帳號，打開這個網頁就看得到';}
+function pushCloud(){ if(!cloudRef) return; clearTimeout(cloudTimer); setSync('saving');
+  cloudTimer=setTimeout(()=>{cloudRef.set({json:lastJ,t:localT}).then(()=>setSync('cloud')).catch(()=>setSync('local'));},1500);}
+async function initCloud(){
+  setSync('local');
+  try{
+    if(!window.claude||typeof window.claude.use!=='function') return;
+    const [db,user]=await Promise.all([window.claude.use('db'),window.claude.use('user')]);
+    if(!db||!user) return;
+    const uid=await user.id(); if(!uid) return;
+    cloudRef=db.doc('data/users/'+uid+'/design');
+    const snap=await cloudRef.get();
+    const d=snap.exists?snap.data():null;
+    const isDefault=lastJ===JSON.stringify(Object.assign(clone(DEFAULT)));
+    if(legacyLocal&&!isDefault){ localT=Date.now(); try{localStorage.setItem(KEY+'-t',String(localT));}catch(e){} pushCloud(); return; }
+    if(!d&&isDefault&&!localT){ setSync('cloud'); return; }
+    if(d&&typeof d.json==='string'&&(d.t||0)>localT){
+      try{S=Object.assign(clone(DEFAULT),JSON.parse(d.json)); lastJ=JSON.stringify(S); localT=d.t; try{localStorage.setItem(KEY,lastJ); localStorage.setItem(KEY+'-t',String(localT));}catch(e){} floor=1; selId=null; renderAll();}catch(e){}
+      setSync('cloud');
+    } else if(!d||localT>(d.t||0)){ pushCloud(); }
+    else setSync('cloud');
+  }catch(e){setSync('local');}
+}
+
+buildPane('ext'); buildPane('str');
+load(); setTab(tab); renderAll(); initCloud();
+})();
+</script>
+
+</body>
+</html>
