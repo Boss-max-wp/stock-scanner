@@ -187,6 +187,7 @@ select,input[type=number],input[type=text],textarea{background:var(--sheet);bord
 .coach-steps button:hover{background:var(--sheet)}
 .coach-steps li.done button{color:var(--ok)}
 .coach-steps li.next button{color:var(--ink);font-weight:700;background:var(--accent-soft)}
+.nextstep{margin-top:10px;width:100%}
 .coach-done{margin:6px 0 0;color:var(--ok);font-weight:500;font-size:13.5px}
 .coach.float{position:fixed;z-index:30;margin:0;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));width:min(380px,calc(100vw - 32px));max-height:min(42vh,520px);overflow:auto;box-shadow:0 10px 30px rgba(0,0,0,.22)}
 .coach.float.closed{width:auto}
@@ -1702,7 +1703,8 @@ function renderCoach(){
     <button class="link" data-lesson="${c.l}">看完整教學 →</button></div>
     <div class="coach-steps"><div class="eyebrow2">這一步的清單（${done.filter(Boolean).length}/${steps.length}）</div>
     <ol>${steps.map((s,i)=>`<li class="${done[i]?'done':i===nextI?'next':''}"><button data-step="${i}">${done[i]?'✓':i===nextI?'→':'○'} ${s[0]}</button></li>`).join('')}</ol>
-    ${nextI<0?`<p class="coach-done">這一步完成了！${tab!=='room'?'可以到下一個步驟。':'記得回步驟 3 再看一次柱子和地基。'}</p>`:''}</div>`;
+    ${nextI<0?`<p class="coach-done">這一步完成了！${tab!=='room'?'':'記得回步驟 3 再看一次柱子和地基。'}</p>`:''}
+    ${tab!=='room'?`<button class="btn ${nextI<0?'primary':''} nextstep" data-next="1">前往下一步：${{bub:'步驟 2 外觀',ext:'步驟 3 柱子與地基',str:'步驟 4 室內格局'}[tab]} →</button>`:`<button class="btn nextstep" data-next="back">回步驟 3 檢查柱子與地基 →</button>`}</div>`;
 }
 function setCtx(c,render){ctx=c; if(render!==false) renderCoach();}
 document.addEventListener('focusin',e=>{
@@ -1729,6 +1731,10 @@ $('#coachBody').addEventListener('click',e=>{
   if(rb){const k=rb.dataset.rec, f=[...SCHEMA.ext,...SCHEMA.str].find(x=>x.k===k); let v=rb.dataset.v;
     if(f.type==='check') v=v==='true'; else if(f.type==='range'||f.num) v=parseFloat(v);
     S[k]=v; renderAll({keepList:k!=='floors'}); return;}
+  const nb=e.target.closest('[data-next]');
+  if(nb){const order=['bub','ext','str','room']; const t=nb.dataset.next==='back'?'str':order[order.indexOf(tab)+1];
+    setTab(t); setCtx({type:'tab'},false); renderAll({keepList:true});
+    $('.controls').scrollIntoView({block:'start',behavior:'smooth'}); return;}
   const sb=e.target.closest('[data-step]');
   if(sb){const s=STEPS[tab][+sb.dataset.step][2]||{};
     if(s.field){setCtx({type:'field',k:s.field}); const el=$('#f_'+s.field); if(el){el.closest('.field').scrollIntoView({block:'center',behavior:'smooth'}); el.focus({preventScroll:true});}}
