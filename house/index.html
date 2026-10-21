@@ -288,6 +288,11 @@ td.n{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:now
       <p class="help" id="linkHelp">拖曳泡泡可以移動。打開「連線模式」後，依序點兩個泡泡就能連線，再點一次同樣兩個就取消。</p>
       <div class="room-list" id="bubList"></div>
       <div class="row"><button class="btn" id="addBub">＋ 加入泡泡</button></div>
+      <h3>整層一起放大縮小</h3>
+      <p class="help">這層所有泡泡的面積會照同一個比例改變，彼此的大小關係不變。</p>
+      <div class="row"><button class="btn primary" id="fitBub">這層全部縮到剛好 85%</button></div>
+      <div class="row" style="align-items:center"><span>全部變成原本的</span><span class="numwrap"><input type="number" id="scaleBub" value="90" min="10" max="300" step="5" inputmode="decimal" aria-label="縮放比例"><span>%</span></span><button class="btn sm" id="scaleBubBtn">套用</button></div>
+      <p class="help" id="scaleMsg"></p>
       <h3>畫好了嗎？</h3>
       <p class="help">把這層的泡泡自動排成長方形房間，再到步驟 4 調整位置。排出來一定不完美，這很正常，調整的過程就是在設計。</p>
       <div class="row"><button class="btn primary" id="toRooms">把這層泡泡排成房間</button></div>
@@ -1363,6 +1368,24 @@ bsvg.addEventListener('pointermove',e=>{
 });
 const endB=()=>{if(bdrag){bdrag=null; save();}};
 bsvg.addEventListener('pointerup',endB); bsvg.addEventListener('pointercancel',endB);
+function scaleBubbles(f){
+  const bs=S.bubbles.filter(b=>b.f===floor); if(!bs.length){$('#scaleMsg').textContent=floor+'F 還沒有泡泡。'; return;}
+  const before=bs.reduce((s,b)=>s+b.a,0);
+  bs.forEach(b=>{b.a=Math.max(1,Math.round(b.a*f*2)/2);});
+  const after=bs.reduce((s,b)=>s+b.a,0);
+  $('#scaleMsg').textContent=`${floor}F 從 ${Math.round(before)} m² 變成 ${Math.round(after)} m²（房子一層 ${Math.round(S.W*S.D)} m²，用掉 ${Math.round(after/(S.W*S.D)*100)}%）。`;
+  renderAll();
+}
+$('#fitBub').addEventListener('click',()=>{
+  const bs=S.bubbles.filter(b=>b.f===floor), sum=bs.reduce((s,b)=>s+b.a,0);
+  if(!sum){$('#scaleMsg').textContent=floor+'F 還沒有泡泡。'; return;}
+  scaleBubbles(S.W*S.D*0.85/sum);
+});
+$('#scaleBubBtn').addEventListener('click',()=>{
+  const v=parseFloat($('#scaleBub').value);
+  if(isNaN(v)||v<=0){$('#scaleMsg').textContent='請輸入大於 0 的數字，例如 90 代表縮小一成。'; return;}
+  scaleBubbles(v/100);
+});
 let convArm=false;
 $('#toRooms').addEventListener('click',()=>{
   const bs=S.bubbles.filter(b=>b.f===floor).slice().sort((a,b)=>b.a-a.a);
@@ -1540,7 +1563,7 @@ const STEPS={
     ['設定房子外框（面寬、進深、樓層）',()=>true,{focus:'bW'}],
     ['每一層都加入空間',()=>{for(let f=1;f<=S.floors;f++) if(!S.bubbles.some(b=>b.f===f)) return false; return true;},{floor:()=>{for(let f=1;f<=S.floors;f++) if(!S.bubbles.some(b=>b.f===f)) return f;}}],
     ['把要靠近的空間連線',()=>{for(let f=1;f<=S.floors;f++){const bs=S.bubbles.filter(b=>b.f===f); if(bs.length>1&&!bs.every(b=>S.links.some(l=>l[0]===b.id||l[1]===b.id))) return false;} return true;},{focus:'linkMode'}],
-    ['每層面積不超過房子的 85%',()=>!A.L.some(x=>x.area==='泡泡圖'&&/空間比房子|幾乎沒有空間/.test(x.title)),{focus:'bW'}],
+    ['每層面積不超過房子的 85%',()=>!A.L.some(x=>x.area==='泡泡圖'&&/空間比房子|幾乎沒有空間/.test(x.title)),{focus:'fitBub'}],
     ['每一層都排成房間',()=>{for(let f=1;f<=S.floors;f++) if(!S.rooms.some(r=>r.f===f)) return false; return true;},{focus:'toRooms'}]
   ],
   ext:[
