@@ -218,6 +218,7 @@ select,input[type=number],input[type=text],textarea{background:var(--sheet);bord
 .coach-steps li.done button{color:var(--ok)}
 .coach-steps li.next button{color:var(--ink);font-weight:700;background:var(--accent-soft)}
 .nextstep{margin-top:10px;width:100%}
+.winmax{margin:2px 0 4px}
 .stepwhy{display:block;font-weight:400;font-size:12px;color:var(--warn);margin-top:2px;padding-left:16px}
 .coach-done{margin:6px 0 0;color:var(--ok);font-weight:500;font-size:13.5px}
 .coach.float{position:fixed;z-index:30;margin:0;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));width:min(380px,calc(100vw - 32px));max-height:min(42vh,520px);overflow:auto;box-shadow:0 10px 30px rgba(0,0,0,.22)}
@@ -803,7 +804,7 @@ const TYPES={
   altar:{n:'神明廳',min:6,minW:2.4,c:'#C9A227',light:true},
   closet:{n:'更衣室',min:3,minW:1.5,c:'#9C6B98'},
   laundry:{n:'洗衣間／工作陽台',min:2.5,minW:1.2,c:'#4FA3A5'},
-  balcony:{n:'陽台',min:2,minW:1.0,c:'#7FA650',light:true},
+  balcony:{n:'陽台',min:2,minW:1.0,c:'#7FA650'},
   entry:{n:'玄關',min:2,minW:1.2,c:'#A67C52'},
   hall:{n:'走廊',min:0,minW:0.9,c:'#8A9499'},
   other:{n:'其他',min:0,minW:0,c:'#7D7D7D'}
@@ -1421,7 +1422,7 @@ rl.addEventListener('input',e=>{
   else {const v=parseFloat(e.target.value); if(!isNaN(v)) r[p]=v; else return;}
   selId=r.id; renderAll({keepList:true});
 });
-rl.addEventListener('focusin',e=>{const it=e.target.closest('.ri'); if(it&&+it.dataset.id!==selId){selId=+it.dataset.id; drawPlan(); markList();}});
+rl.addEventListener('focusin',e=>{const it=e.target.closest('.ri'); if(it&&+it.dataset.id!==selId){selId=+it.dataset.id; drawPlan(); markList(); renderWinPanel();}});
 rl.addEventListener('click',e=>{
   if(e.target.closest('.ri-del')){const id=+e.target.closest('.ri').dataset.id; S.rooms=S.rooms.filter(r=>r.id!==id); if(selId===id) selId=null; renderAll(); return;}
 });
@@ -1469,7 +1470,7 @@ plan.addEventListener('pointerdown',e=>{
   const wp=e.target.closest('.winp');
   if(wp){ const w=S.windows.find(x=>x.id===+wp.dataset.wid); if(!w) return; const p=pt(e);
     selWin=w.id; const rr=S.rooms.find(r=>r.f===w.f&&roomWindows(r).some(x=>x.w===w)); if(rr) selId=rr.id;
-    drag={win:w.id,off:(w.side==='front'||w.side==='back'?p.x:p.y)-w.pos};
+    drag={win:w.id,off:(isH(w.side)?p.x:p.y)-w.pos};
     plan.setPointerCapture(e.pointerId); e.preventDefault();
     anchor(plan,()=>{ if(tab!=='room') setTab('room'); renderAll({keepList:true}); }); return; }
   const h=e.target.closest('.hdl');
@@ -1490,7 +1491,7 @@ plan.addEventListener('pointermove',e=>{
     const n=near(v,arr,magTol()); v=n?n.v:q4(v); v=Math.min(a[i+1]-0.5,Math.max(a[i-1]+0.5,v));
     if(Math.abs(v-a[i])<1e-6) return; a[i]=v; const sp=spans(a); if(dir==='x') S.spanX=sp; else S.spanY=sp; liveStruct(); return; }
   if(drag&&drag.win){ const w=S.windows.find(x=>x.id===drag.win); if(!w) return; const p=pt(e);
-    const len=sideLen(w.side); let v=(w.side==='front'||w.side==='back'?p.x:p.y)-drag.off; v=Math.round(Math.min(len-w.w,Math.max(0,v))*10)/10;
+    const len=sideLen(w.side); let v=(isH(w.side)?p.x:p.y)-drag.off; v=Math.round(Math.min(len-w.w,Math.max(0,v))*10)/10;
     if(v!==w.pos){w.pos=v; liveStruct(); markList();} return; }
   if(!drag) return; const r=room(drag.id); if(!r) return; const p=pt(e), T=drag.T, MIN=0.5;
   const before=r.x+','+r.y+','+r.w+','+r.d;
@@ -2001,14 +2002,34 @@ document.addEventListener('change',e=>{
 document.addEventListener('click',e=>{const b=e.target.closest('[data-even]'); if(!b) return; if(b.dataset.even==='x') S.spanX=null; else S.spanY=null; renderAll({keepList:true});});
 
 /* ---------- windows ---------- */
-const SIDE={front:'前牆',back:'後牆',left:'左牆',right:'右牆'};
-const sideLen=sd=>sd==='front'||sd==='back'?S.W:S.D;
-const sideAxes=sd=>{const ax=axes('x'), ay=axes('y');
+const SIDE_={front:'前牆',back:'後牆',left:'左牆',right:'右牆'};
+const sideName=sd=>SIDE_[sd]||'通往陽台的牆';
+const SIDE=new Proxy({},{get:(_,k)=>sideName(k)});
+const isH=sd=>sd==='front'||sd==='back'||String(sd).startsWith('in:h:');
+const inC=sd=>parseFloat(String(sd).split(':')[2]);
+const sideLen=sd=>isH(sd)?S.W:S.D;
+const sideAxes=sd=>{const ax=axes('x'), ay=axes('y'), e=0.02;
   if(sd==='front') return ax.filter((_,i)=>hasCol(i,0)); if(sd==='back') return ax.filter((_,i)=>hasCol(i,S.ny));
-  if(sd==='left') return ay.filter((_,j)=>hasCol(0,j)); return ay.filter((_,j)=>hasCol(S.nx,j));};
+  if(sd==='left') return ay.filter((_,j)=>hasCol(0,j)); if(sd==='right') return ay.filter((_,j)=>hasCol(S.nx,j));
+  const c=inC(sd);
+  if(isH(sd)){const j=ay.findIndex(v=>Math.abs(v-c)<e); return j<0?[]:ax.filter((_,i)=>hasCol(i,j));}
+  const i=ax.findIndex(v=>Math.abs(v-c)<e); return i<0?[]:ay.filter((_,j)=>hasCol(i,j));};
 function roomSides(r){const e=0.01, out=[];
   if(r.y<=e) out.push(['front',r.x,r.x+r.w]); if(r.y+r.d>=S.D-e) out.push(['back',r.x,r.x+r.w]);
-  if(r.x<=e) out.push(['left',r.y,r.y+r.d]); if(r.x+r.w>=S.W-e) out.push(['right',r.y,r.y+r.d]); return out;}
+  if(r.x<=e) out.push(['left',r.y,r.y+r.d]); if(r.x+r.w>=S.W-e) out.push(['right',r.y,r.y+r.d]);
+  if(r.t!=='balcony') S.rooms.filter(b=>b.f===r.f&&b.t==='balcony'&&b.id!==r.id).forEach(b=>{
+    const ox0=Math.max(r.x,b.x), ox1=Math.min(r.x+r.w,b.x+b.w), oy0=Math.max(r.y,b.y), oy1=Math.min(r.y+r.d,b.y+b.d);
+    if(ox1-ox0>0.3){ if(Math.abs(b.y+b.d-r.y)<e) out.push(['in:h:'+r2(r.y),ox0,ox1]); if(Math.abs(r.y+r.d-b.y)<e) out.push(['in:h:'+r2(r.y+r.d),ox0,ox1]); }
+    if(oy1-oy0>0.3){ if(Math.abs(b.x+b.w-r.x)<e) out.push(['in:v:'+r2(r.x),oy0,oy1]); if(Math.abs(r.x+r.w-b.x)<e) out.push(['in:v:'+r2(r.x+r.w),oy0,oy1]); }
+  });
+  return out;}
+function winMax(w){ // biggest window that fits this wall segment between columns and below the beam
+  const r=S.rooms.find(x=>x.f===w.f&&roomWindows(x).some(y=>y.w===w)), sd=r?roomSides(r).find(s=>s[0]===w.side):null;
+  const c=S.col/100, beamBot=S.storeyH-S.beam/100; let lo=(sd?sd[1]:0)+0.1, hi=(sd?sd[2]:sideLen(w.side))-0.1; const mid=w.pos+w.w/2;
+  sideAxes(w.side).forEach(a=>{ if(a<=mid) lo=Math.max(lo,a+c/2+0.1); else hi=Math.min(hi,a-c/2-0.1); });
+  S.windows.filter(o=>o!==w&&o.f===w.f&&o.side===w.side).forEach(o=>{ if(o.pos+o.w<=mid) lo=Math.max(lo,o.pos+o.w+0.1); else if(o.pos>=mid) hi=Math.min(hi,o.pos-0.1); });
+  return {lo,hi,width:Math.max(0,hi-lo),top:beamBot-0.05,height:Math.max(0,beamBot-0.05-w.sill)};
+}
 function roomWindows(r){
   const sides=roomSides(r);
   return S.windows.filter(w=>w.f===r.f).map(w=>{const sd=sides.find(s=>s[0]===w.side); if(!sd) return null; const ov=Math.min(w.pos+w.w,sd[2])-Math.max(w.pos,sd[1]); return ov>0.05?{w,ov}:null;}).filter(Boolean);
@@ -2028,18 +2049,18 @@ function windowChecks(add,roomBad){
   });
   shortCol.forEach(f=>add('info','室內',`${f}F 有窗戶緊貼柱子：注意短柱效應`,'窗台矮牆如果和柱子砌死，會把柱子「夾短」，地震時柱子容易剪斷。','窗台矮牆和柱子之間留 1～2 cm 隔離縫並填彈性材料，或讓窗戶離柱子遠一點。','seismic'));
   for(let fl=1;fl<=S.floors;fl++){
-    ['front','back','left','right'].forEach(sd=>{const ws=S.windows.filter(w=>w.f===fl&&w.side===sd).sort((a,b)=>a.pos-b.pos);
+    [...new Set(S.windows.filter(w=>w.f===fl).map(w=>w.side))].forEach(sd=>{const ws=S.windows.filter(w=>w.f===fl&&w.side===sd).sort((a,b)=>a.pos-b.pos);
       for(let i=1;i<ws.length;i++) if(ws[i].pos<ws[i-1].pos+ws[i-1].w-e) add('err','室內',`${fl}F ${SIDE[sd]}有兩扇窗戶重疊`,'兩扇窗戶佔用同一段牆。','移開其中一扇。','layout',owner(ws[i]));});
     S.rooms.filter(r=>r.f===fl).forEach(r=>{const T=TYPES[r.t]||TYPES.other; if(!roomSides(r).length) return;
       const need=r.w*r.d/8, have=lightArea(r);
-      if(T.light&&have<need-e){roomBad.add(r.id); add('warn','室內',`${fl}F「${r.n}」採光不夠`,`窗戶面積 ${f2(have)} m²，至少要地板面積的 1/8 = ${f2(need)} m²。`,'點這間房間，在外牆上加窗戶或把窗戶加大。','layout',{room:r.id});}
+      if(T.light&&have<need-e){roomBad.add(r.id); add('warn','室內',`${fl}F「${r.n}」採光不夠`,`窗戶面積 ${f2(have)} m²，至少要地板面積的 1/8 = ${f2(need)} m²。`,'點這間房間，在外牆或通往陽台的牆上加窗戶，或把窗戶加大。','layout',{room:r.id});}
       if(r.t==='kitchen'&&have<0.01) add('info','室內',`${fl}F 廚房沒有窗戶`,'油煙和濕氣只能靠抽風機排出去。','靠外牆的那面開一扇窗。','layout',{room:r.id});
     });
   }
 }
 function effWindowRatio(){
   if(!S.windows.length) return S.windowRatio;
-  const wall=2*(S.W+S.D)*S.storeyH*S.floors, a=S.windows.filter(w=>w.f<=S.floors).reduce((s,w)=>s+w.w*w.h,0);
+  const wall=2*(S.W+S.D)*S.storeyH*S.floors, a=S.windows.filter(w=>w.f<=S.floors&&!String(w.side).startsWith('in:')).reduce((s,w)=>s+w.w*w.h,0);
   return Math.round(a/wall*100);
 }
 function newWindow(r,side){
@@ -2064,15 +2085,21 @@ function renderWinPanel(){
   if(!r){const n=S.windows.filter(w=>w.f===floor).length; box.innerHTML=`<h3>開窗</h3><p class="help">在平面圖或上面的清單點一間房間，就能幫它開窗。${floor}F 目前有 ${n} 扇窗戶。</p>`; return;}
   const sides=roomSides(r), list=roomWindows(r), need=r.w*r.d/8, have=lightArea(r), T=TYPES[r.t]||TYPES.other;
   box.innerHTML=`<h3>「${esc(r.n)}」的窗戶</h3>
-    ${sides.length?`<div class="ro-row">${T.light?tag(have>=need-0.01,`窗戶 ${f2(have)} m²，需要 ≥ ${f2(need)} m²（地板的 1/8）`):`<span class="help">${T.n}沒有採光規定，需要通風可以開小窗。</span>`}</div>`:'<p class="help">這間沒有碰到外牆，不能開窗。要開窗就把它移到靠外牆的位置。</p>'}
-    <div class="room-list">${list.map(({w})=>`<div class="ri${w.id===selWin?' sel':''}" data-wid="${w.id}">
-      <div class="ri-top"><b style="flex:1">${SIDE[w.side]}</b><span class="help">${w.side==='front'||w.side==='back'?'從左邊量':'從前面量'}</span><button class="ri-del" data-delwin="${w.id}" aria-label="刪除窗戶">×</button></div>
-      <div class="ri-dims">${[['pos','位置'],['w','寬'],['h','高'],['sill','窗台高']].map(([k,l])=>`<label>${l}<input type="number" step="0.05" data-wk="${k}" value="${r2(w[k])}" inputmode="decimal"></label>`).join('')}</div></div>`).join('')}</div>
+    ${sides.length?`<div class="ro-row">${T.light?tag(have>=need-0.01,`窗戶 ${f2(have)} m²，需要 ≥ ${f2(need)} m²（地板的 1/8）`):`<span class="help">${T.n}沒有採光規定，需要通風可以開小窗。</span>`}</div>`:'<p class="help">這間沒有碰到外牆或陽台，不能開窗。要開窗就把它移到靠外牆或陽台的位置。</p>'}
+    <div class="room-list">${list.map(({w})=>{const mx=winMax(w); return `<div class="ri${w.id===selWin?' sel':''}" data-wid="${w.id}">
+      <div class="ri-top"><b style="flex:1">${SIDE[w.side]}${w.sill<0.05?'（落地窗）':''}</b><span class="help">${isH(w.side)?'從左邊量':'從前面量'}</span><button class="ri-del" data-delwin="${w.id}" aria-label="刪除窗戶">×</button></div>
+      <div class="ri-dims">${[['pos','位置'],['w','寬'],['h','高'],['sill','窗台高']].map(([k,l])=>`<label>${l}<input type="number" step="0.05" data-wk="${k}" value="${r2(w[k])}" inputmode="decimal"></label>`).join('')}</div>
+      <p class="help winmax">這段牆最大：寬 <b>${f2(mx.width)} m</b>（${f2(mx.lo)}～${f2(mx.hi)} m，離柱子和牆角各留 10 cm）・高 <b>${f2(mx.height)} m</b>（窗台 ${f2(w.sill)} m 到梁底下 ${f2(mx.top)} m）</p>
+      <div class="row"><button class="btn sm" data-winmax="${w.id}">放到最大</button><button class="btn sm" data-winfloor="${w.id}">改成落地窗</button></div></div>`;}).join('')}</div>
     ${sides.length?`<div class="row">${sides.map(([sd])=>`<button class="btn sm" data-addwin="${sd}">＋ ${SIDE[sd]}開窗</button>`).join('')}</div>`:''}`;
 }
 document.addEventListener('click',e=>{
   const a=e.target.closest('[data-addwin]');
   if(a){const r=room(selId); if(!r) return; selWin=newWindow(r,a.dataset.addwin); setCtx({type:'window'},false); $('#winPanel').blur&&document.activeElement&&document.activeElement.blur(); anchor($('#plan'),()=>renderAll({keepList:true})); return;}
+  const mxb=e.target.closest('[data-winmax]'), flb=e.target.closest('[data-winfloor]');
+  if(mxb||flb){const w=S.windows.find(x=>x.id===+(mxb||flb).dataset[mxb?'winmax':'winfloor']); if(!w) return;
+    if(flb){w.sill=0;} const m=winMax(w); w.pos=r2(m.lo); w.w=r2(m.width); w.h=r2(m.height); selWin=w.id;
+    document.activeElement&&document.activeElement.blur(); setCtx({type:'window'},false); anchor($('#plan'),()=>renderAll({keepList:true})); return;}
   const d=e.target.closest('[data-delwin]');
   if(d){S.windows=S.windows.filter(w=>w.id!==+d.dataset.delwin); document.activeElement&&document.activeElement.blur(); anchor($('#plan'),()=>renderAll({keepList:true})); return;}
 });
@@ -2090,8 +2117,9 @@ function drawWindowsPlan(u,Y){
   S.windows.filter(w=>w.f===floor).forEach(w=>{
     let x,y,ww,hh;
     if(w.side==='front'){x=w.pos;y=Y(0)-t/2;ww=w.w;hh=t;} else if(w.side==='back'){x=w.pos;y=Y(S.D)-t/2;ww=w.w;hh=t;}
-    else if(w.side==='left'){x=-t/2;y=Y(w.pos+w.w);ww=t;hh=w.w;} else {x=S.W-t/2;y=Y(w.pos+w.w);ww=t;hh=w.w;}
-    const horiz=w.side==='front'||w.side==='back', sel=w.id===selWin;
+    else if(w.side==='left'){x=-t/2;y=Y(w.pos+w.w);ww=t;hh=w.w;} else if(w.side==='right'){x=S.W-t/2;y=Y(w.pos+w.w);ww=t;hh=w.w;}
+    else if(isH(w.side)){x=w.pos;y=Y(inC(w.side))-t/2;ww=w.w;hh=t;} else {x=inC(w.side)-t/2;y=Y(w.pos+w.w);ww=t;hh=w.w;}
+    const horiz=isH(w.side), sel=w.id===selWin;
     o+=`<g class="winp${sel?' sel':''}" data-wid="${w.id}"><rect x="${x}" y="${y}" width="${ww}" height="${hh}" class="winr" stroke-width="${(sel?.06:.03)*u}"/>`+
       (horiz?`<line x1="${x}" y1="${y+hh/2}" x2="${x+ww}" y2="${y+hh/2}" class="winl" stroke-width="${.02*u}"/>`:`<line x1="${x+ww/2}" y1="${y}" x2="${x+ww/2}" y2="${y+hh}" class="winl" stroke-width="${.02*u}"/>`)+`</g>`;
   });
@@ -2103,7 +2131,7 @@ function windowCoach(){
   if(r){const need=r.w*r.d/8, have=lightArea(r); now.push(`「${esc(r.n)}」地板 ${f1(r.w*r.d)} m² ÷ 8 = 需要窗戶 ${f2(need)} m²`, tag(have>=need-0.01,`現在 ${f2(have)} m²`));}
   if(w) now.push(`這扇窗：寬 ${f2(w.w)} × 高 ${f2(w.h)} m，窗台 ${f2(w.sill)} m，頂端 ${f2(w.sill+w.h)} m（梁底 ${f2(S.storeyH-S.beam/100)} m）`);
   return {t:'開窗：位置、大小、高度',now,
-    how:['採光：居室的窗戶面積至少是地板面積的 1/8（建築技術規則）。','窗台高度：一般 0.8～0.9 m；浴室 1.5 m 以上比較有隱私；小孩房可以 1.0 m 以上防止爬出去。','窗戶不能蓋到柱子，旁邊至少留 10 cm；上緣要在梁底下面。','怎麼畫：平面圖上，窗戶畫成牆上的細長框，中間一條線。在平面圖上可以直接拖曳窗戶沿著牆移動。','窗台矮牆和柱子之間要留隔離縫，避免短柱效應。'],rec:null,l:'shape'};
+    how:['採光：居室的窗戶面積至少是地板面積的 1/8（建築技術規則）。','窗台高度：一般 0.8～0.9 m；浴室 1.5 m 以上比較有隱私；小孩房可以 1.0 m 以上防止爬出去。','窗戶不能蓋到柱子，旁邊至少留 10 cm；上緣要在梁底下面。每扇窗下面會寫「這段牆最大」多寬多高，按「放到最大」就會自動填好。','房間前面是陽台時，可以在通往陽台的牆開落地窗，一樣算採光；落地窗也可以當作出入陽台的門。','怎麼畫：平面圖上，窗戶畫成牆上的細長框，中間一條線。在平面圖上可以直接拖曳窗戶沿著牆移動。','窗台矮牆和柱子之間要留隔離縫，避免短柱效應。'],rec:null,l:'shape'};
 }
 
 /* ---------- 成品：3D 模型 + 設計說明書 ---------- */
