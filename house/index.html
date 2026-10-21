@@ -147,6 +147,8 @@ select,input[type=number],input[type=text],textarea{background:var(--sheet);bord
 .ax{stroke:var(--muted);fill:none} .bub{fill:var(--sheet);stroke:var(--muted)}
 .colp{fill:var(--ink)} .colp.bad{fill:var(--err)} .colp.warnc{fill:var(--warn)}
 .axh{cursor:grab}
+#plan [data-col]{cursor:pointer} #plan.cols-off [data-col]{pointer-events:none}
+.colp.csel{stroke:var(--accent);stroke-width:.12} .colx.sel rect{stroke:var(--accent)!important}
 .winp{cursor:ew-resize} .winr{fill:var(--glass);stroke:var(--ink)} .winp.sel .winr{stroke:var(--accent)} .winl{stroke:var(--ink)}
 .gridbox{border:1px solid var(--line);border-radius:6px;padding:10px;background:var(--sheet);gap:8px}
 .gridrow{display:flex;flex-direction:column;gap:4px}
@@ -892,7 +894,7 @@ const SCHEMA={
 };
 
 let S, floor=1, selId=null, tab='bub', drag=null, A=null;
-let selBub=null, pend=null, linkMode=false, bdrag=null;
+let selBub=null, pend=null, linkMode=false, bdrag=null, selCol=null;
 const bubble=id=>S.bubbles.find(b=>b.id===id);
 const linked=(a,b)=>S.links.some(l=>(l[0]===a&&l[1]===b)||(l[0]===b&&l[1]===a));
 
@@ -951,18 +953,27 @@ function axes(dir){
 }
 const spans=a=>a.slice(1).map((v,i)=>Math.round((v-a[i])*1000)/1000);
 const colName=(i,j)=>String.fromCharCode(65+j)+(i+1);
+const hasCol=(i,j)=>!(S.noCol||[]).includes(i+','+j);
 
 /* ---------- analysis ---------- */
 function analyze(){
   const L=[]; const add=(sev,area,title,msg,fix,lesson,extra)=>L.push(Object.assign({sev,area,title,msg,fix,lesson},extra||{}));
   const sys=SYS[S.system], soil=SOIL[S.soil];
   const ax=axes('x'), ay=axes('y'), spX=spans(ax), spY=spans(ay);
-  const sx=Math.max(...spX), sy=Math.max(...spY), Lmax=Math.max(sx,sy), Lmin=Math.min(...spX,...spY);
-  const tx=ax.map((_,i)=>((spX[i-1]||0)+(spX[i]||0))/2), ty=ay.map((_,j)=>((spY[j-1]||0)+(spY[j]||0))/2);
-  let ci=0,cj=0; tx.forEach((v,i)=>{if(v>tx[ci]+1e-9) ci=i;}); ty.forEach((v,j)=>{if(v>ty[cj]+1e-9) cj=j;});
+  const gaps=[], gx=[], gy=[], tr=ax.map(()=>ay.map(()=>0)), tXm=ax.map(()=>ay.map(()=>0)), tYm=ax.map(()=>ay.map(()=>0));
+  const nbr=(arr,k,ok)=>{let a=null,b=null; for(let t=k-1;t>=0;t--) if(ok(t)){a=t;break;} for(let t=k+1;t<arr.length;t++) if(ok(t)){b=t;break;} return [a,b];};
+  ay.forEach((_,j)=>{const ex=ax.map((_,i)=>i).filter(i=>hasCol(i,j)); for(let k=1;k<ex.length;k++) gx.push(ax[ex[k]]-ax[ex[k-1]]);});
+  ax.forEach((_,i)=>{const ey=ay.map((_,j)=>j).filter(j=>hasCol(i,j)); for(let k=1;k<ey.length;k++) gy.push(ay[ey[k]]-ay[ey[k-1]]);});
+  let ci=0,cj=0,best=-1;
+  ax.forEach((x,i)=>ay.forEach((y,j)=>{ if(!hasCol(i,j)) return;
+    const [l,r]=nbr(ax,i,t=>hasCol(t,j)), [d,u]=nbr(ay,j,t=>hasCol(i,t));
+    const tX=((l==null?0:x-ax[l])+(r==null?0:ax[r]-x))/2, tY=((d==null?0:y-ay[d])+(u==null?0:ay[u]-y))/2;
+    tXm[i][j]=tX; tYm[i][j]=tY; tr[i][j]=tX*tY; if(tr[i][j]>best+1e-9){best=tr[i][j]; ci=i; cj=j;} }));
+  const sx=gx.length?Math.max(...gx):S.W, sy=gy.length?Math.max(...gy):S.D, Lmax=Math.max(sx,sy), Lmin=Math.min(...(gx.length?gx:[S.W]),...(gy.length?gy:[S.D]));
+  const tx=ax.map((_,i)=>tXm[i][cj]), ty=ay.map((_,j)=>tYm[ci][j]);
   const panelShort=Math.max(...spX.flatMap(a=>spY.map(b=>Math.min(a,b))));
   const q=sys.q+WALL[S.wall].q, WR=effWindowRatio();
-  const trib=tx[ci]*ty[cj], P=trib*S.floors*q;
+  const trib=tr[ci][cj], P=trib*S.floors*q;
   const Ag=S.col*S.col, fy=S.rebar==='SD420'?4200:2800, lam=S.storeyH*100/S.col;
   let cap;
   if(S.system==='steel') cap=0.16*Ag*0.5*2500/1000;
@@ -1005,6 +1016,13 @@ function analyze(){
   if(Lmax>sys.span[1]){flags.span=true; add('err','結構','柱子隔太遠了',`${spanTxt}。${sys.n}超過 ${sys.span[1]} m 需要特殊設計。`,'增加跨數（多放幾排柱子）。','span');}
   else if(Lmax>sys.span[0]){flags.span=true; add('warn','結構','柱距偏大',`${spanTxt}，${sys.n}在 ${sys.span[0]} m 以內最經濟。`,'增加跨數，或把梁和樓板加深。','span');}
   if((S.nx===1||S.ny===1)&&S.floors>=2) add('warn','結構','有一個方向只有一跨','只有兩排柱子，任何一根壞掉就沒有備援（缺乏贅餘度）。','每個方向至少 2 跨（3 排柱子）。','span');
+  const removed=(S.noCol||[]).map(k=>k.split(',').map(Number)).filter(([i,j])=>i<=S.nx&&j<=S.ny);
+  removed.forEach(([i,j])=>{const corner=(i===0||i===S.nx)&&(j===0||j===S.ny), edge=i===0||i===S.nx||j===0||j===S.ny;
+    if(corner) add('err','結構',`拿掉了角柱 ${colName(i,j)}`,'角落的柱子同時撐住兩個方向的梁和外牆，地震時受力最大，不能拿掉。','把它加回來（點平面圖上的虛線框）。','span');
+    else if(edge) add('warn','結構',`拿掉了外圍的 ${colName(i,j)} 柱`,'外圍柱子撐著外牆和陽台，拿掉後旁邊的梁跨度變兩倍，外牆也比較容易裂。','盡量保留外圍柱子；要拿掉的話，梁要加深、旁邊的柱子要加粗。','span');
+    else add('info','結構',`拿掉了中間的 ${colName(i,j)} 柱`,'這樣房間中間比較開闊，但經過它的梁跨度變兩倍，旁邊的柱子要分擔它的重量。','看「梁深」和「柱子使用率」有沒有變紅；需要的話梁加深、柱子加粗。','span');});
+  ay.forEach((_,j)=>{ if(ax.filter((_,i)=>hasCol(i,j)).length<2) add('err','結構',`${String.fromCharCode(65+j)} 軸的柱子不到 2 根`,'一整排只剩一根或沒有柱子，梁沒有東西可以撐。','把這一排的柱子加回來。','span'); });
+  ax.forEach((_,i)=>{ if(ay.filter((_,j)=>hasCol(i,j)).length<2) add('err','結構',`${i+1} 軸的柱子不到 2 根`,'一整排只剩一根或沒有柱子，梁沒有東西可以撐。','把這一排的柱子加回來。','span'); });
   const reqBeam=Lmax*100/sys.beamDiv;
   if(S.beam<reqBeam*0.75) add('err','結構','梁太淺，會下垂開裂',`最大跨距 ${f2(Lmax)} m，梁深建議約 ${Math.ceil(reqBeam/5)*5} cm，現在只有 ${S.beam} cm。`,`梁深加到 ${Math.ceil(reqBeam/5)*5} cm，或縮短跨距。`,'beam');
   else if(S.beam<reqBeam) add('warn','結構','梁深稍微不夠',`跨距 ${f2(Lmax)} m 建議梁深約 ${Math.ceil(reqBeam/5)*5} cm（跨距 ÷ ${sys.beamDiv}），現在 ${S.beam} cm。`,`梁深加到 ${Math.ceil(reqBeam/5)*5} cm。`,'beam');
@@ -1063,7 +1081,7 @@ function analyze(){
       if(T.light){const ext=r.x<=e||r.y<=e||r.x+r.w>=S.W-e||r.y+r.d>=S.D-e;
         if(!ext){roomBad.add(r.id); add('warn','室內',`${fl}F「${r.n}」沒有外牆，不能開窗`,`${T.n}是要長時間待的居室，需要窗戶採光通風。`,'移到靠外牆的位置，或把它改成儲藏室。','layout',tag);}}
       let inside=0;
-      ax.forEach(cx=>ay.forEach(cy=>{ if(cx>r.x+0.05&&cx<r.x+r.w-0.05&&cy>r.y+0.05&&cy<r.y+r.d-0.05) inside++; }));
+      ax.forEach((cx,i)=>ay.forEach((cy,j)=>{ if(hasCol(i,j)&&cx>r.x+0.05&&cx<r.x+r.w-0.05&&cy>r.y+0.05&&cy<r.y+r.d-0.05) inside++; }));
       if(inside){roomBad.add(r.id); add('warn','室內',`${fl}F「${r.n}」中間站了 ${inside} 根柱子`,'柱子在房間正中央很難擺家具，也代表牆沒有沿著柱網走。','讓房間的邊對齊柱子（平面圖上的點劃線）。','layout',tag);}
       if(r.t==='stair'){
         const lo=Math.max(r.w,r.d), sh=Math.min(r.w,r.d);
@@ -1104,7 +1122,7 @@ function analyze(){
   }
   const ord={err:0,warn:1,info:2};
   L.sort((a,b)=>ord[a.sev]-ord[b.sev]);
-  return {L,m:{sx,sy,ax,ay,spX,spY,tx,ty,ci,cj,maxCol:colName(ci,cj),panelShort,q,trib,P,cap,colRatio,H,roofH,Wtot,fp,fRatio,fUnit,fCapTxt,lam,hw,clear},flags,roomBad};
+  return {L,m:{sx,sy,ax,ay,spX,spY,tx,ty,tr,tXm,tYm,ci,cj,maxCol:colName(ci,cj),panelShort,q,trib,P,cap,colRatio,H,roofH,Wtot,fp,fRatio,fUnit,fCapTxt,lam,hw,clear},flags,roomBad};
 }
 
 /* ---------- plan ---------- */
@@ -1170,8 +1188,10 @@ function drawPlan(){
       `<circle cx="${-1.85*u}" cy="${y}" r="${.33*u}" class="bub${mid?' axh':''}" ${mid?`data-ax="y" data-i="${j}"`:''} stroke-width="${.03*u}"/><text x="${-1.85*u}" y="${y+.12*u}" class="t" font-size="${.32*u}" text-anchor="middle" style="pointer-events:none">${String.fromCharCode(65+j)}</text>`; });
   o+=`<rect x="0" y="0" width="${W}" height="${D}" class="outline" stroke-width="${.09*u}"/>`;
   const c=S.col/100, capc=A.m.cap, perF=S.floors*A.m.q;
-  AX.forEach((x,i)=>AY.forEach((yy,j)=>{ const r=A.m.tx[i]*A.m.ty[j]*perF/capc; const cls=r>1?' bad':r>0.6?' warnc':'';
-    o+=`<rect x="${x-c/2}" y="${Y(yy)-c/2}" width="${c}" height="${c}" class="colp${cls}"><title>${colName(i,j)} 柱：扛 ${f1(A.m.tx[i]*A.m.ty[j]*perF)} tf，使用率 ${Math.round(r*100)}%</title></rect>`;
+  AX.forEach((x,i)=>AY.forEach((yy,j)=>{ const key=i+','+j, sel=selCol===key;
+    if(!hasCol(i,j)){ o+=`<g class="colx${sel?' sel':''}" data-col="${key}"><rect x="${x-c/2-.08*u}" y="${Y(yy)-c/2-.08*u}" width="${c+.16*u}" height="${c+.16*u}" fill="transparent" stroke="var(--muted)" stroke-width="${.03*u}" stroke-dasharray="${.08*u} ${.06*u}"><title>${colName(i,j)} 柱（已拿掉）：點一下可以加回來</title></rect></g>`; return; }
+    const r=A.m.tr[i][j]*perF/capc; const cls=r>1?' bad':r>0.6?' warnc':'';
+    o+=`<rect x="${x-c/2}" y="${Y(yy)-c/2}" width="${c}" height="${c}" class="colp${cls}${sel?' csel':''}" data-col="${key}"><title>${colName(i,j)} 柱：扛 ${f1(A.m.tr[i][j]*perF)} tf，使用率 ${Math.round(r*100)}%</title></rect>`;
     if(i===A.m.ci&&j===A.m.cj) o+=`<circle cx="${x}" cy="${Y(yy)}" r="${c/2+.28*u}" fill="none" stroke="var(--accent)" stroke-width="${.05*u}" stroke-dasharray="${.12*u} ${.08*u}" style="pointer-events:none"/>`; }));
   // dims
   const tk=.14*u, sw=.02*u, dc=A.flags.span?' bad':'', tc=A.flags.span?'te':'tm';
@@ -1205,13 +1225,13 @@ function drawSec(){
   let o=`<defs><pattern id="soilp" width="${.45*u}" height="${.45*u}" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="${.45*u}" class="hatch" stroke-width="${.025*u}"/></pattern></defs>`;
   o+=`<rect x="${-mX}" y="0" width="${W+2*mX}" height="${bot+mB}" class="soil"/><rect x="${-mX}" y="0" width="${W+2*mX}" height="${bot+mB}" fill="url(#soilp)"/>`;
   // foundations
-  const xs=A.m.ax;
+  const xs=A.m.ax, xsC=A.m.ax.filter((_,i)=>hasCol(i,0));
   if(S.fdn==='mat'){
     o+=`<rect x="-0.3" y="${dep-0.6}" width="${W+0.6}" height="0.6" class="conc${fb}" stroke-width="${.025*u}"/>`;
-    xs.forEach(x=>o+=`<rect x="${x-c*.6}" y="0" width="${c*1.2}" height="${Math.max(0,dep-0.6)}" class="conc" stroke-width="${.02*u}"/>`);
+    xsC.forEach(x=>o+=`<rect x="${x-c*.6}" y="0" width="${c*1.2}" height="${Math.max(0,dep-0.6)}" class="conc" stroke-width="${.02*u}"/>`);
   } else {
     if(dep>0.6) o+=`<rect x="0" y="0" width="${W}" height="0.5" class="conc" stroke-width="${.02*u}"/>`;
-    xs.forEach(x=>{
+    xsC.forEach(x=>{
       if(pile){const cw=Math.max(1.2,c+0.6);
         o+=`<rect x="${x-0.2}" y="${dep}" width="0.4" height="5" class="conc${fb}" stroke-width="${.02*u}"/><rect x="${x-cw/2}" y="${dep-0.8}" width="${cw}" height="0.8" class="conc${fb}" stroke-width="${.025*u}"/><rect x="${x-c*.6}" y="0" width="${c*1.2}" height="${Math.max(0,dep-0.8)}" class="conc" stroke-width="${.02*u}"/>`;
       } else {const b=S.footing;
@@ -1236,7 +1256,7 @@ function drawSec(){
   if(realWin) S.windows.filter(w=>w.side==='front'&&w.f<=S.floors&&!(w.f===1&&S.softStory)).forEach(w=>{const base=(w.f-1)*h;
     o+=`<rect x="${w.pos}" y="${-(base+w.sill+w.h)}" width="${w.w}" height="${w.h}" class="glass" stroke-width="${.02*u}"/>`;});
   // columns
-  xs.forEach(x=>o+=`<rect x="${x-c/2}" y="${-H}" width="${c}" height="${H}" class="colfill${cb}" stroke-width="${.02*u}"/>`);
+  xsC.forEach(x=>o+=`<rect x="${x-c/2}" y="${-H}" width="${c}" height="${H}" class="colfill${cb}" stroke-width="${.02*u}"/>`);
   // slabs/beams
   o+=`<rect x="0" y="-0.15" width="${W}" height="0.15" class="conc" stroke-width="${.02*u}"/>`;
   for(let k=1;k<=S.floors;k++){const L=k*h;
@@ -1356,6 +1376,7 @@ document.addEventListener('input',e=>{
   if(f.type==='check') v=e.target.checked;
   else if(f.type==='range'||f.num) v=parseFloat(e.target.value);
   else v=e.target.value;
+  if((k==='nx'||k==='ny')&&S[k]!==v){S.noCol=[]; selCol=null;}
   S[k]=v; renderAll({keepList:k!=='floors'});
 });
 document.addEventListener('change',e=>{
@@ -1364,10 +1385,10 @@ document.addEventListener('change',e=>{
   if(isNaN(v)){el.value=S[k]; return;}
   const mn=parseFloat(el.min), mx=parseFloat(el.max), st=parseFloat(el.step)||1;
   v=Math.min(mx,Math.max(mn,Math.round(v/st)*st)); v=Math.round(v*100)/100;
-  el.value=v; S[k]=v; renderAll({keepList:k!=='floors'});
+  el.value=v; if((k==='nx'||k==='ny')&&S[k]!==v){S.noCol=[]; selCol=null;} S[k]=v; renderAll({keepList:k!=='floors'});
 });
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.type==='number'&&e.target.dataset.k) e.target.blur();});
-function setTab(t){tab=t; $$('.steps button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t)); ['bub','ext','str','room'].forEach(k=>$('#pane-'+k).hidden=k!==t); $('#bubSheet').hidden=t!=='bub';}
+function setTab(t){tab=t; $$('.steps button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t)); ['bub','ext','str','room'].forEach(k=>$('#pane-'+k).hidden=k!==t); $('#bubSheet').hidden=t!=='bub'; $('#plan').classList.toggle('cols-off',t!=='str');}
 $('.steps').addEventListener('click',e=>{const b=e.target.closest('button'); if(b) setTab(b.dataset.tab);});
 function setView(v){const co=$('#coach'); if(co) co.hidden=v!=='design'; $('#v-design').hidden=v!=='design'; $('#v-learn').hidden=v!=='learn'; $('#v-final').hidden=v!=='final'; $('#tabDesign').setAttribute('aria-selected',v==='design'); $('#tabLearn').setAttribute('aria-selected',v==='learn'); $('#tabFinal').setAttribute('aria-selected',v==='final'); if(v==='final') showFinal();}
 function openLesson(id){setView('learn'); const el=document.getElementById('L-'+id); if(el) el.scrollIntoView({block:'start'});}
@@ -1434,6 +1455,8 @@ function liveUpdate(r){
 }
 function liveStruct(){A=analyze(); drawPlan(); drawSec(); renderChecks(); renderReadouts(); renderCoach();}
 plan.addEventListener('pointerdown',e=>{
+  const cp=e.target.closest('[data-col]');
+  if(cp&&tab==='str'){ selCol=cp.dataset.col; setCtx({type:'column'},false); anchor(plan,()=>renderAll({keepList:true})); return; }
   const ah=e.target.closest('.axh');
   if(ah){ drag={ax:ah.dataset.ax,i:+ah.dataset.i}; plan.setPointerCapture(e.pointerId); e.preventDefault(); renderCoach(); return; }
   const wp=e.target.closest('.winp');
@@ -1674,7 +1697,7 @@ const FC={
     how:['① 用面寬 ÷ 想要的柱距（RC 抓 4～6 m），取整數就是跨數。','② 每個方向至少 2 跨（3 排柱子），一根壞了還有備援。','③ 怎麼畫：在平面圖上先畫點劃線（軸線），左右用 1、2、3，前後用 A、B、C，柱子畫在交叉點。','④ 房間的牆盡量沿著軸線走，柱子就不會站在房間中間。'],
     rec:(R.nx!==S.nx)?['nx',R.nx,'左右方向']:(R.ny!==S.ny)?['ny',R.ny,'前後方向']:null, l:'span'};},
   col:()=>{const m=A.m,R=recs(),sys=SYS[S.system]; return {t:'柱子：這根要扛多少',
-    now:[`受力最大的是 <b>${m.maxCol} 柱</b>（平面圖上藍色虛線圈起來那根），負責 ${f2(m.tx[m.ci])} × ${f2(m.ty[m.cj])} = ${f1(m.trib)} m² 的樓板`,`要扛：${f1(m.trib)} m² × ${S.floors} 層 × ${f2(m.q)} tf/m² ≈ <b>${f1(m.P)} tf</b>`,`${S.col} cm 柱能扛 ≈ ${f1(m.cap)} tf`, tag(m.colRatio<=0.6,`使用率 ${Math.round(m.colRatio*100)}%（建議 60% 內，留給地震）`), tag(m.lam<=sys.slend[0],`細長比 ${f1(m.lam)}（建議 ${sys.slend[0]} 以下）`)],
+    now:[`受力最大的是 <b>${m.maxCol} 柱</b>（平面圖上藍色虛線圈起來那根），負責 ${f2(m.tXm[m.ci][m.cj])} × ${f2(m.tYm[m.ci][m.cj])} = ${f1(m.trib)} m² 的樓板`,`要扛：${f1(m.trib)} m² × ${S.floors} 層 × ${f2(m.q)} tf/m² ≈ <b>${f1(m.P)} tf</b>`,`${S.col} cm 柱能扛 ≈ ${f1(m.cap)} tf`, tag(m.colRatio<=0.6,`使用率 ${Math.round(m.colRatio*100)}%（建議 60% 內，留給地震）`), tag(m.lam<=sys.slend[0],`細長比 ${f1(m.lam)}（建議 ${sys.slend[0]} 以下）`)],
     how:['① 算受力面積：柱子周圍各半個跨距。','② 乘上樓層數和每層重量，就是要扛的力。','③ 選柱寬讓使用率在 60% 以下，而且不要比梁深細太多（強柱弱梁）。','④ 怎麼畫：平面圖上畫在軸線交叉點的實心方塊，標柱號（例如 B2 柱）。上下樓的柱子要在同一個位置。','⑤ 看不到但最重要：柱子兩端箍筋要排密，彎鉤做 135 度。'],
     rec:R.col!=null&&R.col!==S.col?['col',R.col,'滿足使用率、細長比、強柱弱梁的最小尺寸']:null, l:'column'};},
   beam:()=>{const m=A.m,R=recs(),sys=SYS[S.system],L=Math.max(m.sx,m.sy); return {t:'梁：把樓板的力收集到柱子',
@@ -1726,7 +1749,7 @@ function roomCoach(r,resizing){
   const T=TYPES[r.t]||TYPES.other, ar=r.w*r.d, mw=Math.min(r.w,r.d), e=0.01;
   const ext=r.x<=e||r.y<=e||r.x+r.w>=S.W-e||r.y+r.d>=S.D-e;
   let cols=0;
-  A.m.ax.forEach(cx=>A.m.ay.forEach(cy=>{ if(cx>r.x+0.05&&cx<r.x+r.w-0.05&&cy>r.y+0.05&&cy<r.y+r.d-0.05) cols++; }));
+  A.m.ax.forEach((cx,i)=>A.m.ay.forEach((cy,j)=>{ if(hasCol(i,j)&&cx>r.x+0.05&&cx<r.x+r.w-0.05&&cy>r.y+0.05&&cy<r.y+r.d-0.05) cols++; }));
   const now=[`${f2(r.w)} × ${f2(r.d)} m = ${f1(ar)} m²（約 ${f1(ar/3.3058)} 坪）`];
   if(T.min) now.push(tag(ar>=T.min-e&&mw>=(T.minW||0)-e,`${T.n}建議至少 ${T.min} m²、寬 ${T.minW} m`));
   if(T.light) now.push(tag(ext,ext?'有碰到外牆，可以開窗':'沒有碰到外牆，不能開窗'));
@@ -1790,6 +1813,7 @@ function coachContent(){
   if(ctx.type==='bubble'){const b=bubble(ctx.id); if(b) return bubCoach(b);}
   if(ctx.type==='land') return landCoach();
   if(ctx.type==='window') return windowCoach();
+  if(ctx.type==='column'&&selCol) return columnCoach();
   if(ctx.type==='link') return {t:'連線：哪些空間要靠近',now:[],how:['點第一個泡泡，再點第二個，就會連一條線。','常見要連的：廚房↔餐廳、餐廳↔客廳、臥室↔浴室、樓梯↔客廳或走廊。','臥室和廚房最好不要直接連，避免油煙和噪音。'],rec:null,l:'bubble'};
   const T=TABCOACH[tab]; return {t:T.t,now:[],how:T.how,rec:null,l:T.l};
 }
@@ -1800,7 +1824,7 @@ function renderCoach(){
   $('#coachToggle').setAttribute('aria-expanded',coachOpen);
   if(!coachOpen) return;
   let c; try{c=coachContent();}catch(err){c=coachContent.call(null,ctx={type:'tab'});}
-  const rec=c.rec?recBtn(c.rec[0],c.rec[1],c.rec[2]):'';
+  const rec=(c.rec?recBtn(c.rec[0],c.rec[1],c.rec[2]):'')+(c.btn||'');
   const steps=STEPS[tab]||[];
   const done=steps.map(s=>{try{return !!s[1]();}catch(e){return false;}});
   const nextI=done.indexOf(false);
@@ -1885,6 +1909,25 @@ async function initCloud(){
   }catch(e){setSync('local');}
 }
 
+/* ---------- single column: delete / restore ---------- */
+function columnCoach(){
+  const [i,j]=selCol.split(',').map(Number); if(i>S.nx||j>S.ny){selCol=null; return coachContent();}
+  const nm=colName(i,j), has=hasCol(i,j), m=A.m, perF=S.floors*m.q;
+  const corner=(i===0||i===S.nx)&&(j===0||j===S.ny), edge=i===0||i===S.nx||j===0||j===S.ny;
+  const kind=corner?'角柱':edge?'外圍柱':'中間柱';
+  const now=[`${nm} 柱（${kind}）`];
+  if(has){const r=m.tr[i][j]*perF/m.cap; now.push(`負責 ${f2(m.tXm[i][j])} × ${f2(m.tYm[i][j])} = ${f1(m.tr[i][j])} m² 的樓板`,`扛 ≈ ${f1(m.tr[i][j]*perF)} tf`, tag(r<=0.6,`使用率 ${Math.round(r*100)}%`));}
+  else now.push('<span class="tag tag-warn">! 已經拿掉了</span>');
+  return {t:has?`這根柱子可以拿掉嗎？`:`把 ${nm} 柱加回來`, now,
+    rec:null, btn:`<button class="btn sm ${has?'':'primary'}" data-coltoggle="${selCol}">${has?`拿掉 ${nm} 柱`:`加回 ${nm} 柱`}</button>`,
+    how:[corner?'這是角柱，同時撐兩個方向的梁和外牆，地震時受力最大，<b>不能拿掉</b>。':edge?'外圍柱撐著外牆，拿掉後旁邊的梁跨度變兩倍，最好保留。':'中間柱可以拿掉，讓客廳更開闊；代價是經過它的梁跨度變兩倍，旁邊的柱子要分擔它的重量。',
+      '拿掉後看看：旁邊柱子有沒有變黃或變紅、「梁深」有沒有出現警告。','柱子只能拿掉，不能單獨移到別的地方：柱子要在梁的交叉點上，梁才是直的，上下樓也才對得齊。想移柱子，就移整條軸線（拖曳藍色圓圈）。','每一層的柱子位置都一樣，拿掉就是整根從 1 樓到頂樓都拿掉。'],l:'span'};
+}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-coltoggle]'); if(!b) return;
+  const k=b.dataset.coltoggle; S.noCol=(S.noCol||[]).slice(); const ix=S.noCol.indexOf(k); if(ix>=0) S.noCol.splice(ix,1); else S.noCol.push(k);
+  selCol=k; setCtx({type:'column'},false); anchor($('#plan'),()=>renderAll({keepList:true}));});
+document.addEventListener('click',e=>{const b=e.target.closest('[data-restoreall]'); if(!b) return; S.noCol=[]; anchor($('#plan'),()=>renderAll({keepList:true}));});
+
 /* ---------- custom column spans UI ---------- */
 function renderGridBox(){
   const box=$('#gridBox'); if(!box||box.contains(document.activeElement)) return;
@@ -1893,7 +1936,8 @@ function renderGridBox(){
       <div class="spans">${sp.map((v,i)=>`<label><span>${dir==='x'?(i+1)+'→'+(i+2):String.fromCharCode(65+i)+'→'+String.fromCharCode(66+i)}</span><input type="number" step="0.05" min="0.5" data-span="${dir}" data-i="${i}" value="${r2(v)}" inputmode="decimal" aria-label="第 ${i+1} 跨"></label>`).join('')}</div></div>`;};
   box.innerHTML=`<div class="flab"><label>柱子位置（每一跨的距離，m）</label><button class="why" data-lesson="span" aria-label="柱網教學">?</button></div>
     ${row('x','左右方向','從左往右')}${row('y','前後方向','從前往後')}
-    <p class="help">改一跨，旁邊那一跨會自動補，總長維持房子的寬度。也可以在平面圖上<b>拖曳藍色圓圈</b>（軸線編號）移動柱子。</p>`;
+    <p class="help">改一跨，旁邊那一跨會自動補，總長維持房子的寬度。也可以在平面圖上<b>拖曳藍色圓圈</b>（軸線編號）移動整排柱子。</p>
+    <p class="help"><b>想拿掉某一根柱子？</b>在平面圖上點那根柱子，右邊教練會告訴你能不能拿、拿掉會怎樣。${(S.noCol||[]).length?`<br>已拿掉：${S.noCol.map(k=>{const [i,j]=k.split(',').map(Number); return colName(i,j);}).join('、')} <button class="btn sm" data-restoreall="1">全部加回來</button>`:''}</p>`;
 }
 function setSpan(dir,i,v){
   const L=dir==='x'?S.W:S.D, sp=spans(axes(dir)), n=sp.length; if(n<2) return;
@@ -1911,7 +1955,9 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-even]'); i
 /* ---------- windows ---------- */
 const SIDE={front:'前牆',back:'後牆',left:'左牆',right:'右牆'};
 const sideLen=sd=>sd==='front'||sd==='back'?S.W:S.D;
-const sideAxes=sd=>sd==='front'||sd==='back'?axes('x'):axes('y');
+const sideAxes=sd=>{const ax=axes('x'), ay=axes('y');
+  if(sd==='front') return ax.filter((_,i)=>hasCol(i,0)); if(sd==='back') return ax.filter((_,i)=>hasCol(i,S.ny));
+  if(sd==='left') return ay.filter((_,j)=>hasCol(0,j)); return ay.filter((_,j)=>hasCol(S.nx,j));};
 function roomSides(r){const e=0.01, out=[];
   if(r.y<=e) out.push(['front',r.x,r.x+r.w]); if(r.y+r.d>=S.D-e) out.push(['back',r.x,r.x+r.w]);
   if(r.x<=e) out.push(['left',r.y,r.y+r.d]); if(r.x+r.w>=S.W-e) out.push(['right',r.y,r.y+r.d]); return out;}
@@ -2061,7 +2107,7 @@ function buildScene(){
   // foundations (structure mode)
   const AX=A.m.ax, AY=A.m.ay, dep=S.fdnDepth;
   if(structOnly){
-    AX.forEach(x=>AY.forEach(y=>{const [X,Z]=P(x,y);
+    AX.forEach((x,i)=>AY.forEach((y,j)=>{if(!hasCol(i,j)) return; const [X,Z]=P(x,y);
       if(S.fdn==='spread'||S.fdn==='strip'){box(S.footing,0.5,S.footing,A.flags.fdn?M.err:M.conc,X,-dep+0.25,Z); box(c*1.2,dep-0.5,c*1.2,M.conc,X,-(dep-0.5)/2,Z);}
       else if(S.fdn==='pile'){box(Math.max(1.2,c+0.6),0.8,Math.max(1.2,c+0.6),M.conc,X,-dep+0.4,Z); add(new THREE.CylinderGeometry(0.2,0.2,5,12),M.conc,X,-dep-2.5,Z);}
       else box(c*1.2,Math.max(0.01,dep-0.6),c*1.2,M.conc,X,-(dep-0.6)/2,Z);}));
@@ -2073,7 +2119,7 @@ function buildScene(){
   const perF=S.floors*A.m.q;
   for(let f=1;f<=topF;f++){
     const base=(f-1)*h, colH=(cut&&f===topF)?Math.min(h,1.2):h;
-    AX.forEach((x,i)=>AY.forEach((y,j)=>{const [X,Z]=P(x,y); const rr=A.m.tx[i]*A.m.ty[j]*perF/A.m.cap;
+    AX.forEach((x,i)=>AY.forEach((y,j)=>{if(!hasCol(i,j)) return; const [X,Z]=P(x,y); const rr=A.m.tr[i][j]*perF/A.m.cap;
       box(c,colH,c,structOnly?(rr>1?M.err:rr>0.6?M.warn:M.conc):M.conc,X,base+colH/2,Z);}));
     if(!(cut&&f===topF)){
       const top=f*h;
@@ -2166,8 +2212,8 @@ function specSheet(){
 function showFinal(){
   $('#spec').innerHTML=specSheet(); renderFinalControls();
   $('#msg3d').textContent='正在載入 3D…';
-  ensureThree().then(()=>{ if(!T3.ready) initThree(); $('#msg3d').textContent=''; size3d(); buildScene(); })
-    .catch(()=>{$('#msg3d').textContent='3D 載入失敗，請確認網路連線後重新整理。';});
+  ensureThree().then(()=>{ try{ if(!T3.ready) initThree(); $('#msg3d').textContent=''; size3d(); buildScene(); }catch(err){ $('#msg3d').textContent='3D 畫圖時出錯了，請截圖給 Claude：'+(err&&err.message); } },
+    ()=>{$('#msg3d').textContent='3D 載入失敗，請確認網路連線後重新整理。';});
 }
 $('#mode3d').addEventListener('click',e=>{const b=e.target.closest('[data-m]'); if(!b) return; T3.mode=b.dataset.m; T3.needFit=true; if(T3.mode==='in'&&T3.upTo>S.floors) T3.upTo=1; renderFinalControls(); if(T3.ready) buildScene();});
 $('#upto3d').addEventListener('click',e=>{const b=e.target.closest('[data-upto]'); if(!b) return; T3.upTo=+b.dataset.upto; T3.needFit=true; renderFinalControls(); if(T3.ready) buildScene();});
