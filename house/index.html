@@ -180,6 +180,11 @@ select,input[type=number],input[type=text],textarea{background:var(--sheet);bord
 .spec{padding:16px;display:flex;flex-direction:column;gap:12px}
 .spec-h{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px}
 .spec-h h2{margin:2px 0 0;font-family:var(--f-display);font-size:22px;letter-spacing:.05em}
+.cost{display:flex;flex-direction:column;gap:8px;border:1px solid var(--accent);border-radius:8px;padding:12px 14px;background:var(--accent-soft)}
+.cost-big{font-family:var(--f-mono);font-size:28px;font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums}
+.cost-big small{font-family:var(--f-body);font-size:15px;color:var(--muted)}
+.cost-calc{font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+.cost .lgrid{max-width:420px}
 .spec-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
 .spec-grid>div{display:flex;flex-direction:column;gap:3px;border:1px solid var(--line);border-radius:6px;padding:10px;background:var(--sheet);font-size:13.5px}
 .spec-grid b{font-size:12px;letter-spacing:.1em;color:var(--accent)}
@@ -2235,6 +2240,7 @@ function specSheet(){
   const status=c.err?`<span class="chip c-err">還有 ${c.err} 個危險項目</span>`:c.warn?`<span class="chip c-warn">還有 ${c.warn} 個注意項目</span>`:`<span class="chip c-ok">初步檢查全部通過</span>`;
   const land=S.land&&S.land.on?landCheck(null):null;
   return `<div class="spec-h"><div><div class="eyebrow2">設計說明書</div><h2>我的房子</h2></div>${status}</div>
+  ${costHTML()}
   <div class="spec-grid">
     <div><b>規模</b><span>${S.floors} 層樓，每層 ${f1(S.W)} × ${f1(S.D)} m</span><span>每層 ${f1(area)} m²（${f1(area/3.3058)} 坪），總計 ${f1(tot)} m²（${f1(tot/3.3058)} 坪）</span><span>樓高 ${f2(S.storeyH)} m，總高 ${f2(m.H+m.roofH)} m</span></div>
     <div><b>外觀</b><span>${S.roof==='gable'?`斜屋頂 ${S.roofPitch}°`:'平屋頂'}・${WALL[S.wall].n}</span><span>${wins.length?`${wins.length} 扇窗，開窗率 ${effWindowRatio()}%`:`開窗率 ${S.windowRatio}%（估計）`}</span></div>
@@ -2246,6 +2252,33 @@ function specSheet(){
   ${rooms.map(r=>`<tr><td>${r.f}F</td><td>${esc(r.n)}</td><td>${(TYPES[r.t]||TYPES.other).n}</td><td class="n">${f2(r.w)} × ${f2(r.d)} m</td><td class="n">${f1(r.w*r.d)} m²（${f1(r.w*r.d/3.3058)} 坪）</td><td class="n">${S.windows.length?f2(lightArea(r))+' m²':'—'}</td></tr>`).join('')}</table></div>
   <p class="help">這份說明書和 3D 模型是依照網站的經驗法則產生的學習成果，可以拿去和建築師討論；正式興建仍需建築師設計、結構技師簽證。</p>`;
 }
+/* ---------- 造價估算 ---------- */
+const COST={rc:[19,24,'2025 年透天 RC 行情'],steel:[24,29,'2025 年鋼構（SC）行情'],wood:[19,24,'沒有可靠的木構行情，暫用 RC 的數字'],brick:[19,24,'沒有可靠的加強磚造行情，暫用 RC 的數字']};
+function costEst(){
+  const c=S.cost||{}, base=COST[S.system]||COST.rc;
+  const lo=c.lo!=null?c.lo:base[0], hi=c.hi!=null?c.hi:base[1], reg=c.north?1.175:1;
+  const ping=S.W*S.D*S.floors/3.3058;
+  return {lo,hi,reg,ping,min:ping*lo*reg,max:ping*hi*reg,note:base[2],custom:c.lo!=null};
+}
+function costHTML(){
+  const k=costEst(), w=v=>Math.round(v).toLocaleString('zh-TW');
+  return `<div class="cost"><div class="eyebrow2">蓋好大概要多少錢（只有房子本體）</div>
+    <div class="cost-big">${w(k.min)}～${w(k.max)} <small>萬元</small></div>
+    <div class="cost-calc">總樓地板 ${f1(k.ping)} 坪 × 每坪 ${k.lo}～${k.hi} 萬${k.reg>1?' × 1.175（大台北約貴 15～20%）':''}</div>
+    <div class="lgrid">
+      <label>每坪最低（萬）<span class="numwrap"><input type="number" id="costLo" min="5" max="80" step="0.5" value="${k.lo}" inputmode="decimal"><span>萬</span></span></label>
+      <label>每坪最高（萬）<span class="numwrap"><input type="number" id="costHi" min="5" max="80" step="0.5" value="${k.hi}" inputmode="decimal"><span>萬</span></span></label>
+    </div>
+    <label class="chk" for="costNorth"><input type="checkbox" id="costNorth" ${k.reg>1?'checked':''}><span>蓋在大台北（雙北）</span></label>
+    <p class="help">單價：${k.custom?'你自己輸入的數字':k.note}。${k.custom?'<button class="btn sm" id="costReset">恢復預設單價</button>':''}<br><b>不含</b>：土地、室內裝潢、建築師設計費、執照規費。真正的價格要請營造廠依圖面估價，地點、材料、工班、物價都會影響。</p></div>`;
+}
+document.addEventListener('change',e=>{const id=e.target.id; if(!['costLo','costHi','costNorth'].includes(id)) return;
+  S.cost=Object.assign({},S.cost||{}); const k=costEst();
+  if(id==='costNorth') S.cost.north=e.target.checked;
+  else { const v=parseFloat(e.target.value); if(isNaN(v)) return; if(S.cost.lo==null){S.cost.lo=k.lo; S.cost.hi=k.hi;} S.cost[id==='costLo'?'lo':'hi']=v; if(S.cost.lo>S.cost.hi){const t=S.cost.lo; S.cost.lo=S.cost.hi; S.cost.hi=t;} }
+  save(); $('#spec').innerHTML=specSheet();});
+document.addEventListener('click',e=>{if(e.target.id!=='costReset') return; S.cost=Object.assign({},S.cost||{},{lo:null,hi:null}); delete S.cost.lo; delete S.cost.hi; save(); $('#spec').innerHTML=specSheet();});
+
 function showFinal(){
   $('#spec').innerHTML=specSheet(); renderFinalControls();
   $('#msg3d').textContent='正在載入 3D…';
