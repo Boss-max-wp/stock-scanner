@@ -464,12 +464,13 @@ function askOwner(seller,buyer,i,price){
 }
 async function propOffer(p,i){
   const sq=B[i],o=G.own[i];
+  if(G.propDone){say(o&&o.p===p.id?`這回合已經在${sq.n}買過地或蓋過房子了，下次再停在這裡才能再蓋。`:`這回合已經處理過${sq.n}了。`);return}
   do{
     if(!o){
       if(p.cash<sq.price&&(p.bot||liquid(p)+canBorrow(p)<sq.price)){say(`${sq.n} 要 ${fmt(sq.price)}，${p.name} 的錢不夠買。`);return}
-      const v=await choose(`要買下${sq.n}嗎？`,()=>`<p>地價 <b class="num">${fmt(sq.price)}</b>，別人踩到要付 <b class="num">${fmt(sq.rent)}</b> 過路費。</p><p>蓋房子後過路費會變成 3、6、10 倍；同色地全買齊，空地過路費加倍。</p>`+`<p>你目前現金 <span class="num">${fmt(p.cash)}</span>。</p>`,
+      const v=await choose(`要買下${sq.n}嗎？`,()=>`<p>地價 <b class="num">${fmt(sq.price)}</b>，別人踩到要付 <b class="num">${fmt(sq.rent)}</b> 過路費。</p><p>蓋房子後過路費會變成 3、6、10 倍；同色地全買齊，空地過路費加倍。每次停在自己的地上只能蓋一層，買地的那一次不能馬上蓋。</p>`+`<p>你目前現金 <span class="num">${fmt(p.cash)}</span>。</p>`,
         [{label:`買下 ${fmt(sq.price)}`,v:1,kind:'primary',cost:sq.price},{label:'不買',v:0}],()=>p.cash>sq.price+1500?1:0);
-      if(v){p.cash-=sq.price;G.own[i]={p:p.id,l:0};log(`${p.name} 買下 ${sq.n}（${fmt(sq.price)}）`,p);say(`${p.name} 買下了${sq.n}！`)}
+      if(v){G.propDone=true;p.cash-=sq.price;G.own[i]={p:p.id,l:0};log(`${p.name} 買下 ${sq.n}（${fmt(sq.price)}）`,p);say(`${p.name} 買下了${sq.n}！`)}
       else say(`${p.name} 沒有買${sq.n}。`);
     }else if(o.p===p.id){
       const c=upCost(sq);
@@ -477,7 +478,7 @@ async function propOffer(p,i){
       if(p.cash<c&&(p.bot||liquid(p)+canBorrow(p)<c)){say(`回到自己的${sq.n}，但蓋房子要 ${fmt(c)}。`);return}
       const v=await choose(`在${sq.n}蓋房子？`,`<p>目前：${LV[o.l]}　→　${LV[o.l+1]}</p><p>花費 <b class="num">${fmt(c)}</b>，過路費從 <span class="num">${fmt(rentOf(i))}</span> 變成 <b class="num">${fmt(sq.rent*RENT_MULT[o.l+1])}</b>。</p>`,
         [{label:`蓋 ${fmt(c)}`,v:1,kind:'primary',cost:c},{label:'先不要',v:0}],()=>p.cash>c+2000?1:0);
-      if(v){p.cash-=c;o.l++;log(`${p.name} 在 ${sq.n} 蓋到「${LV[o.l]}」`,p);say(`${sq.n} 升級成${LV[o.l]}！`)}else say(`${p.name} 先不蓋。`);
+      if(v){G.propDone=true;p.cash-=c;o.l++;log(`${p.name} 在 ${sq.n} 蓋到「${LV[o.l]}」`,p);say(`${sq.n} 升級成${LV[o.l]}！`)}else say(`${p.name} 先不蓋。`);
     }
   }while(0);
 }
@@ -568,7 +569,7 @@ async function startTurn(){
   p.ventures=p.ventures.filter(v=>v.t>0);
   if(done.length&&!p.bot){G.phase='choose';render();await notify('創業投資揭曉',done.map(d=>`<p>「${d.v.n}」${d.t}：投入 ${fmt(d.v.cost)}，拿回 <b class="num ${d.back>=d.v.cost?'gain':'loss'}">${fmt(d.back)}</b></p>`).join(''))}
   if(p.skip>0){p.skip--;log(`${p.name} 出國旅遊中，跳過這回合`,p);say(`${p.name} 還在國外玩，跳過。`);G.phase='wait';render();await sleep(1100);return nextTurn()}
-  G.negDone=false;
+  G.negDone=false;G.propDone=false;
   G.phase='roll';say(p.bot?`${p.name} 準備擲骰子…`:`輪到 ${p.name}，擲骰子吧！`);render();
   if(p.bot){await sleep(800);doRoll()}
 }
@@ -668,7 +669,7 @@ function openAssets(p){
 function showRules(){
   openSheet('玩法',`<p>2～4 人輪流擲兩顆骰子繞台灣一圈圈走。<b>總資產</b>＝現金＋存款＋地產＋股票＋幣＋創業投資－貸款。中途破產就出局。</p><p>開新遊戲時可以選三種結束方式：<b>比輪數</b>（輪數到了資產最高的人贏）、<b>先達標</b>（誰先達到目標資產就贏）、<b>撐到最後</b>（玩到其他人都破產）。</p>
   <ol class="rules">
-  <li><b>地產</b>：買地、蓋房子收過路費（空地約地價的 25%，蓋到大樓是 10 倍）。同色地買齊，空地過路費加倍。踩到別人的地，可以出價（1.5～3 倍）跟對方買，對方可以拒絕，最多加價三次。</li>
+  <li><b>地產</b>：買地、蓋房子收過路費（空地約地價的 25%，蓋到大樓是 10 倍）。同色地買齊，空地過路費加倍。每次停在自己的地上只能蓋一層，買地那一次不能馬上蓋。踩到別人的地，可以出價（1.5～3 倍）跟對方買，對方可以拒絕，最多加價三次。</li>
   <li><b>薪水</b>：每經過起點領薪水。去<b>人力銀行</b>面試、去<b>大學</b>進修可以升職，薪水從 $800 一路漲到 $4,000。</li>
   <li><b>股票</b>：三檔股票風險不同，輪到你時隨時能買賣。停在<b>證券所</b>領 6% 股利。</li>
   <li><b>企鵝幣</b>：漲跌超大的加密貨幣。停在<b>幣交易所</b>會碰到暴漲、崩盤或空投。</li>
@@ -898,7 +899,8 @@ function render(){
   const ab=$('#actBtn'),sqh=B[p.pos],oh=G.own[p.pos];
   let at='';
   if(!G.over&&!p.bot&&drivingNow()&&G.phase==='done'&&sqh.t==='prop'){
-    if(!oh)at=`買下${sqh.n} ${fmt(sqh.price)}`;
+    if(G.propDone){}
+    else if(!oh)at=`買下${sqh.n} ${fmt(sqh.price)}`;
     else if(oh.p===p.id&&oh.l<3)at=`在${sqh.n}蓋房子 ${fmt(upCost(sqh))}`;
     else if(oh.p!==p.id&&!G.negDone)at=`跟 ${G.players[oh.p].name} 出價買${sqh.n}`;
   }
