@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ["news.json", "scan.js", "patterns/**", "checkin/**", "trip/**", "vocab/**", "life/**", "house/**", ".github/workflows/scan.yml"]   # 新聞或程式更新時自動重建網頁
+    paths: ["news.json", "scan.js", "patterns/**", "checkin/**", "trip/**", "vocab/**", "life/**", "house/**", "tycoon/**", ".github/workflows/scan.yml"]   # 新聞或程式更新時自動重建網頁
 
 permissions:
   contents: read
@@ -44,7 +44,7 @@ jobs:
           path: .cache
           key: bars-${{ github.run_id }}-${{ github.run_attempt }}
       - name: 放入打卡本
-        run: mkdir -p public && cp -r checkin public/checkin && cp -r trip public/trip && cp -r vocab public/vocab && cp -r life public/life && cp -r house public/house
+        run: mkdir -p public && cp -r checkin public/checkin && cp -r trip public/trip && cp -r vocab public/vocab && cp -r life public/life && cp -r house public/house && cp -r tycoon public/tycoon
       - name: 人生資產模擬器：抓今天的真實行情
         continue-on-error: true
         run: node life/update-prices.mjs life/prices.json public/life/prices.json
