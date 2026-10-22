@@ -121,6 +121,7 @@ select,input[type=number],input[type=text],textarea{background:var(--sheet);bord
 .sheet-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--sheet)}
 .sheet-head h2{margin:0;font-family:var(--f-display);font-size:16px;letter-spacing:.05em}
 .sheet svg{display:block;width:100%;height:auto;max-height:620px}
+#plan.zoomed{cursor:grab} #plan.zoomed:active{cursor:grabbing}
 #plan,#bub{touch-action:none;-webkit-user-select:none;user-select:none}
 .tblock{display:grid;grid-template-columns:auto auto auto;border-top:1px solid var(--ink);font-size:11.5px;background:var(--sheet)}
 .tblock div{padding:5px 10px;border-right:1px solid var(--line)}
@@ -413,7 +414,7 @@ td.n{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:now
     <figure class="sheet">
       <div class="sheet-head"><h2>平面圖</h2><div class="floor-tabs" data-floortabs></div></div>
       <div class="plan-tools"><div class="row"><button class="btn sm" id="snapSel">選取的房間貼齊柱網</button><button class="btn sm" id="snapAll">這層全部貼齊柱網</button></div><div class="legend"><span><i class="lg-gap"></i>沒規劃到的空隙</span><span><i class="lg-ov"></i>重疊</span><span id="planStats"></span></div>
-      <p class="hint" style="margin:0">點房間選取後，拖曳中間移動；拖曳四邊的<b>小把手</b>可以改大小。點家具後，用平面圖下方的按鈕<b>旋轉、複製、刪除</b>。太小看不清楚就按平面圖下方的<b>＋</b>放大（電腦也可以 Ctrl＋滾輪，手機用兩指縮放）。</p></div>
+      <p class="hint" style="margin:0">點房間選取後，拖曳中間移動；拖曳四邊的<b>小把手</b>可以改大小。點家具後，用平面圖下方的按鈕<b>旋轉、複製、刪除</b>。太小看不清楚就按平面圖下方的<b>＋</b>放大，放大後，<b>拖曳空白處或沒選取的房間</b>就能移動畫面；要搬房間，先點一下選取它再拖（電腦也可以 Ctrl＋滾輪，手機用兩指縮放）。</p></div>
       <div class="planwrap" id="planWrap">
         <svg id="plan" role="img" aria-label="平面圖"></svg>
       </div>
@@ -1182,7 +1183,7 @@ function drawPlan(){
   const svg=$('#plan'); const VW=bw+2*m, VH=bh+2*m+(land?.6*u:0); PV={x:vx,y:vy,w:VW,h:VH};
   if(ZM.k>1.01){ const w=VW/ZM.k, h=VH/ZM.k; let cx=ZM.cx==null?vx+VW/2:ZM.cx, cy=ZM.cy==null?vy+VH/2:ZM.cy;
     cx=Math.min(vx+VW-w/2,Math.max(vx+w/2,cx)); cy=Math.min(vy+VH-h/2,Math.max(vy+h/2,cy)); ZM.cx=cx; ZM.cy=cy;
-    svg.setAttribute('viewBox',`${cx-w/2} ${cy-h/2} ${w} ${h}`); } else { ZM.k=1; ZM.cx=ZM.cy=null; svg.setAttribute('viewBox',`${vx} ${vy} ${VW} ${VH}`); }
+    svg.setAttribute('viewBox',`${cx-w/2} ${cy-h/2} ${w} ${h}`); svg.classList.add('zoomed'); } else { svg.classList.remove('zoomed'); ZM.k=1; ZM.cx=ZM.cy=null; svg.setAttribute('viewBox',`${vx} ${vy} ${VW} ${VH}`); }
   const {sx,sy}=A.m;
   let o='';
   if(land){
@@ -1528,8 +1529,11 @@ plan.addEventListener('pointerdown',e=>{
     plan.setPointerCapture(e.pointerId); e.preventDefault(); setCtx({type:'furn'},false);
     anchor(plan,()=>{ if(tab!=='room') setTab('room'); renderAll({keepList:true}); }); return; }
   const g=e.target.closest('.room');
+  if(!g){ // 空白處：拖曳移動整張圖（放大時），沒移動就當作取消選取
+    drag={pan:true,x0:e.clientX,y0:e.clientY,cx:ZM.cx,cy:ZM.cy,moved:false}; plan.setPointerCapture(e.pointerId); e.preventDefault(); return; }
+  if(ZM.k>1.01&&+g.dataset.id!==selId){ // 放大時：拖曳沒選取的房間＝移動畫面；點一下＝選取
+    drag={pan:true,x0:e.clientX,y0:e.clientY,cx:ZM.cx,cy:ZM.cy,moved:false,sel:+g.dataset.id}; plan.setPointerCapture(e.pointerId); e.preventDefault(); return; }
   if(selFurn!=null){selFurn=null;}
-  if(!g){ if(selId!=null){selId=null;} drawPlan(); markList(); return; }
   const r=room(+g.dataset.id); const p=pt(e);
   selId=r.id; drag={id:r.id,dx:p.x-r.x,dy:p.y-r.y,T:targets(r.id)};
   plan.setPointerCapture(e.pointerId); e.preventDefault();
@@ -1540,6 +1544,9 @@ plan.addEventListener('pointermove',e=>{
     let v=dir==='x'?p.x:p.y; const T=targets(-1), arr=(dir==='x'?T.xs:T.ys).filter(z=>Math.abs(z-a[i])>1e-6);
     const n=near(v,arr,magTol()); v=n?n.v:q4(v); v=Math.min(a[i+1]-0.5,Math.max(a[i-1]+0.5,v));
     if(Math.abs(v-a[i])<1e-6) return; a[i]=v; const sp=spans(a); if(dir==='x') S.spanX=sp; else S.spanY=sp; liveStruct(); return; }
+  if(drag&&drag.pan){ const dx=e.clientX-drag.x0, dy=e.clientY-drag.y0; if(Math.hypot(dx,dy)>4) drag.moved=true;
+    if(!drag.moved||ZM.k<=1.01) return; const rect=plan.getBoundingClientRect(), w=PV.w/ZM.k, h=PV.h/ZM.k, sc=Math.max(w/rect.width,h/rect.height);
+    ZM.cx=drag.cx-dx*sc; ZM.cy=drag.cy-dy*sc; drawPlan(); return; }
   if(drag&&drag.furn){ const f=S.furn.find(x=>x.id===drag.furn); if(!f) return; const p=pt(e), s=fSize(f), tol=0.15;
     const xs=[0,S.W], ys=[0,S.D]; S.rooms.filter(r=>r.f===f.f).forEach(r=>{xs.push(r.x,r.x+r.w); ys.push(r.y,r.y+r.d);});
     S.furn.filter(o=>o!==f&&o.f===f.f).forEach(o=>{const t=fSize(o); xs.push(o.x,o.x+t.w); ys.push(o.y,o.y+t.d);});
@@ -1560,7 +1567,9 @@ plan.addEventListener('pointermove',e=>{
   ['x','y','w','d'].forEach(k=>r[k]=Math.round(r[k]*1000)/1000);
   if(before!==r.x+','+r.y+','+r.w+','+r.d) liveUpdate(r);
 });
-const endDrag=()=>{if(drag){drag=null; anchor(plan,()=>renderAll({keepList:true}));}};
+const endDrag=()=>{ if(drag&&drag.pan){ const moved=drag.moved, sel=drag.sel; drag=null;
+    if(!moved){ selFurn=null; selId=sel||null; if(sel) setCtx({type:'room',id:sel},false); anchor(plan,()=>renderAll({keepList:true})); } return; }
+  if(drag){drag=null; anchor(plan,()=>renderAll({keepList:true}));}};
 plan.addEventListener('pointerup',endDrag); plan.addEventListener('pointercancel',endDrag);
 // snap to column grid
 function snapRoomToGrid(r,tol){
