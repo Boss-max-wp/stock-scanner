@@ -216,6 +216,47 @@ header h1{display:flex;align-items:center;gap:10px}
 .sheet .acts button.primary{background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 70%,#fff),var(--accent));box-shadow:0 3px 0 var(--gold-deep)}
 .asset,.rank div{border-radius:14px}
 @media (prefers-reduced-motion: reduce){.cell .tok i.me,.die.bump,.float{animation:none}}
+
+/* ---- night-market theme ---- */
+:root{--bg:#EDEFF7;--dot:#D3D8EC;--frame:#262C66;--felt:#1C2052;--felt-hi:#3B3F99;--on-felt:#F7F4FF;--on-felt-muted:#BDB9EC;--corner:#FFF5E1;--shadow:rgba(30,34,90,.16);--lantern:#E8432E;--lantern-glow:#FFB347}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0D0F21;--dot:#1A1E3A;--frame:#161A40;--felt:#13163A;--felt-hi:#2C3080;--corner:#262418;--panel:#151833;--cell:#1C2044;--line:#2D3260;--shadow:rgba(0,0,0,.5)}}
+:root[data-theme="dark"]{--bg:#0D0F21;--dot:#1A1E3A;--frame:#161A40;--felt:#13163A;--felt-hi:#2C3080;--corner:#262418;--panel:#151833;--cell:#1C2044;--line:#2D3260;--shadow:rgba(0,0,0,.5)}
+.cell{grid-row:var(--r8);grid-column:var(--c8)}
+.center{background:radial-gradient(ellipse at 50% 18%,var(--felt-hi),var(--felt) 70%);background-color:var(--felt);overflow:hidden}
+.center::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.55;
+  background-image:radial-gradient(1.2px 1.2px at 12% 30%,#fff,transparent),radial-gradient(1px 1px at 78% 22%,#fff,transparent),radial-gradient(1.4px 1.4px at 64% 70%,#fff,transparent),radial-gradient(1px 1px at 24% 82%,#fff,transparent),radial-gradient(1.2px 1.2px at 88% 58%,#fff,transparent),radial-gradient(1px 1px at 40% 48%,#fff,transparent)}
+.lanterns{position:absolute;top:0;left:-4%;right:-4%;height:44px;display:flex;justify-content:space-around;align-items:flex-start;pointer-events:none;z-index:1}
+.lanterns::before{content:"";position:absolute;left:0;right:0;top:-30px;height:44px;border-bottom:1.5px solid rgba(255,255,255,.35);border-radius:0 0 50% 50%}
+.lanterns i{position:relative;width:15px;height:19px;margin-top:9px;border-radius:45%;background:radial-gradient(circle at 50% 40%,var(--lantern-glow),var(--lantern) 70%);box-shadow:0 0 12px 2px color-mix(in srgb,var(--lantern-glow) 60%,transparent);transform-origin:50% -8px;animation:sway 3s ease-in-out infinite}
+.lanterns i::before{content:"";position:absolute;left:3px;right:3px;top:-3px;height:4px;background:#E9B949;border-radius:2px}
+.lanterns i:nth-child(2),.lanterns i:nth-child(6){margin-top:15px;animation-delay:-1s}
+.lanterns i:nth-child(3),.lanterns i:nth-child(5){margin-top:19px;animation-delay:-2s}
+.lanterns i:nth-child(4){margin-top:21px;background:radial-gradient(circle at 50% 40%,#FFF0A8,var(--accent) 70%)}
+@keyframes sway{50%{transform:rotate(6deg)}}
+.center .wm{opacity:.06;color:#fff}
+.ctop{margin-top:22px;background:rgba(255,255,255,.1)}
+.tray{padding:10px 16px;border-radius:999px;background:radial-gradient(ellipse at 50% 30%,#7A4A2A,#4E2C17);box-shadow:inset 0 4px 10px rgba(0,0,0,.5),0 2px 0 rgba(255,255,255,.12);z-index:1}
+#msg{background:rgba(255,255,255,.1);border-radius:14px;padding:7px 12px;position:relative}
+#msg:empty{visibility:hidden}
+.ticker{position:absolute;left:0;right:0;bottom:0;overflow:hidden;background:rgba(0,0,0,.28);border-top:1px solid rgba(255,255,255,.1);font-size:clamp(10px,2.8vw,12px);white-space:nowrap;z-index:1}
+.ticker .tk{display:inline-flex;gap:22px;padding:5px 0;animation:tick 22s linear infinite}
+.ticker span{color:var(--on-felt-muted)} .ticker b{color:var(--on-felt);font-weight:600}
+.ticker em{font-style:normal;font-family:var(--f-num)} .ticker .up{color:#7BE3A6} .ticker .dn{color:#FF8A75}
+@keyframes tick{to{transform:translateX(-50%)}}
+#fx{position:fixed;inset:0;pointer-events:none;z-index:40;width:100%;height:100%}
+.center{padding-bottom:30px}
+@media (max-width:699px){
+  .board{grid-template:repeat(10,minmax(0,1fr))/repeat(6,minmax(0,1fr));aspect-ratio:6/10;max-width:none}
+  .cell{grid-row:var(--r6);grid-column:var(--c6);font-size:clamp(10px,3.1vw,13.5px)}
+  .cell .ic{width:clamp(16px,5vw,22px);height:clamp(16px,5vw,22px)}
+  .cell.corner .ic{width:clamp(18px,5.6vw,26px);height:clamp(18px,5.6vw,26px)}
+  .center{grid-row:2/10;grid-column:2/6;gap:12px}
+  .center .wm{writing-mode:vertical-rl;font-size:clamp(90px,30vw,150px)}
+  .die{width:clamp(44px,13vw,58px)}
+  .cbtns{flex-wrap:wrap;justify-content:center}
+  #msg{max-width:24ch}
+}
+@media (prefers-reduced-motion: reduce){.lanterns i,.ticker .tk{animation:none}}
 </style>
 
 <div id="app">
@@ -225,13 +266,15 @@ header h1{display:flex;align-items:center;gap:10px}
   </header>
   <div class="board" id="board">
     <div class="center">
+      <div class="lanterns" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
       <div class="wm">致富</div>
       <div class="ctop"><span class="who" id="who"></span><span class="rd" id="rd"></span></div>
-      <div class="dice"><div class="die" id="d1"></div><div class="die" id="d2"></div></div>
+      <div class="tray"><div class="dice"><div class="die" id="d1"></div><div class="die" id="d2"></div></div></div>
       <p id="msg"></p>
       <button id="actBtn" hidden></button>
       <button id="mainBtn">擲骰子</button>
       <div class="cbtns"><button id="mktBtn">股市・幣市</button><button id="bankBtn">網銀</button><button id="meBtn">資產</button></div>
+      <div class="ticker" aria-label="即時行情"><div class="tk" id="ticker"></div></div>
     </div>
   </div>
   <div class="side">
@@ -239,6 +282,7 @@ header h1{display:flex;align-items:center;gap:10px}
     <div class="logbox"><h2>事件紀錄</h2><ul id="log"></ul></div>
   </div>
 </div>
+<canvas id="fx" aria-hidden="true"></canvas>
 <div id="sheetWrap" hidden><div class="backdrop" id="bd"></div><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
 
 <script>
@@ -294,16 +338,10 @@ const RENT_MULT=[1,3,6,10];
 function credit(p){
   let land=0;for(const i in G.own){const o=G.own[i];if(o.p===p.id)land+=B[i].price+o.l*upCost(B[i])}
   const st=['chip','ship','bio'].reduce((s,k)=>s+p.hold[k]*G.prices[k],0),cn=p.hold.coin*G.prices.coin;
-  const parts=[['薪水信用（4 個月薪水）',salary(p)*4,salary(p)*4],['地產 × 60%',land,land*.6],['股票 × 50%',st,st*.5],['企鵝幣 × 20%',cn,cn*.2],['存款 × 90%（扣掉貸款後的部分）',Math.max(0,p.savings-p.loan),Math.max(0,p.savings-p.loan)*.9]];
+  const parts=[['薪水信用（4 個月薪水）',salary(p)*4,salary(p)*4],['地產 × 60%',land,land*.6],['股票 × 50%',st,st*.5],['企鵝幣 × 20%',cn,cn*.2],['存款 × 90%',p.savings,p.savings*.9]];
   return {parts,cap:Math.floor(parts.reduce((s,x)=>s+x[2],0)/100)*100};
 }
 const loanCap=p=>credit(p).cap;
-// 九折只給「借超過一圈」的舊貸款；這一圈才借的錢要全額還，不然借了馬上九折還會白賺 10%
-const LOAN_LAPS=3; // 借錢後，經過起點 3 次內要還清
-function borrowMoney(p,x){ if(!(p.loan>0)) p.loanDue=LOAN_LAPS; p.cash+=x; p.loan+=x; p.loanNew=(p.loanNew||0)+x; }
-const dueText=p=>p.loan>0?(p.loanDue<=1?'下次經過起點就到期！':`再經過起點 ${p.loanDue} 次到期`):'';
-const freshLoan=p=>Math.min(p.loan,p.loanNew||0);
-const discPay=p=>Math.round((p.loan-freshLoan(p))*.9)+freshLoan(p);
 const canBorrow=p=>Math.max(0,Math.floor((loanCap(p)-p.loan)/100)*100);
 B.forEach(s=>{if(s.t==='prop')s.rent=Math.round(s.price*.25/10)*10});
 const LV=['空地','一棟','兩棟','大樓'];
@@ -318,8 +356,10 @@ const meP=()=>G.online?G.players.find(x=>!x.bot&&x.uid===NET.uid):(cur().bot?(G.
 const salary=p=>JOBS[p.job][1];
 function log(t,p){G.log.unshift({t,c:p?p.color:'var(--muted)'});G.log.length=Math.min(G.log.length,80)}
 function say(t){G.msg=t}
+function fx(){if(G)G.fx=(G.fx||0)+1}
 
 function rc(i){if(i<=7)return[8,8-i];if(i<=14)return[8-(i-7),1];if(i<=21)return[1,1+(i-14)];return[1+(i-21),8]}
+function rc6(i){if(i<=5)return[10,6-i];if(i<=14)return[10-(i-5),1];if(i<=19)return[1,1+(i-14)];return[1+(i-19),6]}
 
 function newGame(cfg){
   const prices={},hist={},prev={};
@@ -358,7 +398,7 @@ function payTo(p,amt,to){
   if(paid<amt)bankrupt(p);return paid;
 }
 function bankrupt(p){
-  p.out=true;p.cash=0;p.savings=0;p.loan=0;p.loanNew=0;p.ventures=[];AK.forEach(k=>p.hold[k]=0);
+  p.out=true;p.cash=0;p.savings=0;p.loan=0;p.ventures=[];AK.forEach(k=>p.hold[k]=0);
   for(const i in G.own)if(G.own[i].p===p.id)delete G.own[i];
   log(`${p.name} 破產出局了！`,p);
   if(G.players.filter(x=>!x.out).length<=1)gameOver();
@@ -367,15 +407,7 @@ function passStart(p){
   const s=salary(p);p.cash+=s;let t=`${p.name} 經過起點，領薪水 ${fmt(s)}`;
   if(p.savings>0){const it=Math.round(p.savings*.05);p.savings+=it;t+=`，存款利息 ${fmt(it)}`}
   if(p.loan>0){const it=Math.round(p.loan*.08);p.loan+=it;t+=`，貸款利息 ${fmt(it)}`}
-  p.loanNew=0;
   log(t,p);
-  if(p.loan>0){
-    p.loanDue=(p.loanDue||LOAN_LAPS)-1;
-    if(p.loanDue<=0){
-      const owe=p.loan;log(`${p.name} 的貸款到期了，銀行強制收回 ${fmt(owe)}`,p);say(`${p.name} 的貸款到期，銀行來收錢了！`);
-      p.loan=0;p.loanNew=0;p.loanDue=0;payTo(p,owe,null);
-    }else if(p.loanDue===1) log(`⚠ ${p.name} 的貸款下次經過起點就到期，要準備 ${fmt(Math.round(p.loan*1.08))} 還款，不然銀行會強制賣你的東西`,p);
-  }
 }
 function tickMarket(){
   AK.forEach(k=>{const a=ASSETS[k];G.prev[k]=G.prices[k];let m=Math.exp(a.drift-a.vol*a.vol/2+a.vol*gauss());
@@ -473,7 +505,7 @@ async function landOn(p){
       [{label:'打工賺現金',v:1,kind:'primary'},{label:'面試升職',v:2,disabled:top},{label:'離開',v:0}],()=>top?1:(p.job<3?2:1));
     const d=d6();
     if(v===1){p.cash+=d*250;log(`${p.name} 打工擲出 ${d}，賺 ${fmt(d*250)}`,p);say(`打工賺了 ${fmt(d*250)}。`)}
-    else if(v===2){if(d>=4){p.job++;log(`${p.name} 面試擲出 ${d}，升為 ${JOBS[p.job][0]}！`,p);say(`擲出 ${d}，面試成功！升為${JOBS[p.job][0]}。`)}else{log(`${p.name} 面試擲出 ${d}，沒錄取`,p);say(`擲出 ${d}，這次沒上。`)}
+    else if(v===2){if(d>=4){p.job++;fx();log(`${p.name} 面試擲出 ${d}，升為 ${JOBS[p.job][0]}！`,p);say(`擲出 ${d}，面試成功！升為${JOBS[p.job][0]}。`)}else{log(`${p.name} 面試擲出 ${d}，沒錄取`,p);say(`擲出 ${d}，這次沒上。`)}
       if(!p.bot){render();await notify('面試結果',`<p>擲出 <b class="big">${d}</b></p><p>${d>=4?'錄取了！你升為 '+JOBS[p.job][0]+'。':'差一點，下次再來。'}</p>`)}}
     break}
   case 'school':{
@@ -533,13 +565,12 @@ function askOwner(seller,buyer,i,price){
 }
 async function propOffer(p,i){
   const sq=B[i],o=G.own[i];
-  if(G.propDone){say(o&&o.p===p.id?`這回合已經在${sq.n}買過地或蓋過房子了，下次再停在這裡才能再蓋。`:`這回合已經處理過${sq.n}了。`);return}
   do{
     if(!o){
       if(p.cash<sq.price&&(p.bot||liquid(p)+canBorrow(p)<sq.price)){say(`${sq.n} 要 ${fmt(sq.price)}，${p.name} 的錢不夠買。`);return}
-      const v=await choose(`要買下${sq.n}嗎？`,()=>`<p>地價 <b class="num">${fmt(sq.price)}</b>，別人踩到要付 <b class="num">${fmt(sq.rent)}</b> 過路費。</p><p>蓋房子後過路費會變成 3、6、10 倍；同色地全買齊，空地過路費加倍。每次停在自己的地上只能蓋一層，買地的那一次不能馬上蓋。</p>`+`<p>你目前現金 <span class="num">${fmt(p.cash)}</span>。</p>`,
+      const v=await choose(`要買下${sq.n}嗎？`,()=>`<p>地價 <b class="num">${fmt(sq.price)}</b>，別人踩到要付 <b class="num">${fmt(sq.rent)}</b> 過路費。</p><p>蓋房子後過路費會變成 3、6、10 倍；同色地全買齊，空地過路費加倍。</p>`+`<p>你目前現金 <span class="num">${fmt(p.cash)}</span>。</p>`,
         [{label:`買下 ${fmt(sq.price)}`,v:1,kind:'primary',cost:sq.price},{label:'不買',v:0}],()=>p.cash>sq.price+1500?1:0);
-      if(v){G.propDone=true;p.cash-=sq.price;G.own[i]={p:p.id,l:0};log(`${p.name} 買下 ${sq.n}（${fmt(sq.price)}）`,p);say(`${p.name} 買下了${sq.n}！`)}
+      if(v){p.cash-=sq.price;G.own[i]={p:p.id,l:0};fx();log(`${p.name} 買下 ${sq.n}（${fmt(sq.price)}）`,p);say(`${p.name} 買下了${sq.n}！`)}
       else say(`${p.name} 沒有買${sq.n}。`);
     }else if(o.p===p.id){
       const c=upCost(sq);
@@ -547,7 +578,7 @@ async function propOffer(p,i){
       if(p.cash<c&&(p.bot||liquid(p)+canBorrow(p)<c)){say(`回到自己的${sq.n}，但蓋房子要 ${fmt(c)}。`);return}
       const v=await choose(`在${sq.n}蓋房子？`,`<p>目前：${LV[o.l]}　→　${LV[o.l+1]}</p><p>花費 <b class="num">${fmt(c)}</b>，過路費從 <span class="num">${fmt(rentOf(i))}</span> 變成 <b class="num">${fmt(sq.rent*RENT_MULT[o.l+1])}</b>。</p>`,
         [{label:`蓋 ${fmt(c)}`,v:1,kind:'primary',cost:c},{label:'先不要',v:0}],()=>p.cash>c+2000?1:0);
-      if(v){G.propDone=true;p.cash-=c;o.l++;log(`${p.name} 在 ${sq.n} 蓋到「${LV[o.l]}」`,p);say(`${sq.n} 升級成${LV[o.l]}！`)}else say(`${p.name} 先不蓋。`);
+      if(v){p.cash-=c;o.l++;fx();log(`${p.name} 在 ${sq.n} 蓋到「${LV[o.l]}」`,p);say(`${sq.n} 升級成${LV[o.l]}！`)}else say(`${p.name} 先不蓋。`);
     }
   }while(0);
 }
@@ -575,7 +606,7 @@ async function negotiate(p,ow,i){
     let ok;
     if(ow.bot){ok=Math.random()<acceptChance(ow,i,m);if(!p.bot)await sleep(400)}
     else ok=(G.online&&ow.uid!==NET.uid)?await askRemote(ow,p,i,price):await askOwner(ow,p,i,price);
-    if(ok){p.cash-=price;ow.cash+=price;G.own[i].p=p.id;log(`${ow.name} 以 ${fmt(price)} 把 ${sq.n} 賣給 ${p.name}`,p);say(`成交！${p.name} 用 ${fmt(price)} 買下${sq.n}。`);render();
+    if(ok){p.cash-=price;ow.cash+=price;G.own[i].p=p.id;fx();log(`${ow.name} 以 ${fmt(price)} 把 ${sq.n} 賣給 ${p.name}`,p);say(`成交！${p.name} 用 ${fmt(price)} 買下${sq.n}。`);render();
       if(!p.bot)await notify('成交！',`<p>${esc(ow.name)} 答應了，${sq.n}現在是你的。</p><p class="big loss">-${fmt(price)}</p>`);return}
     log(`${p.name} 出價 ${fmt(price)} 想買 ${sq.n}，${ow.name} 拒絕了`,p);say(`${ow.name} 拒絕了 ${fmt(price)} 的出價。`);render();
   }
@@ -583,9 +614,9 @@ async function negotiate(p,ow,i){
 async function bankVisit(p){
   if(p.savings>0){const it=Math.round(p.savings*.05);p.savings+=it;log(`${p.name} 停在銀行，存款多拿 5% 利息 ${fmt(it)}`,p)}
   if(p.bot){
-    if(p.loan>0&&p.cash>p.loan+2000){const d=discPay(p);p.cash-=d;log(`${p.name} 在銀行櫃台還清貸款 ${fmt(d)}`,p);p.loan=0;p.loanNew=0;p.loanDue=0}
+    if(p.loan>0&&p.cash>p.loan+2000){const d=Math.round(p.loan*.9);p.cash-=d;log(`${p.name} 九折還清貸款 ${fmt(d)}`,p);p.loan=0}
     else if(p.cash>9000){const x=p.cash-5000;p.cash-=x;p.savings+=x;log(`${p.name} 存了 ${fmt(x)} 到銀行`,p)}
-    else if(p.cash<1500&&canBorrow(p)>=3000&&!(p.loan>0&&p.loanDue<=1)){borrowMoney(p,3000);log(`${p.name} 向銀行借了 $3,000`,p)}
+    else if(p.cash<1500&&canBorrow(p)>=3000){p.loan+=3000;p.cash+=3000;log(`${p.name} 向銀行借了 $3,000`,p)}
     say(`${p.name} 去了銀行。`);await sleep(500);return;
   }
   await bankLoop(p,true);
@@ -593,36 +624,31 @@ async function bankVisit(p){
 }
 async function bankLoop(p,branch){
   while(true){
-    const half=Math.floor(p.cash/2/100)*100,disc=discPay(p),fresh=freshLoan(p);
-    const payAll=Math.min(p.loan,Math.floor(Math.max(0,p.cash)));
-    const repay=[{label:'還 $1,000',v:'r1',disabled:p.loan<1000||p.cash<1000},{label:'還 $3,000',v:'r3',disabled:p.loan<3000||p.cash<3000},
-      {label:payAll>0&&payAll<p.loan?`現金全部拿去還 ${fmt(payAll)}`:'現金全部拿去還',v:'ra',disabled:!(payAll>0&&payAll<p.loan)}];
+    const half=Math.floor(p.cash/2/100)*100,disc=Math.round(p.loan*.9);
     const cr=credit(p),av=canBorrow(p);
-    const kv=`<div class="kv"><span>現金</span><span class="num">${fmt(p.cash)}</span><span>存款（每過起點 +5%）</span><span class="num gain">${fmt(p.savings)}</span><span>已借貸款（每過起點 +8%）</span><span class="num loss">${fmt(p.loan)}</span>${p.loan>0?`<span><b>還款期限</b></span><span class="${p.loanDue<=1?'loss':''}"><b>${dueText(p)}</b></span>`:''}<span><b>還能借</b></span><span class="num"><b>${fmt(av)}</b></span></div>
+    const kv=`<div class="kv"><span>現金</span><span class="num">${fmt(p.cash)}</span><span>存款（每過起點 +5%）</span><span class="num gain">${fmt(p.savings)}</span><span>已借貸款（每過起點 +8%）</span><span class="num loss">${fmt(p.loan)}</span><span><b>還能借</b></span><span class="num"><b>${fmt(av)}</b></span></div>
     <details style="margin-top:8px;font-size:13px"><summary style="cursor:pointer;color:var(--muted)">銀行怎麼算你能借多少（總額度 ${fmt(cr.cap)}）</summary>
     <div class="kv" style="margin-top:6px;font-size:13px">${cr.parts.map(x=>`<span>${x[0]}${x[1]&&x[0][0]!=='薪'?`（值 ${fmt(x[1])}）`:''}</span><span class="num">${fmt(x[2])}</span>`).join('')}</div>
     <p style="margin:6px 0 0;color:var(--muted)">資產越多、職位越高，能借越多。額度扣掉已借的，就是還能借的。</p></details>`;
     const note=branch
-      ?`<p style="margin-top:10px">你在銀行櫃台，這裡才有的服務：<b>存錢</b>、<b>還清貸款打九折</b>，而且存款已經多給你一次 5% 利息。</p>${fresh?`<p class="hint">九折只算借超過一圈的貸款。這一圈才借的 <b class="num">${fmt(fresh)}</b> 要全額還，經過起點之後才能打折。</p>`:''}`
-      :`<p style="margin-top:10px">這是手機網銀，可以借錢、還錢、領錢。還錢可以分好幾次還，錢不夠就先還一部分。<b>存錢</b>和<b>還款打九折</b>要走到棋盤上的「銀行」格子才能辦。</p>`;
+      ?`<p style="margin-top:10px">你在銀行櫃台，這裡才有的服務：<b>存錢</b>、<b>還清貸款打九折</b>，而且存款已經多給你一次 5% 利息。</p>`
+      :`<p style="margin-top:10px">這是手機網銀，可以借錢、還錢、領錢。<b>存錢</b>和<b>還款打九折</b>要走到棋盤上的「銀行」格子才能辦。</p>`;
     const borrow=[{label:'借 $1,000',v:'b1',disabled:av<1000},{label:'借 $3,000',v:'b3',disabled:av<3000},{label:av?`借滿 ${fmt(av)}`:'額度用完了',v:'bm',disabled:av<100}];
     const acts=branch
       ?[...borrow,{label:'存 $1,000',v:'d1',disabled:p.cash<1000},{label:`存一半 ${fmt(half)}`,v:'dh',disabled:half<100},
-        ...repay,
-        {label:p.loan?(fresh>=p.loan?`還清 ${fmt(disc)}（剛借的不打折）`:`九折還清 ${fmt(disc)}`):'九折還清貸款',v:'rd',disabled:!p.loan||p.cash<disc},
+        {label:p.loan?`九折還清 ${fmt(disc)}`:'九折還清貸款',v:'rd',disabled:!p.loan||p.cash<disc},
         {label:'全部領出',v:'w',disabled:!p.savings},{label:'離開銀行',v:0,kind:'primary'}]
-      :[...borrow,...repay,
+      :[...borrow,{label:'還 $3,000',v:'r3',disabled:p.loan<3000||p.cash<3000},
         {label:'還清貸款',v:'r',disabled:!p.loan||p.cash<p.loan},{label:'全部領出',v:'w',disabled:!p.savings},{label:'關閉',v:0,kind:'primary'}];
     const v=await choose(branch?'銀行櫃台':'手機網銀',kv+note,acts,()=>0,true);
     if(!v)break;
     if(v==='d1'){p.cash-=1000;p.savings+=1000}
     if(v==='dh'){p.cash-=half;p.savings+=half}
     if(v==='w'){p.cash+=p.savings;log(`${p.name} 領出存款 ${fmt(p.savings)}`,p);p.savings=0}
-    if(v==='b1'||v==='b3'||v==='bm'){const x=v==='b1'?1000:v==='b3'?3000:av;borrowMoney(p,x);log(`${p.name} 借款 ${fmt(x)}（${dueText(p)}）`,p)}
-    if(v==='r1'||v==='r3'||v==='ra'){const x=v==='r1'?1000:v==='r3'?3000:payAll;p.cash-=x;p.loan-=x;p.loanNew=Math.max(0,(p.loanNew||0)-x);log(`${p.name} 還款 ${fmt(x)}，還欠 ${fmt(p.loan)}`,p);if(p.loan<=0)p.loanDue=0}
-    if(v==='r'){p.cash-=p.loan;log(`${p.name} 還清貸款 ${fmt(p.loan)}`,p);p.loan=0;p.loanNew=0;p.loanDue=0}
-    if(v==='rd'){p.cash-=disc;log(`${p.name} 在銀行櫃台還清貸款 ${fmt(disc)}`,p);p.loan=0;p.loanNew=0;p.loanDue=0}
-
+    if(v==='b1'||v==='b3'||v==='bm'){const x=v==='b1'?1000:v==='b3'?3000:av;p.cash+=x;p.loan+=x;log(`${p.name} 借款 ${fmt(x)}`,p)}
+    if(v==='r3'){p.cash-=3000;p.loan-=3000;log(`${p.name} 還款 $3,000`,p)}
+    if(v==='r'){p.cash-=p.loan;log(`${p.name} 還清貸款 ${fmt(p.loan)}`,p);p.loan=0}
+    if(v==='rd'){p.cash-=disc;log(`${p.name} 在銀行櫃台九折還清貸款 ${fmt(disc)}`,p);p.loan=0}
     render();
   }
 }
@@ -630,6 +656,7 @@ async function bankLoop(p,branch){
 function resolveVenture(p,v){
   const r=Math.random();let m,t;
   if(r<.4){m=0;t='倒閉了'}else if(r<.65){m=1;t='打平收場'}else if(r<.9){m=3;t='大成功'}else{m=8;t='變成獨角獸'}
+  if(m>=3)fx();
   const back=v.cost*m;p.cash+=back;
   log(`${p.name} 投資的「${v.n}」${t}，拿回 ${fmt(back)}（投入 ${fmt(v.cost)}）`,p);
   return {t,back,v};
@@ -643,7 +670,7 @@ async function startTurn(){
   p.ventures=p.ventures.filter(v=>v.t>0);
   if(done.length&&!p.bot){G.phase='choose';render();await notify('創業投資揭曉',done.map(d=>`<p>「${d.v.n}」${d.t}：投入 ${fmt(d.v.cost)}，拿回 <b class="num ${d.back>=d.v.cost?'gain':'loss'}">${fmt(d.back)}</b></p>`).join(''))}
   if(p.skip>0){p.skip--;log(`${p.name} 出國旅遊中，跳過這回合`,p);say(`${p.name} 還在國外玩，跳過。`);G.phase='wait';render();await sleep(1100);return nextTurn()}
-  G.negDone=false;G.propDone=false;
+  G.negDone=false;
   G.phase='roll';say(p.bot?`${p.name} 準備擲骰子…`:`輪到 ${p.name}，擲骰子吧！`);render();
   if(p.bot){await sleep(800);doRoll()}
 }
@@ -734,7 +761,7 @@ function openAssets(p){
     <span>職位</span><span>${JOBS[p.job][0]}（薪水 ${fmt(salary(p))}）</span>
     <span>現金</span><span class="num">${fmt(p.cash)}</span>
     <span>銀行存款</span><span class="num gain">${fmt(p.savings)}</span>
-    <span>貸款</span><span class="num loss">${fmt(p.loan)}${p.loan>0?`<br><small>${dueText(p)}</small>`:''}</span>
+    <span>貸款</span><span class="num loss">${fmt(p.loan)}</span>
     <span>總資產</span><span class="num"><b>${fmt(worth(p))}</b></span></div>
     <div class="sec"><h3>地產</h3><div class="chips">${props.length?props.map(i=>`<span class="chip"><i style="background:var(--g${B[i].g})"></i>${B[i].n}・${LV[G.own[i].l]}・過路費 ${fmt(rentOf(i))}</span>`).join(''):'<span style="color:var(--muted)">還沒有地</span>'}</div></div>
     <div class="sec"><h3>股票與加密貨幣</h3><div class="chips">${stocks.length?stocks.map(k=>`<span class="chip">${ASSETS[k].n} ${p.hold[k]}${ASSETS[k].u}・${fmt(p.hold[k]*G.prices[k])}</span>`).join(''):'<span style="color:var(--muted)">沒有持有</span>'}</div></div>
@@ -743,12 +770,12 @@ function openAssets(p){
 function showRules(){
   openSheet('玩法',`<p>2～4 人輪流擲兩顆骰子繞台灣一圈圈走。<b>總資產</b>＝現金＋存款＋地產＋股票＋幣＋創業投資－貸款。中途破產就出局。</p><p>開新遊戲時可以選三種結束方式：<b>比輪數</b>（輪數到了資產最高的人贏）、<b>先達標</b>（誰先達到目標資產就贏）、<b>撐到最後</b>（玩到其他人都破產）。</p>
   <ol class="rules">
-  <li><b>地產</b>：買地、蓋房子收過路費（空地約地價的 25%，蓋到大樓是 10 倍）。同色地買齊，空地過路費加倍。每次停在自己的地上只能蓋一層，買地那一次不能馬上蓋。踩到別人的地，可以出價（1.5～3 倍）跟對方買，對方可以拒絕，最多加價三次。</li>
+  <li><b>地產</b>：買地、蓋房子收過路費（空地約地價的 25%，蓋到大樓是 10 倍）。同色地買齊，空地過路費加倍。踩到別人的地，可以出價（1.5～3 倍）跟對方買，對方可以拒絕，最多加價三次。</li>
   <li><b>薪水</b>：每經過起點領薪水。去<b>人力銀行</b>面試、去<b>大學</b>進修可以升職，薪水從 $800 一路漲到 $4,000。</li>
   <li><b>股票</b>：三檔股票風險不同，輪到你時隨時能買賣。停在<b>證券所</b>領 6% 股利。</li>
   <li><b>企鵝幣</b>：漲跌超大的加密貨幣。停在<b>幣交易所</b>會碰到暴漲、崩盤或空投。</li>
   <li><b>創業園區</b>：投資新創，3 回合後可能倒閉、打平、翻 3 倍或翻 8 倍。</li>
-  <li><b>網銀</b>（中間按鈕）：輪到你時隨時借錢、還錢、領存款。貸款每過起點 +8%，而且<b>借錢後經過起點 3 次內要還清</b>，到期還沒還，銀行會強制收回：先拿現金和存款，不夠就賣股票、企鵝幣、半價賣地，還不夠就破產。能借多少看你的資產：4 個月薪水＋地產 60%＋股票 50%＋企鵝幣 20%＋存款 90%（存款要先扣掉貸款，借來的錢存進去不會增加額度）。</li><li><b>銀行格子</b>：只有走到這裡才能<b>存錢</b>（每過起點 +5% 利息），停下來再多拿一次 5% 利息，還能<b>九折還清貸款</b>（只限借超過一圈、已經算過利息的貸款）。</li>
+  <li><b>網銀</b>（中間按鈕）：輪到你時隨時借錢、還錢、領存款。貸款每過起點 +8%。能借多少看你的資產：4 個月薪水＋地產 60%＋股票 50%＋企鵝幣 20%＋存款 90%。</li><li><b>銀行格子</b>：只有走到這裡才能<b>存錢</b>（每過起點 +5% 利息），停下來再多拿一次 5% 利息，還能<b>九折還清貸款</b>。</li>
   <li><b>夜市</b>擺攤、<b>打工</b>賺現金；<b>彩券行</b>試手氣；<b>機會／命運</b>卡有好有壞。</li>
   <li>付不出錢時，會自動提存款、賣股票和幣、最後半價賣地。</li></ol>`,[],true);
 }
@@ -953,7 +980,18 @@ async function initNet(){
 const PIPS={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
 function dieHTML(n){return Array.from({length:9},(_,i)=>`<span class="${PIPS[n].includes(i)?'on':''}"></span>`).join('')}
 let lastDice='';
-const lastCash={};
+const lastCash={};let lastFx;
+function confetti(n=90){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const cv=$('#fx'),ctx=cv.getContext('2d');cv.width=innerWidth;cv.height=innerHeight;
+  const cs=getComputedStyle(document.documentElement),cols=['--accent','--p0','--p1','--p2','--p3','--g2'].map(k=>cs.getPropertyValue(k).trim()||'#F0AA1E');
+  const ps=Array.from({length:n},()=>({x:innerWidth*(.3+Math.random()*.4),y:innerHeight*.45,vx:(Math.random()-.5)*11,vy:-6-Math.random()*9,s:5+Math.random()*6,r:Math.random()*6,vr:(Math.random()-.5)*.4,c:cols[Math.floor(Math.random()*cols.length)],coin:Math.random()<.35}));
+  let t=0;const step=()=>{t++;ctx.clearRect(0,0,cv.width,cv.height);
+    ps.forEach(q=>{q.vy+=.35;q.x+=q.vx;q.y+=q.vy;q.r+=q.vr;ctx.save();ctx.translate(q.x,q.y);ctx.rotate(q.r);ctx.fillStyle=q.c;
+      if(q.coin){ctx.beginPath();ctx.ellipse(0,0,q.s*.8,q.s*.8*Math.abs(Math.cos(q.r)),0,0,7);ctx.fill()}else ctx.fillRect(-q.s/2,-q.s/4,q.s,q.s/2);ctx.restore()});
+    if(t<110)requestAnimationFrame(step);else ctx.clearRect(0,0,cv.width,cv.height)};
+  requestAnimationFrame(step);
+}
 function renderDice(){const k=G.dice.join();const ch=k!==lastDice;lastDice=k;[$('#d1'),$('#d2')].forEach((el,i)=>{el.innerHTML=dieHTML(G.dice[i]);el.classList.toggle('d1',G.dice[i]===1);if(ch){el.classList.remove('bump');void el.offsetWidth;el.classList.add('bump')}})}
 const ICP={start:'M19 12H5M11 6l-6 6 6 6',night:'M3 9l2-5h14l2 5M4 9v11h16V9M3 9h18M9 20v-6h6v6',bank:'M3 10l9-6 9 6M5 10v8M9.7 10v8M14.3 10v8M19 10v8M3 20h18',
 tax:'M6 3h9l4 4v14H6zM9 16l6-6M9.5 10.5h.01M14.5 15.5h.01',chance:'M9 9a3 3 0 1 1 4 2.8c-.8.4-1 1-1 1.7V15M12 18.5h.01',fate:'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z',
@@ -964,7 +1002,7 @@ const HOUSE='<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 5L5 1.2 9 5
 function buildBoard(){
   const bd=$('#board');
   B.forEach((s,i)=>{const [r,c]=rc(i);const el=document.createElement('div');
-    el.className=`cell ${s.t==='prop'?'prop':''} ${s.c||''}`;el.style.gridRow=r;el.style.gridColumn=c;el.id='c'+i;
+    el.className=`cell ${s.t==='prop'?'prop':''} ${s.c||''}`;const [r6,c6]=rc6(i);el.style.setProperty('--r8',r);el.style.setProperty('--c8',c);el.style.setProperty('--r6',r6);el.style.setProperty('--c6',c6);el.id='c'+i;
     el.innerHTML=(s.t==='prop'?`<i class="band" style="background:var(--g${s.g})"></i><b>${s.n}</b><small>$${s.price}</small><span class="pips"></span>`:`${icon(s.t==='chance'&&s.n==='命運'?'fate':s.t)}<b>${s.n}</b>`)+'<span class="tok"></span>';
     bd.appendChild(el)});
 }
@@ -981,8 +1019,7 @@ function render(){
   const ab=$('#actBtn'),sqh=B[p.pos],oh=G.own[p.pos];
   let at='';
   if(!G.over&&!p.bot&&drivingNow()&&G.phase==='done'&&sqh.t==='prop'){
-    if(G.propDone){}
-    else if(!oh)at=`買下${sqh.n} ${fmt(sqh.price)}`;
+    if(!oh)at=`買下${sqh.n} ${fmt(sqh.price)}`;
     else if(oh.p===p.id&&oh.l<3)at=`在${sqh.n}蓋房子 ${fmt(upCost(sqh))}`;
     else if(oh.p!==p.id&&!G.negDone)at=`跟 ${G.players[oh.p].name} 出價買${sqh.n}`;
   }
@@ -1003,6 +1040,8 @@ function render(){
     <span class="row"><span>現金</span><span class="num">${fmt(q.cash)}</span></span>
     <span class="row"><span>總資產</span><span class="num"><b>${fmt(w)}</b></span></span>
     <span class="bar" title="占全場資產比例"><i style="width:${q.out?0:Math.max(2,Math.round(Math.max(0,w)/tot*100))}%;background:${q.color}"></i></span></button>`}).join('');
+  if(lastFx!==undefined&&(G.fx||0)>lastFx)confetti();lastFx=G.fx||0;
+  $('#ticker').innerHTML=(()=>{const one=AK.map(k=>{const ch=(G.prices[k]/G.prev[k]-1)*100;return `<span>${ASSETS[k].n} <b class="num">${fmt(G.prices[k])}</b> <em class="${ch>=0?'up':'dn'}">${ch>=0?'▲':'▼'}${Math.abs(ch).toFixed(1)}%</em></span>`}).join('');return one+one})();
   const key=G.gid||'local';
   G.players.forEach((q,i)=>{const prev=lastCash[key+':'+i];lastCash[key+':'+i]=q.cash;
     if(prev!==undefined&&prev!==q.cash){const d=q.cash-prev,el=document.createElement('span');el.className='float '+(d>0?'gain':'loss');el.textContent=(d>0?'+':'-')+fmt(Math.abs(d)).replace('-','');$('#players').children[i]?.appendChild(el)}});
