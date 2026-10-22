@@ -128,6 +128,13 @@ select,input[type=number],input[type=text],textarea{background:var(--sheet);bord
 .tblock b{display:block;font-size:10px;letter-spacing:.12em;color:var(--muted);font-weight:500}
 .tblock span{font-family:var(--f-mono)}
 .hint{color:var(--muted);font-size:12px}
+.planwrap{position:relative}
+.zoombar{position:absolute;right:8px;top:8px;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100% - 16px)}
+.zoombar .btn{background:var(--panel);min-width:34px}
+.ftool{position:absolute;z-index:5;display:flex;gap:4px;align-items:center;background:var(--panel);border:1px solid var(--accent);border-radius:8px;padding:4px 6px;box-shadow:0 6px 18px rgba(0,0,0,.25);white-space:nowrap}
+.ftool .btn{padding:6px 10px;font-size:13px;min-height:34px}
+.ftname{font-size:12.5px;font-weight:700;color:var(--accent);padding:0 4px}
+.btn.danger{border-color:var(--err);color:var(--err)}
 .plan-tools{display:flex;flex-direction:column;gap:6px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--sheet)}
 .btn.sm{padding:4px 10px;font-size:12.5px}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);align-items:center}
@@ -404,8 +411,12 @@ td.n{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:now
     <figure class="sheet">
       <div class="sheet-head"><h2>平面圖</h2><div class="floor-tabs" data-floortabs></div></div>
       <div class="plan-tools"><div class="row"><button class="btn sm" id="snapSel">選取的房間貼齊柱網</button><button class="btn sm" id="snapAll">這層全部貼齊柱網</button></div><div class="legend"><span><i class="lg-gap"></i>沒規劃到的空隙</span><span><i class="lg-ov"></i>重疊</span><span id="planStats"></span></div>
-      <p class="hint" style="margin:0">點房間選取後，拖曳中間移動；拖曳四邊的<b>小把手</b>可以改大小。靠近柱網線或其他房間的邊時，會自動吸過去。</p></div>
-      <svg id="plan" role="img" aria-label="平面圖"></svg>
+      <p class="hint" style="margin:0">點房間選取後，拖曳中間移動；拖曳四邊的<b>小把手</b>可以改大小。點家具會跳出<b>旋轉、複製、刪除</b>。太小看不清楚就按右上角<b>＋</b>放大（電腦也可以 Ctrl＋滾輪，手機用兩指縮放）。</p></div>
+      <div class="planwrap" id="planWrap">
+        <svg id="plan" role="img" aria-label="平面圖"></svg>
+        <div class="zoombar" role="group" aria-label="縮放"><button class="btn sm" data-zoom="in" aria-label="放大">＋</button><button class="btn sm" data-zoom="out" aria-label="縮小">－</button><button class="btn sm" data-zoom="sel">放大選取的</button><button class="btn sm" data-zoom="all">看全圖</button></div>
+        <div class="ftool" id="ftool" hidden><span class="ftname" id="ftName"></span><button class="btn sm" data-ft="rot">↻ 旋轉</button><button class="btn sm" data-ft="dup">複製</button><button class="btn sm danger" data-ft="del">刪除</button></div>
+      </div>
       <div class="tblock"><div><b>圖號</b><span id="planNo">A-101</span></div><div><b>內容</b><span id="planInfo"></span></div><div><b>單位</b><span>m</span></div></div>
     </figure>
     <figure class="sheet">
@@ -1164,7 +1175,10 @@ function drawPlan(){
   const bw=Math.max(...bx)-Math.min(...bx), bh=Math.max(...by)-Math.min(...by);
   const u=Math.pow(Math.max(1,Math.max(bw,bh)/12),0.85),m=2.5*u;
   const vx=Math.min(...bx)-m, vy=Math.min(...by)-m;
-  const svg=$('#plan'); svg.setAttribute('viewBox',`${vx} ${vy} ${bw+2*m} ${bh+2*m+(land?.6*u:0)}`);
+  const svg=$('#plan'); const VW=bw+2*m, VH=bh+2*m+(land?.6*u:0); PV={x:vx,y:vy,w:VW,h:VH};
+  if(ZM.k>1.01){ const w=VW/ZM.k, h=VH/ZM.k; let cx=ZM.cx==null?vx+VW/2:ZM.cx, cy=ZM.cy==null?vy+VH/2:ZM.cy;
+    cx=Math.min(vx+VW-w/2,Math.max(vx+w/2,cx)); cy=Math.min(vy+VH-h/2,Math.max(vy+h/2,cy)); ZM.cx=cx; ZM.cy=cy;
+    svg.setAttribute('viewBox',`${cx-w/2} ${cy-h/2} ${w} ${h}`); } else { ZM.k=1; ZM.cx=ZM.cy=null; svg.setAttribute('viewBox',`${vx} ${vy} ${VW} ${VH}`); }
   const {sx,sy}=A.m;
   let o='';
   if(land){
@@ -1242,6 +1256,7 @@ function drawPlan(){
   o+=drawWindowsPlan(u,Y);
   if(tab!=='bub'){ const hc=c+.36*u; o+='<g class="colhit">'; A.m.ax.forEach((x,i)=>A.m.ay.forEach((yy,j)=>{o+=`<rect x="${x-hc/2}" y="${Y(yy)-hc/2}" width="${hc}" height="${hc}" fill="transparent" data-col="${i},${j}"><title>${colName(i,j)} 柱：點一下看能不能拿掉</title></rect>`;})); o+='</g>'; }
   svg.innerHTML=o;
+  placeFtool();
   $('#planNo').textContent='A-10'+floor;
   $('#planInfo').textContent=`${floor}F 平面・${S.rooms.filter(r=>r.f===floor).length} 間`;
 }
@@ -1509,7 +1524,8 @@ plan.addEventListener('pointerdown',e=>{
     plan.setPointerCapture(e.pointerId); e.preventDefault(); setCtx({type:'furn'},false);
     anchor(plan,()=>{ if(tab!=='room') setTab('room'); renderAll({keepList:true}); }); return; }
   const g=e.target.closest('.room');
-  if(!g){ if(selId!=null){selId=null; drawPlan(); markList();} return; }
+  if(selFurn!=null){selFurn=null;}
+  if(!g){ if(selId!=null){selId=null;} drawPlan(); markList(); return; }
   const r=room(+g.dataset.id); const p=pt(e);
   selId=r.id; drag={id:r.id,dx:p.x-r.x,dy:p.y-r.y,T:targets(r.id)};
   plan.setPointerCapture(e.pointerId); e.preventDefault();
@@ -2044,6 +2060,70 @@ document.addEventListener('change',e=>{
 });
 document.addEventListener('click',e=>{const b=e.target.closest('[data-even]'); if(!b) return; if(b.dataset.even==='x') S.spanX=null; else S.spanY=null; renderAll({keepList:true});});
 
+/* ---------- 平面圖縮放＋家具浮動工具列 ---------- */
+let ZM={k:1,cx:null,cy:null}, PV={x:0,y:0,w:1,h:1};
+function zoomAt(k,cx,cy){ ZM.k=Math.min(8,Math.max(1,k)); if(cx!=null){ZM.cx=cx; ZM.cy=cy;} drawPlan(); }
+function svgPt(clientX,clientY){const sv=$('#plan'), p=sv.createSVGPoint(); p.x=clientX; p.y=clientY; return p.matrixTransform(sv.getScreenCTM().inverse());}
+function zoomToSel(){
+  const f=S.furn&&S.furn.find(x=>x.id===selFurn&&x.f===floor), r=S.rooms.find(x=>x.id===selId&&x.f===floor);
+  let bx; if(r) bx={x:r.x,y:r.y,w:r.w,d:r.d}; else if(f){const s=fSize(f); bx={x:f.x-1.5,y:f.y-1.5,w:s.w+3,d:s.d+3};} else return zoomAt(1);
+  const k=Math.min(PV.w/(bx.w+1.2),PV.h/(bx.d+1.2)); zoomAt(Math.max(1,k),bx.x+bx.w/2,S.D-(bx.y+bx.d/2));
+}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-zoom]'); if(!b) return; const z=b.dataset.zoom;
+  if(z==='in') zoomAt(ZM.k*1.5); else if(z==='out') zoomAt(ZM.k/1.5); else if(z==='all') zoomAt(1); else zoomToSel();});
+function placeFtool(){
+  const t=$('#ftool'); if(!t) return; const f=S.furn&&S.furn.find(x=>x.id===selFurn&&x.f===floor);
+  const g=f&&document.querySelector(`#plan .furn[data-fid="${f.id}"]`); if(!g||tab!=='room'){t.hidden=true; return;}
+  $('#ftName').textContent=FURN[f.k].n; t.hidden=false;
+  const wr=$('#planWrap').getBoundingClientRect(), gr=g.getBoundingClientRect(), tw=t.offsetWidth, th=t.offsetHeight;
+  let left=gr.left-wr.left+gr.width/2-tw/2, top=gr.top-wr.top-th-8; if(top<4) top=gr.bottom-wr.top+8;
+  left=Math.max(4,Math.min(wr.width-tw-4,left)); top=Math.max(4,Math.min(wr.height-th-4,top));
+  t.style.left=left+'px'; t.style.top=top+'px';
+}
+function rotFurn(f){const s0=fSize(f), cx=f.x+s0.w/2, cy=f.y+s0.d/2; f.rot=(f.rot+90)%360; const s1=fSize(f); f.x=r2(Math.min(Math.max(0,cx-s1.w/2),S.W-s1.w)); f.y=r2(Math.min(Math.max(0,cy-s1.d/2),S.D-s1.d));}
+function ftAction(a){
+  const f=S.furn.find(x=>x.id===selFurn); if(!f) return;
+  if(a==='rot') rotFurn(f);
+  else if(a==='del'){ S.furn=S.furn.filter(x=>x!==f); selFurn=null; }
+  else if(a==='dup'){ const s=fSize(f), id=Math.max(0,...S.furn.map(x=>x.id))+1; const nx=Math.min(S.W-s.w,f.x+0.3), ny=Math.max(0,f.y-0.3);
+    S.furn.push(Object.assign({},f,{id,x:r2(nx),y:r2(ny)})); selFurn=id; }
+  setCtx({type:'furn'},false); anchor($('#plan'),()=>renderAll({keepList:true}));
+}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-ft]'); if(b) ftAction(b.dataset.ft);});
+document.addEventListener('keydown',e=>{
+  if(selFurn==null||tab!=='room'||$('#v-design').hidden) return; const t=e.target; if(t&&(t.tagName==='INPUT'||t.tagName==='SELECT'||t.tagName==='TEXTAREA')) return;
+  const f=S.furn.find(x=>x.id===selFurn); if(!f) return;
+  if(e.key==='r'||e.key==='R'){e.preventDefault(); ftAction('rot');}
+  else if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault(); ftAction('del');}
+  else if(e.key.startsWith('Arrow')){ e.preventDefault(); const st=e.shiftKey?0.5:0.05, s=fSize(f);
+    if(e.key==='ArrowLeft') f.x=r2(Math.max(0,f.x-st)); if(e.key==='ArrowRight') f.x=r2(Math.min(S.W-s.w,f.x+st));
+    if(e.key==='ArrowUp') f.y=r2(Math.min(S.D-s.d,f.y+st)); if(e.key==='ArrowDown') f.y=r2(Math.max(0,f.y-st));
+    A=analyze(); drawPlan(); renderChecks(); renderCoach(); clearTimeout(ftAction.t); ftAction.t=setTimeout(()=>save(),400); }
+});
+window.addEventListener('resize',()=>placeFtool());
+// 兩指縮放（手機）＋ Ctrl＋滾輪（電腦）
+function zoomKeep(k,clientX,clientY,P0){
+  k=Math.min(8,Math.max(1,k)); const rect=$('#plan').getBoundingClientRect(), w=PV.w/k, h=PV.h/k;
+  const sc=Math.max(w/rect.width,h/rect.height); // preserveAspectRatio meet
+  const ox=(rect.width-w/sc)/2, oy=(rect.height-h/sc)/2;
+  const vbx=P0.x-(clientX-rect.left-ox)*sc, vby=P0.y-(clientY-rect.top-oy)*sc;
+  ZM.k=k; ZM.cx=vbx+w/2; ZM.cy=vby+h/2; drawPlan();
+}
+const PT=new Map(); let PZ=null;
+$('#planWrap').addEventListener('pointerdown',e=>{
+  if(e.target.closest('.zoombar,.ftool')) return;
+  PT.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(PT.size===2){ e.stopPropagation(); drag=null; const [a,b]=[...PT.values()], mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
+    PZ={d0:Math.hypot(a.x-b.x,a.y-b.y)||1,k0:ZM.k,P0:svgPt(mx,my)}; }
+},true);
+$('#planWrap').addEventListener('pointermove',e=>{
+  if(!PT.has(e.pointerId)) return; PT.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(PZ&&PT.size===2){ e.stopPropagation(); const [a,b]=[...PT.values()]; zoomKeep(PZ.k0*Math.hypot(a.x-b.x,a.y-b.y)/PZ.d0,(a.x+b.x)/2,(a.y+b.y)/2,PZ.P0); }
+},true);
+const ptEnd=e=>{PT.delete(e.pointerId); if(PT.size<2) PZ=null;};
+['pointerup','pointercancel','pointerleave'].forEach(t=>$('#planWrap').addEventListener(t,ptEnd,true));
+$('#plan').addEventListener('wheel',e=>{ if(!e.ctrlKey) return; e.preventDefault(); zoomKeep(ZM.k*Math.exp(-e.deltaY*0.01),e.clientX,e.clientY,svgPt(e.clientX,e.clientY)); },{passive:false});
+
 /* ---------- 室內擺件（家具） ---------- */
 const FURN={
   /* 臥室 */
@@ -2237,7 +2317,7 @@ document.addEventListener('click',e=>{
   const a=e.target.closest('[data-addfurn]'), ap=e.target.id==='furnAddPick', rt=e.target.closest('[data-rotfurn]'), dl=e.target.closest('[data-delfurn]');
   if(!a&&!ap&&!rt&&!dl) return;
   if(a||ap){const r=room(selId); if(!r) return; addFurn(a?a.dataset.addfurn:$('#furnPick').value,r); setCtx({type:'furn'},false);}
-  if(rt){const f=S.furn.find(x=>x.id===+rt.dataset.rotfurn); if(f){const s0=fSize(f), cx=f.x+s0.w/2, cy=f.y+s0.d/2; f.rot=(f.rot+90)%360; const s1=fSize(f); f.x=r2(Math.min(Math.max(0,cx-s1.w/2),S.W-s1.w)); f.y=r2(Math.min(Math.max(0,cy-s1.d/2),S.D-s1.d)); selFurn=f.id; setCtx({type:'furn'},false);}}
+  if(rt){const f=S.furn.find(x=>x.id===+rt.dataset.rotfurn); if(f){rotFurn(f); selFurn=f.id; setCtx({type:'furn'},false);}}
   if(dl){S.furn=S.furn.filter(x=>x.id!==+dl.dataset.delfurn); if(selFurn===+dl.dataset.delfurn) selFurn=null;}
   document.activeElement&&document.activeElement.blur&&document.activeElement.blur();
   anchor($('#plan'),()=>renderAll({keepList:true}));
@@ -2247,7 +2327,7 @@ function furnCoach(){
   if(!f) return {t:'擺家具',now:[],how:['先點一間房間，按「＋ 雙人床」這類按鈕加入家具，家具都是真實尺寸。','在平面圖上拖曳家具移動，靠近牆或其他家具會自動貼齊；按「↻ 轉 90°」旋轉。','擺完到「3D 成品」的「室內」看看實際感覺。'],rec:null,l:'layout'};
   const K=FURN[f.k], s=fSize(f), r=roomOfFurn(f);
   return {t:`正在擺「${K.n}」`,now:[`尺寸 ${f2(s.w)} × ${f2(s.d)} m，${K.ceil?`裝在離地 ${f2(K.elev||2)} m 的牆上或天花板，不佔地板`:K.flat?'平鋪在地上':`高 ${f2(K.h)} m`}`, r?`在「${esc(r.n)}」裡`:'<span class="tag tag-warn">! 不在任何房間裡</span>'],
-    how:[K.tip,'拖曳移動，靠近牆或其他家具會自動貼齊；在左邊清單按「↻ 轉 90°」旋轉。','走道：人要走過去至少留 0.6 m，常走的路線 0.8～0.9 m。'],rec:null,l:'layout'};
+    how:[K.tip,'拖曳移動，靠近牆或其他家具會自動貼齊。家具上方的小工具列可以旋轉、複製、刪除；電腦也可以按 R 旋轉、Delete 刪除、方向鍵微調（加 Shift 一次 0.5 m）。','走道：人要走過去至少留 0.6 m，常走的路線 0.8～0.9 m。'],rec:null,l:'layout'};
 }
 
 /* ---------- windows ---------- */
