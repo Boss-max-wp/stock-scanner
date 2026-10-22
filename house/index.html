@@ -129,9 +129,11 @@ select,input[type=number],input[type=text],textarea{background:var(--sheet);bord
 .tblock span{font-family:var(--f-mono)}
 .hint{color:var(--muted);font-size:12px}
 .planwrap{position:relative}
-.zoombar{position:absolute;right:8px;top:8px;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100% - 16px)}
+.planbar{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;justify-content:space-between;background:var(--sheet);border-top:1px solid var(--line);padding:6px 12px}
+.zoombar{display:flex;gap:4px;flex-wrap:wrap}
 .zoombar .btn{background:var(--panel);min-width:34px}
-.ftool{position:absolute;z-index:5;display:flex;gap:4px;align-items:center;background:var(--panel);border:1px solid var(--accent);border-radius:8px;padding:4px 6px;box-shadow:0 6px 18px rgba(0,0,0,.25);white-space:nowrap}
+.ftool{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:34px}
+.ftool .btn:disabled{opacity:.4;cursor:default}
 .ftool .btn{padding:6px 10px;font-size:13px;min-height:34px}
 .ftname{font-size:12.5px;font-weight:700;color:var(--accent);padding:0 4px}
 .btn.danger{border-color:var(--err);color:var(--err)}
@@ -411,11 +413,13 @@ td.n{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:now
     <figure class="sheet">
       <div class="sheet-head"><h2>平面圖</h2><div class="floor-tabs" data-floortabs></div></div>
       <div class="plan-tools"><div class="row"><button class="btn sm" id="snapSel">選取的房間貼齊柱網</button><button class="btn sm" id="snapAll">這層全部貼齊柱網</button></div><div class="legend"><span><i class="lg-gap"></i>沒規劃到的空隙</span><span><i class="lg-ov"></i>重疊</span><span id="planStats"></span></div>
-      <p class="hint" style="margin:0">點房間選取後，拖曳中間移動；拖曳四邊的<b>小把手</b>可以改大小。點家具會跳出<b>旋轉、複製、刪除</b>。太小看不清楚就按右上角<b>＋</b>放大（電腦也可以 Ctrl＋滾輪，手機用兩指縮放）。</p></div>
+      <p class="hint" style="margin:0">點房間選取後，拖曳中間移動；拖曳四邊的<b>小把手</b>可以改大小。點家具後，用平面圖下方的按鈕<b>旋轉、複製、刪除</b>。太小看不清楚就按平面圖下方的<b>＋</b>放大（電腦也可以 Ctrl＋滾輪，手機用兩指縮放）。</p></div>
       <div class="planwrap" id="planWrap">
         <svg id="plan" role="img" aria-label="平面圖"></svg>
+      </div>
+      <div class="planbar">
         <div class="zoombar" role="group" aria-label="縮放"><button class="btn sm" data-zoom="in" aria-label="放大">＋</button><button class="btn sm" data-zoom="out" aria-label="縮小">－</button><button class="btn sm" data-zoom="sel">放大選取的</button><button class="btn sm" data-zoom="all">看全圖</button></div>
-        <div class="ftool" id="ftool" hidden><span class="ftname" id="ftName"></span><button class="btn sm" data-ft="rot">↻ 旋轉</button><button class="btn sm" data-ft="dup">複製</button><button class="btn sm danger" data-ft="del">刪除</button></div>
+        <div class="ftool" id="ftool"><span class="ftname" id="ftName">點一件家具</span><button class="btn sm" data-ft="rot">↻ 旋轉</button><button class="btn sm" data-ft="dup">複製</button><button class="btn sm danger" data-ft="del">刪除</button></div>
       </div>
       <div class="tblock"><div><b>圖號</b><span id="planNo">A-101</span></div><div><b>內容</b><span id="planInfo"></span></div><div><b>單位</b><span>m</span></div></div>
     </figure>
@@ -2072,13 +2076,10 @@ function zoomToSel(){
 document.addEventListener('click',e=>{const b=e.target.closest('[data-zoom]'); if(!b) return; const z=b.dataset.zoom;
   if(z==='in') zoomAt(ZM.k*1.5); else if(z==='out') zoomAt(ZM.k/1.5); else if(z==='all') zoomAt(1); else zoomToSel();});
 function placeFtool(){
-  const t=$('#ftool'); if(!t) return; const f=S.furn&&S.furn.find(x=>x.id===selFurn&&x.f===floor);
-  const g=f&&document.querySelector(`#plan .furn[data-fid="${f.id}"]`); if(!g||tab!=='room'){t.hidden=true; return;}
-  $('#ftName').textContent=FURN[f.k].n; t.hidden=false;
-  const wr=$('#planWrap').getBoundingClientRect(), gr=g.getBoundingClientRect(), tw=t.offsetWidth, th=t.offsetHeight;
-  let left=gr.left-wr.left+gr.width/2-tw/2, top=gr.top-wr.top-th-8; if(top<4) top=gr.bottom-wr.top+8;
-  left=Math.max(4,Math.min(wr.width-tw-4,left)); top=Math.max(4,Math.min(wr.height-th-4,top));
-  t.style.left=left+'px'; t.style.top=top+'px';
+  // 工具列放在平面圖下方，永遠佔好位置：不蓋住圖，也不會讓畫面跳動
+  const t=$('#ftool'); if(!t) return; const f=S.furn&&S.furn.find(x=>x.id===selFurn&&x.f===floor), on=!!f&&tab==='room';
+  t.style.visibility=tab==='room'?'visible':'hidden'; $('#ftName').textContent=on?FURN[f.k].n:'點一件家具，就能';
+  t.querySelectorAll('[data-ft]').forEach(b=>b.disabled=!on);
 }
 function rotFurn(f){const s0=fSize(f), cx=f.x+s0.w/2, cy=f.y+s0.d/2; f.rot=(f.rot+90)%360; const s1=fSize(f); f.x=r2(Math.min(Math.max(0,cx-s1.w/2),S.W-s1.w)); f.y=r2(Math.min(Math.max(0,cy-s1.d/2),S.D-s1.d));}
 function ftAction(a){
@@ -2327,7 +2328,7 @@ function furnCoach(){
   if(!f) return {t:'擺家具',now:[],how:['先點一間房間，按「＋ 雙人床」這類按鈕加入家具，家具都是真實尺寸。','在平面圖上拖曳家具移動，靠近牆或其他家具會自動貼齊；按「↻ 轉 90°」旋轉。','擺完到「3D 成品」的「室內」看看實際感覺。'],rec:null,l:'layout'};
   const K=FURN[f.k], s=fSize(f), r=roomOfFurn(f);
   return {t:`正在擺「${K.n}」`,now:[`尺寸 ${f2(s.w)} × ${f2(s.d)} m，${K.ceil?`裝在離地 ${f2(K.elev||2)} m 的牆上或天花板，不佔地板`:K.flat?'平鋪在地上':`高 ${f2(K.h)} m`}`, r?`在「${esc(r.n)}」裡`:'<span class="tag tag-warn">! 不在任何房間裡</span>'],
-    how:[K.tip,'拖曳移動，靠近牆或其他家具會自動貼齊。家具上方的小工具列可以旋轉、複製、刪除；電腦也可以按 R 旋轉、Delete 刪除、方向鍵微調（加 Shift 一次 0.5 m）。','走道：人要走過去至少留 0.6 m，常走的路線 0.8～0.9 m。'],rec:null,l:'layout'};
+    how:[K.tip,'拖曳移動，靠近牆或其他家具會自動貼齊。平面圖下方的按鈕可以旋轉、複製、刪除；電腦也可以按 R 旋轉、Delete 刪除、方向鍵微調（加 Shift 一次 0.5 m）。','走道：人要走過去至少留 0.6 m，常走的路線 0.8～0.9 m。'],rec:null,l:'layout'};
 }
 
 /* ---------- windows ---------- */
