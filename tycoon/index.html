@@ -1,0 +1,962 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-size:14px;font-family:system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<script>window.FBNET=new Promise(function(res){window.__fbRes=res;setTimeout(function(){res(null)},20000)});</script>
+<script type="module">
+try{
+  const {initializeApp}=await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
+  const {getFirestore,doc,getDoc,setDoc,updateDoc,onSnapshot,runTransaction}=await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+  const app=initializeApp({apiKey:"AIzaSyBsT6fN-2VVxY8puxIrKkra5ax5GXBm_H8",authDomain:"checkin-6767.firebaseapp.com",projectId:"checkin-6767",storageBucket:"checkin-6767.firebasestorage.app",messagingSenderId:"273629890938",appId:"1:273629890938:web:eefc6f6b19c5d43af32ec3"},"tycoon");
+  const fs=getFirestore(app);
+  const P=p=>p.replace(/^games\//,"tycoon/");
+  const wrap=s=>({exists:s.exists(),data:()=>s.data()});
+  window.__fbRes({doc(path){const ref=doc(fs,P(path));return{
+    get:async()=>wrap(await getDoc(ref)),
+    set:d=>setDoc(ref,d),
+    update:d=>updateDoc(ref,d),
+    onSnapshot:(n,e)=>onSnapshot(ref,s=>n(wrap(s)),e||(()=>{})),
+    acquire:async()=>({acquired:true}),
+    addSeat:seat=>runTransaction(fs,async tx=>{const s=await tx.get(ref);const d=s.data();if(d.seats.some(x=>x.uid===seat.uid))return "ok";if(d.seats.length>=4)return "full";tx.update(ref,{seats:[...d.seats,seat]});return "ok"})
+  }}});
+}catch(e){console.error(e);window.__fbRes(null)}
+</script>
+</head><body>
+<title>台灣致富大亨</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: square 8x8 ring board on a felt table, info + log beside it on wide screens, stacked on phones */
+:root{
+  --bg:#E4ECE7; --cell:#F8FBF9; --ink:#14261F; --muted:#5B6F66; --line:#C6D5CD;
+  --frame:#1E4A3C; --felt:#24574A; --on-felt:#F2F7F4; --on-felt-muted:#B7D1C6;
+  --accent:#F0AA1E; --on-accent:#2A1B00; --gain:#1C8A52; --loss:#C63E28; --panel:#FFFFFF;
+  --g0:#8DB6DD; --g1:#B29BD9; --g2:#F0A35A; --g3:#E0707A; --g4:#E9C93E; --g5:#3E8F7A;
+  --p0:#D9502F; --p1:#2C6BDD; --p2:#1F9C5B; --p3:#9A4CC9;
+  --t-money:#FFF3D6; --t-fate:#E7EEF9; --t-life:#EAF5EE;
+  --f-display:"Huninn","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D1814; --cell:#17261F; --ink:#E3EDE8; --muted:#8EA59A; --line:#2A3D34;
+  --frame:#0A2A20; --felt:#15382D; --on-felt:#EAF3EE; --on-felt-muted:#8FB3A4;
+  --accent:#F2B33D; --on-accent:#241700; --gain:#4CC685; --loss:#F07058; --panel:#14211B;
+  --g0:#5F8DB8; --g1:#8A72B5; --g2:#C77E3A; --g3:#B9525C; --g4:#B89A22; --g5:#2F7563;
+  --t-money:#2B2614; --t-fate:#18223A; --t-life:#15291E; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D1814; --cell:#17261F; --ink:#E3EDE8; --muted:#8EA59A; --line:#2A3D34;
+  --frame:#0A2A20; --felt:#15382D; --on-felt:#EAF3EE; --on-felt-muted:#8FB3A4;
+  --accent:#F2B33D; --on-accent:#241700; --gain:#4CC685; --loss:#F07058; --panel:#14211B;
+  --g0:#5F8DB8; --g1:#8A72B5; --g2:#C77E3A; --g3:#B9525C; --g4:#B89A22; --g5:#2F7563;
+  --t-money:#2B2614; --t-fate:#18223A; --t-life:#15291E; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 40px}
+button{font:inherit;cursor:pointer;border:0;border-radius:10px;padding:10px 14px;background:var(--line);color:var(--ink)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+#app{max-width:1060px;margin:0 auto;display:grid;gap:14px}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+header h1{font-family:var(--f-display);font-size:26px;margin:0;letter-spacing:.04em;font-weight:400}
+header h1 span{color:var(--accent)}
+.hbtns{display:flex;gap:6px}
+.hbtns button{padding:7px 12px;font-size:13px;background:transparent;border:1px solid var(--line)}
+@media(min-width:900px){#app{grid-template-columns:minmax(0,580px) minmax(0,1fr);align-items:start}header{grid-column:1/-1}}
+
+.board{display:grid;grid-template:repeat(8,minmax(0,1fr))/repeat(8,minmax(0,1fr));aspect-ratio:1;width:100%;max-width:580px;gap:2px;background:var(--frame);padding:3px;border-radius:12px}
+.cell{background:var(--cell);position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:clamp(9px,2.35vw,12.5px);line-height:1.15;border-radius:3px;text-align:center;padding:1px;min-width:0;border-bottom:3px solid transparent}
+.cell.money{background:var(--t-money)} .cell.fate{background:var(--t-fate)} .cell.life{background:var(--t-life)}
+.cell .band{position:absolute;top:0;left:0;right:0;height:20%}
+.cell b{font-weight:700;white-space:nowrap}
+.cell.prop b{margin-top:16%}
+.cell small{font-family:var(--f-num);font-size:.82em;color:var(--muted)}
+.cell.corner b{font-family:var(--f-display);font-weight:400;font-size:1.15em}
+.cell .pips{position:absolute;top:2px;left:0;right:0;display:flex;justify-content:center;gap:2px}
+.cell .pips i{width:5px;height:5px;border-radius:1px;background:var(--on-felt);border:1px solid var(--ink)}
+.cell .tok{position:absolute;bottom:2px;left:0;right:0;display:flex;justify-content:center;gap:1px;flex-wrap:wrap}
+.cell .tok i{width:clamp(8px,2.3vw,12px);height:clamp(8px,2.3vw,12px);border-radius:50%;border:2px solid var(--cell);box-shadow:0 0 0 1px var(--ink)}
+.cell.here{box-shadow:inset 0 0 0 2px var(--accent)}
+
+.center{grid-row:2/8;grid-column:2/8;background:var(--felt);color:var(--on-felt);border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(6px,1.6vw,12px);padding:10px;position:relative;overflow:hidden;min-width:0}
+.center .wm{position:absolute;font-family:var(--f-display);font-size:clamp(70px,22vw,140px);opacity:.06;letter-spacing:.1em;pointer-events:none;line-height:1}
+.ctop{display:flex;gap:8px;align-items:center;font-size:clamp(11px,3vw,14px);z-index:1}
+.ctop .who{display:flex;align-items:center;gap:6px;font-weight:700}
+.ctop .who i{width:12px;height:12px;border-radius:50%;display:inline-block}
+.ctop .rd{color:var(--on-felt-muted)}
+.dice{display:flex;gap:10px;z-index:1}
+.die{width:clamp(34px,9vw,52px);aspect-ratio:1;background:#FBFBF7;border-radius:18%;display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);padding:16%;box-shadow:0 3px 0 rgba(0,0,0,.25)}
+.die span{border-radius:50%;margin:12%}
+.die span.on{background:#1A1A1A}
+.die.d1 span.on:nth-child(5){background:#C63E28}
+#msg{margin:0;text-align:center;font-size:clamp(11px,3vw,14px);line-height:1.4;max-width:30ch;min-height:2.8em;z-index:1;text-wrap:balance}
+#actBtn{background:var(--on-felt);color:var(--felt);font-weight:700;font-size:clamp(12px,3.2vw,15px);padding:7px 16px;z-index:1}
+#mainBtn{background:var(--accent);color:var(--on-accent);font-weight:700;font-size:clamp(13px,3.6vw,17px);padding:clamp(8px,2vw,12px) clamp(18px,5vw,28px);z-index:1;box-shadow:0 3px 0 rgba(0,0,0,.25)}
+.cbtns{display:flex;gap:6px;z-index:1}
+.cbtns button{background:rgba(255,255,255,.12);color:var(--on-felt);padding:6px 10px;font-size:clamp(11px,3vw,13px)}
+
+.side{display:grid;gap:12px;min-width:0}
+.players{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.pc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:grid;gap:3px;text-align:left;color:var(--ink);min-width:0}
+.pc.now{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.pc.out{opacity:.45}
+.pc .nm{display:flex;align-items:center;gap:6px;font-weight:700;overflow:hidden;white-space:nowrap}
+.pc .nm i{width:10px;height:10px;border-radius:50%;flex:none}
+.pc .nm em{font-style:normal;font-weight:500;font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:0 5px}
+.pc .job{font-size:12px;color:var(--muted)}
+.pc .row{display:flex;justify-content:space-between;font-size:13px;gap:6px}
+.pc .row span:first-child{color:var(--muted)}
+.logbox{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.logbox h2,.sec h3{font-size:12px;letter-spacing:.08em;color:var(--muted);margin:0 0 6px;font-weight:500}
+#log{list-style:none;margin:0;padding:0;display:grid;gap:4px;max-height:260px;overflow:auto;font-size:13px;line-height:1.45}
+#log li{display:flex;gap:6px}
+#log li i{width:6px;flex:none;border-radius:3px;margin-block:3px}
+
+.backdrop{position:fixed;inset:0;background:rgba(5,15,10,.5);z-index:20}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;background:var(--panel);color:var(--ink);border-radius:18px 18px 0 0;max-height:86vh;overflow:auto;
+  padding:18px max(18px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-left,0px));max-width:620px;margin:0 auto;box-shadow:0 -8px 30px rgba(0,0,0,.25)}
+@media(min-width:700px){.sheet{bottom:50%;transform:translateY(50%);border-radius:18px}}
+.sheet h2{font-family:var(--f-display);font-weight:400;font-size:22px;margin:0 0 8px;text-wrap:balance}
+.sheet .body{font-size:15px;line-height:1.6}
+.sheet .body p{margin:0 0 8px}
+.sheet .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.sheet .acts button{flex:1 1 140px}
+.sheet .acts button.tool{flex:1 1 40%;background:transparent;border:1px solid var(--line);font-size:13px;padding:8px 6px;color:var(--muted)}
+.sheet .hint{font-size:13px;color:var(--muted);border-top:1px dashed var(--line);padding-top:8px;margin-top:4px}
+.sheet .acts button.primary{background:var(--accent);color:var(--on-accent);font-weight:700}
+.x{position:absolute;top:12px;right:max(12px,env(safe-area-inset-right,0px));background:transparent;font-size:20px;padding:4px 10px}
+.big{font-family:var(--f-num);font-size:28px;font-weight:600}
+.gain{color:var(--gain)} .loss{color:var(--loss)}
+
+.mk{display:grid;gap:10px}
+.asset{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:grid;gap:6px}
+.asset .top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.asset .top b{font-size:16px}
+.asset .tag{font-size:11px;color:var(--muted);margin-left:6px}
+.asset .meta{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);gap:8px;flex-wrap:wrap}
+.asset .btns{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.asset .btns button{padding:8px 4px;font-size:13px}
+.asset .btns button.buy{background:var(--t-life);color:var(--gain);font-weight:700}
+.asset .btns button.sell{background:var(--t-money);color:var(--loss);font-weight:700}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:14px}
+.kv span:nth-child(odd){color:var(--muted)}
+.kv span:nth-child(even){text-align:right}
+.sec{margin-top:14px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:13px;border:1px solid var(--line);border-radius:8px;padding:3px 8px;display:inline-flex;gap:5px;align-items:center}
+.chip i{width:8px;height:8px;border-radius:2px}
+.rules li{margin-bottom:6px}
+
+.setup .prow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;margin-bottom:8px}
+.setup .prow i{width:14px;height:14px;border-radius:50%}
+.setup input{font:inherit;padding:9px 10px;border-radius:9px;border:1px solid var(--line);background:var(--cell);color:var(--ink);width:100%;min-width:0}
+.seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg button{border-radius:0;padding:8px 12px;background:transparent;font-size:14px}
+.seg button.on{background:var(--ink);color:var(--bg)}
+.opt{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0;flex-wrap:wrap}
+.rank{display:grid;gap:6px;margin:8px 0}
+.rank div{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div id="app">
+  <header>
+    <h1>台灣<span>致富</span>大亨</h1>
+    <div class="hbtns"><button id="rulesBtn">玩法</button><button id="newBtn">新遊戲</button></div>
+  </header>
+  <div class="board" id="board">
+    <div class="center">
+      <div class="wm">致富</div>
+      <div class="ctop"><span class="who" id="who"></span><span class="rd" id="rd"></span></div>
+      <div class="dice"><div class="die" id="d1"></div><div class="die" id="d2"></div></div>
+      <p id="msg"></p>
+      <button id="actBtn" hidden></button>
+      <button id="mainBtn">擲骰子</button>
+      <div class="cbtns"><button id="mktBtn">股市・幣市</button><button id="bankBtn">網銀</button><button id="meBtn">資產</button></div>
+    </div>
+  </div>
+  <div class="side">
+    <div class="players" id="players"></div>
+    <div class="logbox"><h2>事件紀錄</h2><ul id="log"></ul></div>
+  </div>
+</div>
+<div id="sheetWrap" hidden><div class="backdrop" id="bd"></div><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+
+<script>
+const $=s=>document.querySelector(s);
+const fmt=n=>(n<0?'-$':'$')+Math.abs(Math.round(n)).toLocaleString();
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const rnd=a=>a[Math.floor(Math.random()*a.length)];
+const d6=()=>1+Math.floor(Math.random()*6);
+const gauss=()=>{let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+const JOBS=[['工讀生',800],['基層職員',1200],['小主管',1700],['經理',2300],['總監',3000],['執行長',4000]];
+const ASSETS={
+  chip:{n:'晶圓科技',u:'股',tag:'穩健成長',p0:120,vol:.07,drift:.008,lot:5},
+  ship:{n:'海神航運',u:'股',tag:'景氣循環',p0:60,vol:.12,drift:.002,lot:10},
+  bio:{n:'新藥生技',u:'股',tag:'高風險',p0:40,vol:.17,drift:.004,lot:20},
+  coin:{n:'企鵝幣',u:'顆',tag:'超高波動',p0:15,vol:.28,drift:.01,lot:50}
+};
+const AK=Object.keys(ASSETS);
+const B=[
+ {t:'start',n:'起點',c:'corner'},
+ {t:'prop',n:'基隆',g:0,price:600,rent:50},
+ {t:'chance',n:'機會',c:'fate'},
+ {t:'prop',n:'宜蘭',g:0,price:700,rent:60},
+ {t:'stock',n:'證券所',c:'money'},
+ {t:'prop',n:'桃園',g:1,price:900,rent:80},
+ {t:'job',n:'人力銀行',c:'life'},
+ {t:'night',n:'夜市',c:'corner'},
+ {t:'prop',n:'新竹',g:1,price:1000,rent:90},
+ {t:'lotto',n:'彩券行',c:'money'},
+ {t:'prop',n:'台中',g:2,price:1200,rent:110},
+ {t:'startup',n:'創業園區',c:'money'},
+ {t:'prop',n:'彰化',g:2,price:1300,rent:120},
+ {t:'crypto',n:'幣交易所',c:'money'},
+ {t:'bank',n:'銀行',c:'corner'},
+ {t:'prop',n:'嘉義',g:3,price:1500,rent:140},
+ {t:'chance',n:'命運',c:'fate'},
+ {t:'prop',n:'台南',g:3,price:1600,rent:150},
+ {t:'stock',n:'證券所',c:'money'},
+ {t:'prop',n:'屏東',g:4,price:1800,rent:170},
+ {t:'school',n:'大學',c:'life'},
+ {t:'tax',n:'國稅局',c:'corner'},
+ {t:'prop',n:'高雄',g:4,price:1900,rent:180},
+ {t:'chance',n:'機會',c:'fate'},
+ {t:'prop',n:'花蓮',g:5,price:2200,rent:210},
+ {t:'startup',n:'創業園區',c:'money'},
+ {t:'prop',n:'台北',g:5,price:2600,rent:250},
+ {t:'prop',n:'信義區',g:5,price:3000,rent:300},
+];
+const N=B.length;
+const upCost=sq=>Math.round(sq.price*.5/50)*50;
+const RENT_MULT=[1,3,6,10];
+function credit(p){
+  let land=0;for(const i in G.own){const o=G.own[i];if(o.p===p.id)land+=B[i].price+o.l*upCost(B[i])}
+  const st=['chip','ship','bio'].reduce((s,k)=>s+p.hold[k]*G.prices[k],0),cn=p.hold.coin*G.prices.coin;
+  const parts=[['薪水信用（4 個月薪水）',salary(p)*4,salary(p)*4],['地產 × 60%',land,land*.6],['股票 × 50%',st,st*.5],['企鵝幣 × 20%',cn,cn*.2],['存款 × 90%',p.savings,p.savings*.9]];
+  return {parts,cap:Math.floor(parts.reduce((s,x)=>s+x[2],0)/100)*100};
+}
+const loanCap=p=>credit(p).cap;
+const canBorrow=p=>Math.max(0,Math.floor((loanCap(p)-p.loan)/100)*100);
+B.forEach(s=>{if(s.t==='prop')s.rent=Math.round(s.price*.25/10)*10});
+const LV=['空地','一棟','兩棟','大樓'];
+const VENTURES=['珍奶連鎖店','AI 外送平台','寵物鮮食','二手球鞋店','露營車租賃','手搖飲 App','手作飾品網店','健身工作室'];
+
+let G=null;
+const cur=()=>G.players[G.turn];
+const NET={ok:false,db:null,uid:'local',code:null,ref:null,unsub:null,applying:false,writing:false,pend:false,handoff:false,started:null,answered:{},overShown:null,first:true,inLobby:false,room:null};
+const isDriverOf=p=>!G||!G.online||(p.bot?G.host===NET.uid:p.uid===NET.uid);
+const drivingNow=()=>!!G&&isDriverOf(cur());
+const meP=()=>G.online?G.players.find(x=>!x.bot&&x.uid===NET.uid):(cur().bot?(G.players.find(x=>!x.bot)||cur()):cur());
+const salary=p=>JOBS[p.job][1];
+function log(t,p){G.log.unshift({t,c:p?p.color:'var(--muted)'});G.log.length=Math.min(G.log.length,80)}
+function say(t){G.msg=t}
+
+function rc(i){if(i<=7)return[8,8-i];if(i<=14)return[8-(i-7),1];if(i<=21)return[1,1+(i-14)];return[1+(i-21),8]}
+
+function newGame(cfg){
+  const prices={},hist={},prev={};
+  AK.forEach(k=>{prices[k]=ASSETS[k].p0;hist[k]=[ASSETS[k].p0];prev[k]=ASSETS[k].p0});
+  G={gid:Math.random().toString(36).slice(2,9),online:!!cfg.online,host:cfg.host||'local',seq:0,v:0,players:cfg.players.map((c,i)=>({id:i,uid:c.uid||'local',name:c.name||('玩家'+(i+1)),bot:c.bot,color:`var(--p${i})`,cash:8000,pos:0,savings:0,loan:0,job:0,
+      hold:{chip:0,ship:0,bio:0,coin:0},cost:{chip:0,ship:0,bio:0,coin:0},ventures:[],skip:0,out:false})),
+     own:{},prices,hist,prev,round:1,mode:cfg.mode||'rounds',goal:cfg.goal||50000,maxRounds:cfg.mode==='goal'?60:cfg.mode==='last'?80:cfg.rounds,turn:0,phase:'roll',dice:[3,4],log:[],msg:'',over:false};
+  log(G.mode==='goal'?`遊戲開始！誰的總資產先達到 ${fmt(G.goal)} 就贏（最多 60 輪）。`:G.mode==='last'?'遊戲開始！玩到只剩一個人沒破產為止（最多 80 輪）。':`遊戲開始！共 ${cfg.rounds} 輪，結束時總資產最高的人獲勝。`);
+  if(G.online)NET.handoff=true;
+  G.phase='start';render();maybeStart();
+}
+
+function worth(p){
+  let w=p.cash+p.savings-p.loan;
+  AK.forEach(k=>w+=p.hold[k]*G.prices[k]);
+  for(const i in G.own){const o=G.own[i];if(o.p===p.id)w+=B[i].price+o.l*upCost(B[i])}
+  p.ventures.forEach(v=>w+=v.cost);
+  return Math.round(w);
+}
+function ownsGroup(pid,g){return B.every((s,i)=>s.g!==g||s.t!=='prop'||(G.own[i]&&G.own[i].p===pid))}
+function rentOf(i){const o=G.own[i],s=B[i];let r=s.rent*RENT_MULT[o.l];if(o.l===0&&ownsGroup(o.p,s.g))r*=2;return r}
+
+/* ---------- money ---------- */
+function raise(p,need){
+  const st=[];
+  if(p.cash<need&&p.savings>0){const x=Math.min(p.savings,need-p.cash);p.savings-=x;p.cash+=x;st.push('提領存款')}
+  for(const k of ['coin','bio','ship','chip']){if(p.cash<need&&p.hold[k]>0){p.cash+=Math.round(p.hold[k]*G.prices[k]);p.hold[k]=0;p.cost[k]=0;st.push('賣出'+ASSETS[k].n)}}
+  p.ventures.length&&p.cash<need&&(p.ventures=[],st.push('放棄創業投資'));
+  const mine=Object.keys(G.own).filter(i=>G.own[i].p===p.id).sort((a,b)=>B[a].price-B[b].price);
+  for(const i of mine){if(p.cash>=need)break;const v=Math.round((B[i].price+G.own[i].l*upCost(B[i]))*.5);p.cash+=v;delete G.own[i];st.push(`半價賣掉${B[i].n}`)}
+  if(st.length)log(`${p.name} 現金不夠：${st.join('、')}`,p);
+}
+function payTo(p,amt,to){
+  amt=Math.round(amt);if(p.cash<amt)raise(p,amt);
+  const paid=Math.min(amt,Math.max(0,p.cash));p.cash-=paid;if(to)to.cash+=paid;
+  if(paid<amt)bankrupt(p);return paid;
+}
+function bankrupt(p){
+  p.out=true;p.cash=0;p.savings=0;p.loan=0;p.ventures=[];AK.forEach(k=>p.hold[k]=0);
+  for(const i in G.own)if(G.own[i].p===p.id)delete G.own[i];
+  log(`${p.name} 破產出局了！`,p);
+  if(G.players.filter(x=>!x.out).length<=1)gameOver();
+}
+function passStart(p){
+  const s=salary(p);p.cash+=s;let t=`${p.name} 經過起點，領薪水 ${fmt(s)}`;
+  if(p.savings>0){const it=Math.round(p.savings*.05);p.savings+=it;t+=`，存款利息 ${fmt(it)}`}
+  if(p.loan>0){const it=Math.round(p.loan*.08);p.loan+=it;t+=`，貸款利息 ${fmt(it)}`}
+  log(t,p);
+}
+function tickMarket(){
+  AK.forEach(k=>{const a=ASSETS[k];G.prev[k]=G.prices[k];let m=Math.exp(a.drift-a.vol*a.vol/2+a.vol*gauss());
+    if(k==='coin'){const r=Math.random();if(r<.04)m*=2.2;else if(r<.08)m*=.4}
+    G.prices[k]=Math.max(1,G.prices[k]*m);G.hist[k].push(G.prices[k]);if(G.hist[k].length>30)G.hist[k].shift()});
+}
+function bumpAll(keys,m){keys.forEach(k=>{G.prices[k]=Math.max(1,G.prices[k]*m);G.hist[k].push(G.prices[k]);if(G.hist[k].length>30)G.hist[k].shift()})}
+function trade(p,k,q){
+  const pr=G.prices[k];
+  if(q>0){const c=Math.round(pr*q);if(c>p.cash)return false;p.cost[k]=(p.cost[k]*p.hold[k]+pr*q)/(p.hold[k]+q);p.hold[k]+=q;p.cash-=c;log(`${p.name} 買進 ${ASSETS[k].n} ${q}${ASSETS[k].u}（${fmt(c)}）`,p)}
+  else{q=Math.min(-q,p.hold[k]);if(!q)return false;const c=Math.round(pr*q);p.hold[k]-=q;if(!p.hold[k])p.cost[k]=0;p.cash+=c;
+    const pl=Math.round((pr-(p.cost[k]||pr))*q);log(`${p.name} 賣出 ${ASSETS[k].n} ${q}${ASSETS[k].u}（${fmt(c)}）`,p)}
+  return true;
+}
+
+/* ---------- cards ---------- */
+const CARDS=[
+ {t:'年終獎金入帳',d:'公司加發兩個月薪水。',f:p=>{const s=salary(p)*2;p.cash+=s;return '+'+fmt(s)}},
+ {t:'接到詐騙電話',d:'一時心急轉了帳，損失現金的 10%。',f:p=>'-'+fmt(payTo(p,Math.max(200,p.cash*.1)))},
+ {t:'股市大多頭',d:'外資湧入，三檔股票全部上漲 20%。',f:()=>{bumpAll(['chip','ship','bio'],1.2);return '股價 +20%'}},
+ {t:'股災來了',d:'全球恐慌，三檔股票全部下跌 25%。',f:()=>{bumpAll(['chip','ship','bio'],.75);return '股價 -25%'}},
+ {t:'颱風來襲',d:'每塊地付修繕費 $100，每棟房子再加 $150。',f:p=>{let x=0;for(const i in G.own)if(G.own[i].p===p.id)x+=100+150*G.own[i].l;return x?'-'+fmt(payTo(p,x)):'你沒有房子，逃過一劫'}},
+ {t:'統一發票中獎',d:'對中了一張發票。',f:p=>{p.cash+=1000;return '+$1,000'}},
+ {t:'網紅業配上門',d:'你的影片爆紅，廠商找你合作。',f:p=>{const x=d6()*300;p.cash+=x;return '+'+fmt(x)}},
+ {t:'超速罰單',d:'測速照相拍到你了。',f:p=>'-'+fmt(payTo(p,600))},
+ {t:'表現亮眼',d:'主管很欣賞你，直接升職。',f:p=>{if(p.job<JOBS.length-1)p.job++;return '升為 '+JOBS[p.job][0]}},
+ {t:'公司裁員',d:'部門縮編，你被降一級。',f:p=>{if(p.job>0)p.job--;return '降為 '+JOBS[p.job][0]}},
+ {t:'企鵝幣上新聞',d:'名人推文帶動買氣，企鵝幣價格翻倍。',f:()=>{bumpAll(['coin'],2);return '企鵝幣 ×2'}},
+ {t:'交易所被駭',d:'消息一出，企鵝幣暴跌 60%。',f:()=>{bumpAll(['coin'],.4);return '企鵝幣 -60%'}},
+ {t:'房租調漲',d:'每擁有一塊地，收 $200 租金。',f:p=>{const n=Object.values(G.own).filter(o=>o.p===p.id).length;p.cash+=n*200;return '+'+fmt(n*200)}},
+ {t:'直達起點',d:'搭高鐵回到起點，順便領薪水。',f:p=>{p.pos=0;passStart(p);return '回到起點'}},
+ {t:'出國旅遊',d:'花 $800 去日本玩，下回合暫停一次。',f:p=>{p.skip=1;return '-'+fmt(payTo(p,800))}},
+ {t:'朋友找你合夥',d:'你投了 $1,000 開早午餐店，三回合後見分曉。',f:p=>{if(p.cash<1000)return '錢不夠，婉拒了';p.cash-=1000;p.ventures.push({n:'早午餐店',cost:1000,t:3});return '投資 $1,000'}},
+ {t:'刮刮樂小中',d:'路邊買的刮刮樂中了。',f:p=>{p.cash+=500;return '+$500'}},
+ {t:'健康檢查',d:'年度健檢自費項目。',f:p=>'-'+fmt(payTo(p,500))},
+];
+
+/* ---------- decisions ---------- */
+async function choose(title,body,opts,pick,plain){
+  const p=cur();
+  if(p.bot)return sleep(650).then(pick);
+  while(true){
+    G.phase='choose';render();
+    const list=opts.map(o=>({...o,disabled:o.disabled||(o.cost>p.cash)}));
+    const short=opts.filter(o=>o.cost>p.cash&&!o.disabled);
+    let b=typeof body==='function'?body():body;
+    if(!plain){
+      if(short.length)b+=`<p class="hint">錢不夠嗎？還差 <b class="num loss">${fmt(Math.min(...short.map(o=>o.cost))-p.cash)}</b>。可以先去<b>股市</b>賣股票或幣、用<b>網銀</b>借錢或領存款，弄好回來這裡就能買。</p>`;
+      list.push({label:'股市・幣市',v:'__mkt',kind:'tool'},{label:'網銀（借錢・領錢）',v:'__bank',kind:'tool'});
+    }
+    const v=await new Promise(res=>openSheet(title,b,list.map(o=>({...o,on:()=>{closeSheet();res(o.v)}})),false));
+    if(v==='__mkt'){await new Promise(res=>{sheetOnClose=res;openMarket()});render();continue}
+    if(v==='__bank'){await bankLoop(p,false);render();continue}
+    return v;
+  }
+}
+function notify(title,body){
+  if(cur().bot)return sleep(500);
+  return new Promise(res=>openSheet(title,body,[{label:'好',kind:'primary',on:()=>{closeSheet();res()}}],false));
+}
+
+async function landOn(p){
+  const i=p.pos,sq=B[i];
+  switch(sq.t){
+  case 'start':say(`${p.name} 停在起點。`);break;
+  case 'prop':{
+    const o=G.own[i];
+    if(!o||o.p===p.id){await propOffer(p,i);break}
+    {
+      const ow=G.players[o.p],r=rentOf(i),paid=payTo(p,r,ow);
+      log(`${p.name} 付給 ${ow.name} 過路費 ${fmt(paid)}（${sq.n}）`,p);say(`踩到 ${ow.name} 的${sq.n}，付了 ${fmt(paid)}。`);
+      if(!p.out&&!G.over&&G.own[i]&&G.own[i].p===ow.id){render();await negotiate(p,ow,i)}
+    }
+    break}
+  case 'chance':{
+    const c=rnd(CARDS),r=c.f(p);log(`${p.name} 抽到「${c.t}」：${r}`,p);say(`${sq.n}卡：${c.t}（${r}）`);render();
+    await notify(`${sq.n}卡：${c.t}`,`<p>${c.d}</p><p class="big">${esc(r)}</p>`);
+    if(p.pos===0&&i!==0)render();
+    break}
+  case 'stock':{
+    const v=['chip','ship','bio'].reduce((s,k)=>s+p.hold[k]*G.prices[k],0),dv=Math.round(v*.06);
+    p.cash+=dv;if(dv)log(`${p.name} 在證券所領到股利 ${fmt(dv)}`,p);
+    say(dv?`領到股利 ${fmt(dv)}！持有股票越多，股利越多。`:'證券所：持有股票的人停在這裡可以領 6% 股利。');
+    if(!p.bot){render();const v2=await choose('證券所',`<p>${dv?`你的股票配發 6% 股利 <b class="num">${fmt(dv)}</b>。`:'你還沒有股票，停在這裡可以領持股價值 6% 的股利。'}</p><p>任何時候輪到你都能打開市場買賣。</p>`,[{label:'打開市場',v:1,kind:'primary'},{label:'離開',v:0}],()=>0,true);if(v2)openMarket()}
+    break}
+  case 'crypto':{
+    const r=Math.random();let t;
+    if(r<.35){bumpAll(['coin'],1.6);t='企鵝幣暴漲 60%！'}else if(r<.65){bumpAll(['coin'],.5);t='企鵝幣崩盤，跌了一半。'}else{p.hold.coin+=30;t=`${p.name} 拿到空投 30 顆企鵝幣！`}
+    log(`幣交易所：${t}`,p);say(t);
+    if(!p.bot){render();const v=await choose('幣交易所',`<p>${t}</p><p>現價 <b class="num">${fmt(G.prices.coin)}</b> / 顆，你持有 ${p.hold.coin} 顆。</p>`,[{label:'打開市場',v:1,kind:'primary'},{label:'離開',v:0}],()=>0,true);if(v)openMarket()}
+    break}
+  case 'job':{
+    const top=p.job>=JOBS.length-1;
+    const v=await choose('人力銀行',`<p>你現在是 <b>${JOBS[p.job][0]}</b>，每次經過起點領 <span class="num">${fmt(salary(p))}</span>。</p><p><b>打工</b>：擲一顆骰子，馬上賺骰子點數 × $250。<br><b>面試升職</b>：擲出 4 以上就升一級，以後薪水變多。</p>`,
+      [{label:'打工賺現金',v:1,kind:'primary'},{label:'面試升職',v:2,disabled:top},{label:'離開',v:0}],()=>top?1:(p.job<3?2:1));
+    const d=d6();
+    if(v===1){p.cash+=d*250;log(`${p.name} 打工擲出 ${d}，賺 ${fmt(d*250)}`,p);say(`打工賺了 ${fmt(d*250)}。`)}
+    else if(v===2){if(d>=4){p.job++;log(`${p.name} 面試擲出 ${d}，升為 ${JOBS[p.job][0]}！`,p);say(`擲出 ${d}，面試成功！升為${JOBS[p.job][0]}。`)}else{log(`${p.name} 面試擲出 ${d}，沒錄取`,p);say(`擲出 ${d}，這次沒上。`)}
+      if(!p.bot){render();await notify('面試結果',`<p>擲出 <b class="big">${d}</b></p><p>${d>=4?'錄取了！你升為 '+JOBS[p.job][0]+'。':'差一點，下次再來。'}</p>`)}}
+    break}
+  case 'school':{
+    const top=p.job>=JOBS.length-1,fee=1500;
+    const v=await choose('大學進修',()=>`<p>付學費 <b class="num">${fmt(fee)}</b> 讀 EMBA，保證升一級。你的現金 ${fmt(p.cash)}。</p><p>${JOBS[p.job][0]}（${fmt(salary(p))}）→ ${top?'已經是最高職位':JOBS[p.job+1][0]+'（'+fmt(JOBS[p.job+1][1])+'）'}</p>`,
+      [{label:`報名 ${fmt(fee)}`,v:1,kind:'primary',disabled:top,cost:fee},{label:'不用了',v:0}],()=>!top&&p.cash>fee+3000?1:0);
+    if(v){p.cash-=fee;p.job++;log(`${p.name} 進修完成，升為 ${JOBS[p.job][0]}`,p);say(`進修完成，升為${JOBS[p.job][0]}！`)}else say(`${p.name} 這次不進修。`);
+    break}
+  case 'night':{
+    const d=d6(),earn=d*300-500;p.cash+=earn;if(p.cash<0){const dd=-p.cash;p.cash=0;payTo(p,dd)}
+    log(`${p.name} 在夜市擺攤，擲出 ${d}，${earn>=0?'賺':'賠'} ${fmt(Math.abs(earn))}`,p);say(`夜市擺攤：攤位費 $500，擲出 ${d} 賣了 ${fmt(d*300)}，${earn>=0?'淨賺':'倒賠'} ${fmt(Math.abs(earn))}。`);
+    if(!p.bot){render();await notify('夜市擺攤',`<p>攤位費 $500，擲出 <b>${d}</b>，營業額 ${fmt(d*300)}。</p><p class="big ${earn>=0?'gain':'loss'}">${earn>=0?'+':''}${fmt(earn)}</p>`)}
+    break}
+  case 'tax':{const x=Math.max(200,Math.round((p.cash+p.savings)*.08));const paid=payTo(p,x);log(`${p.name} 繳稅 ${fmt(paid)}`,p);say(`國稅局：繳現金加存款的 8%，共 ${fmt(paid)}。`);
+    if(!p.bot&&!p.out){render();await notify('國稅局',`<p>依現金與存款課 8% 財產稅。</p><p class="big loss">-${fmt(paid)}</p>`)}break}
+  case 'lotto':{
+    const v=await choose('彩券行',`<p>一張彩券 $200。</p><p>頭獎 $30,000（1%）、二獎 $3,000（5%）、小獎 $400（19%）。</p>`,
+      [{label:'買一張 $200',v:1,kind:'primary',cost:200},{label:'買五張 $1,000',v:5,cost:1000},{label:'不買',v:0}],()=>p.cash>3000&&Math.random()<.5?1:0);
+    if(v){let win=0;p.cash-=200*v;for(let k=0;k<v;k++){const r=Math.random();win+=r<.01?30000:r<.06?3000:r<.25?400:0}p.cash+=win;
+      log(`${p.name} 買了 ${v} 張彩券，${win?'中了 '+fmt(win):'槓龜'}`,p);say(win?`彩券中了 ${fmt(win)}！`:'彩券槓龜了。');
+      if(!p.bot){render();await notify('開獎',win?`<p>恭喜中獎！</p><p class="big gain">+${fmt(win)}</p>`:'<p>全部槓龜，下次再試試手氣。</p>')}}
+    else say(`${p.name} 沒買彩券。`);
+    break}
+  case 'startup':{
+    const name=rnd(VENTURES);
+    const v=await choose(`創業園區：${name}`,`<p>有團隊在募資做「${name}」。投資後 <b>3 回合</b>揭曉結果：</p><p>倒閉（拿回 0）40%｜打平（1 倍）25%｜成功（3 倍）25%｜獨角獸（8 倍）10%</p>`,
+      [{label:'投 $500',v:500,cost:500},{label:'投 $1,500',v:1500,kind:'primary',cost:1500},{label:'投 $3,000',v:3000,cost:3000},{label:'不投',v:0}],()=>p.cash>6000?1500:p.cash>3500?500:0);
+    if(v){p.cash-=v;p.ventures.push({n:name,cost:v,t:3});log(`${p.name} 投資「${name}」${fmt(v)}`,p);say(`投資了${name} ${fmt(v)}，3 回合後揭曉。`)}else say(`${p.name} 沒有投資。`);
+    break}
+  case 'bank':await bankVisit(p);break;
+  }
+}
+
+function liquid(p){return p.cash+p.savings+AK.reduce((s,k)=>s+p.hold[k]*G.prices[k],0)}
+async function fundPrompt(p,need,what){
+  while(p.cash<need){
+    const has=AK.some(k=>p.hold[k]>0);
+    const v=await choose(`現金不夠${what}`,`<p>需要 <b class="num">${fmt(need)}</b>，你現在只有 <span class="num">${fmt(p.cash)}</span>，還差 <b class="num loss">${fmt(need-p.cash)}</b>。</p><p>可以賣掉股票、企鵝幣，或領出銀行存款來湊錢。</p>`,
+      [{label:'去市場賣資產',v:'m',kind:'primary',disabled:!has},{label:`領出存款 ${fmt(p.savings)}`,v:'w',disabled:!p.savings},{label:'算了',v:0}],()=>0);
+    if(!v)return false;
+    if(v==='w'){p.cash+=p.savings;log(`${p.name} 領出存款 ${fmt(p.savings)}`,p);p.savings=0;render()}
+    if(v==='m'){await new Promise(res=>{sheetOnClose=res;openMarket()})}
+  }
+  return true;
+}
+const OFFERS=[1.5,2,2.5,3];
+function acceptChance(seller,i,m){
+  const base={1.5:.15,2:.4,2.5:.65,3:.88}[m];let c=base;
+  if(ownsGroup(seller.id,B[i].g))c*=.45;
+  if(seller.cash<1500)c+=.3;
+  return Math.min(.97,c);
+}
+function askOwner(seller,buyer,i,price){
+  return new Promise(res=>openSheet(`${seller.name}，${buyer.name} 想買你的${B[i].n}`,
+    `${G.online?'':`<p>請把手機交給 <b>${esc(seller.name)}</b>。</p>`}<p>${esc(buyer.name)} 出價 <b class="num">${fmt(price)}</b> 想買下${B[i].n}（現在過路費 ${fmt(rentOf(i))}）。</p><p>你的現金 <span class="num">${fmt(seller.cash)}</span>。</p>`,
+    [{label:`賣 ${fmt(price)}`,kind:'primary',on:()=>{closeSheet();res(true)}},{label:'不賣',on:()=>{closeSheet();res(false)}}],false));
+}
+async function propOffer(p,i){
+  const sq=B[i],o=G.own[i];
+  do{
+    if(!o){
+      if(p.cash<sq.price&&(p.bot||liquid(p)+canBorrow(p)<sq.price)){say(`${sq.n} 要 ${fmt(sq.price)}，${p.name} 的錢不夠買。`);return}
+      const v=await choose(`要買下${sq.n}嗎？`,()=>`<p>地價 <b class="num">${fmt(sq.price)}</b>，別人踩到要付 <b class="num">${fmt(sq.rent)}</b> 過路費。</p><p>蓋房子後過路費會變成 3、6、10 倍；同色地全買齊，空地過路費加倍。</p>`+`<p>你目前現金 <span class="num">${fmt(p.cash)}</span>。</p>`,
+        [{label:`買下 ${fmt(sq.price)}`,v:1,kind:'primary',cost:sq.price},{label:'不買',v:0}],()=>p.cash>sq.price+1500?1:0);
+      if(v){p.cash-=sq.price;G.own[i]={p:p.id,l:0};log(`${p.name} 買下 ${sq.n}（${fmt(sq.price)}）`,p);say(`${p.name} 買下了${sq.n}！`)}
+      else say(`${p.name} 沒有買${sq.n}。`);
+    }else if(o.p===p.id){
+      const c=upCost(sq);
+      if(o.l>=3){say(`${sq.n} 已經是大樓了。`);return}
+      if(p.cash<c&&(p.bot||liquid(p)+canBorrow(p)<c)){say(`回到自己的${sq.n}，但蓋房子要 ${fmt(c)}。`);return}
+      const v=await choose(`在${sq.n}蓋房子？`,`<p>目前：${LV[o.l]}　→　${LV[o.l+1]}</p><p>花費 <b class="num">${fmt(c)}</b>，過路費從 <span class="num">${fmt(rentOf(i))}</span> 變成 <b class="num">${fmt(sq.rent*RENT_MULT[o.l+1])}</b>。</p>`,
+        [{label:`蓋 ${fmt(c)}`,v:1,kind:'primary',cost:c},{label:'先不要',v:0}],()=>p.cash>c+2000?1:0);
+      if(v){p.cash-=c;o.l++;log(`${p.name} 在 ${sq.n} 蓋到「${LV[o.l]}」`,p);say(`${sq.n} 升級成${LV[o.l]}！`)}else say(`${p.name} 先不蓋。`);
+    }
+  }while(0);
+}
+async function negotiate(p,ow,i){
+  G.negDone=true;
+  const sq=B[i],o=G.own[i],val=sq.price+o.l*upCost(sq);
+  let minM=0,tries=0;
+  while(tries<3){
+    const avail=OFFERS.filter(m=>m>minM);
+    if(!avail.length)break;
+    if(liquid(p)+canBorrow(p)<val*avail[0])break;
+    let m;
+    if(p.bot){
+      const want=OFFERS.find(x=>x>minM&&p.cash>val*x+2500);
+      if(!want||Math.random()<.55)break;
+      m=want;
+    }else{
+      m=await choose(tries?`${ow.name} 不賣，要加價嗎？`:`要跟${ow.name}買${sq.n}嗎？`,()=>`<p>出價越高，對方越可能答應。如果他已經買齊同顏色的地，會更捨不得賣；他缺錢的時候比較容易成交。</p><p>${sq.n}的價值 <span class="num">${fmt(val)}</span>（地價${o.l?'加房子':''}），你的現金 <span class="num">${fmt(p.cash)}</span>。</p>${tries?'<p>每次加價都要比上次高，最多談三次。</p>':''}`,
+        [...avail.map(x=>({label:`出 ${fmt(val*x)}（${x} 倍）`,v:x,kind:x===avail[0]?'primary':'',cost:val*x})),{label:'不買了',v:0}],()=>0);
+      if(!m)break;
+    }
+    const price=Math.round(val*m);
+    if(p.cash<price)break;
+    tries++;minM=m;
+    let ok;
+    if(ow.bot){ok=Math.random()<acceptChance(ow,i,m);if(!p.bot)await sleep(400)}
+    else ok=(G.online&&ow.uid!==NET.uid)?await askRemote(ow,p,i,price):await askOwner(ow,p,i,price);
+    if(ok){p.cash-=price;ow.cash+=price;G.own[i].p=p.id;log(`${ow.name} 以 ${fmt(price)} 把 ${sq.n} 賣給 ${p.name}`,p);say(`成交！${p.name} 用 ${fmt(price)} 買下${sq.n}。`);render();
+      if(!p.bot)await notify('成交！',`<p>${esc(ow.name)} 答應了，${sq.n}現在是你的。</p><p class="big loss">-${fmt(price)}</p>`);return}
+    log(`${p.name} 出價 ${fmt(price)} 想買 ${sq.n}，${ow.name} 拒絕了`,p);say(`${ow.name} 拒絕了 ${fmt(price)} 的出價。`);render();
+  }
+}
+async function bankVisit(p){
+  if(p.savings>0){const it=Math.round(p.savings*.05);p.savings+=it;log(`${p.name} 停在銀行，存款多拿 5% 利息 ${fmt(it)}`,p)}
+  if(p.bot){
+    if(p.loan>0&&p.cash>p.loan+2000){const d=Math.round(p.loan*.9);p.cash-=d;log(`${p.name} 九折還清貸款 ${fmt(d)}`,p);p.loan=0}
+    else if(p.cash>9000){const x=p.cash-5000;p.cash-=x;p.savings+=x;log(`${p.name} 存了 ${fmt(x)} 到銀行`,p)}
+    else if(p.cash<1500&&canBorrow(p)>=3000){p.loan+=3000;p.cash+=3000;log(`${p.name} 向銀行借了 $3,000`,p)}
+    say(`${p.name} 去了銀行。`);await sleep(500);return;
+  }
+  await bankLoop(p,true);
+  say(`${p.name} 離開銀行。`);
+}
+async function bankLoop(p,branch){
+  while(true){
+    const half=Math.floor(p.cash/2/100)*100,disc=Math.round(p.loan*.9);
+    const cr=credit(p),av=canBorrow(p);
+    const kv=`<div class="kv"><span>現金</span><span class="num">${fmt(p.cash)}</span><span>存款（每過起點 +5%）</span><span class="num gain">${fmt(p.savings)}</span><span>已借貸款（每過起點 +8%）</span><span class="num loss">${fmt(p.loan)}</span><span><b>還能借</b></span><span class="num"><b>${fmt(av)}</b></span></div>
+    <details style="margin-top:8px;font-size:13px"><summary style="cursor:pointer;color:var(--muted)">銀行怎麼算你能借多少（總額度 ${fmt(cr.cap)}）</summary>
+    <div class="kv" style="margin-top:6px;font-size:13px">${cr.parts.map(x=>`<span>${x[0]}${x[1]&&x[0][0]!=='薪'?`（值 ${fmt(x[1])}）`:''}</span><span class="num">${fmt(x[2])}</span>`).join('')}</div>
+    <p style="margin:6px 0 0;color:var(--muted)">資產越多、職位越高，能借越多。額度扣掉已借的，就是還能借的。</p></details>`;
+    const note=branch
+      ?`<p style="margin-top:10px">你在銀行櫃台，這裡才有的服務：<b>存錢</b>、<b>還清貸款打九折</b>，而且存款已經多給你一次 5% 利息。</p>`
+      :`<p style="margin-top:10px">這是手機網銀，可以借錢、還錢、領錢。<b>存錢</b>和<b>還款打九折</b>要走到棋盤上的「銀行」格子才能辦。</p>`;
+    const borrow=[{label:'借 $1,000',v:'b1',disabled:av<1000},{label:'借 $3,000',v:'b3',disabled:av<3000},{label:av?`借滿 ${fmt(av)}`:'額度用完了',v:'bm',disabled:av<100}];
+    const acts=branch
+      ?[...borrow,{label:'存 $1,000',v:'d1',disabled:p.cash<1000},{label:`存一半 ${fmt(half)}`,v:'dh',disabled:half<100},
+        {label:p.loan?`九折還清 ${fmt(disc)}`:'九折還清貸款',v:'rd',disabled:!p.loan||p.cash<disc},
+        {label:'全部領出',v:'w',disabled:!p.savings},{label:'離開銀行',v:0,kind:'primary'}]
+      :[...borrow,{label:'還 $3,000',v:'r3',disabled:p.loan<3000||p.cash<3000},
+        {label:'還清貸款',v:'r',disabled:!p.loan||p.cash<p.loan},{label:'全部領出',v:'w',disabled:!p.savings},{label:'關閉',v:0,kind:'primary'}];
+    const v=await choose(branch?'銀行櫃台':'手機網銀',kv+note,acts,()=>0,true);
+    if(!v)break;
+    if(v==='d1'){p.cash-=1000;p.savings+=1000}
+    if(v==='dh'){p.cash-=half;p.savings+=half}
+    if(v==='w'){p.cash+=p.savings;log(`${p.name} 領出存款 ${fmt(p.savings)}`,p);p.savings=0}
+    if(v==='b1'||v==='b3'||v==='bm'){const x=v==='b1'?1000:v==='b3'?3000:av;p.cash+=x;p.loan+=x;log(`${p.name} 借款 ${fmt(x)}`,p)}
+    if(v==='r3'){p.cash-=3000;p.loan-=3000;log(`${p.name} 還款 $3,000`,p)}
+    if(v==='r'){p.cash-=p.loan;log(`${p.name} 還清貸款 ${fmt(p.loan)}`,p);p.loan=0}
+    if(v==='rd'){p.cash-=disc;log(`${p.name} 在銀行櫃台九折還清貸款 ${fmt(disc)}`,p);p.loan=0}
+    render();
+  }
+}
+
+function resolveVenture(p,v){
+  const r=Math.random();let m,t;
+  if(r<.4){m=0;t='倒閉了'}else if(r<.65){m=1;t='打平收場'}else if(r<.9){m=3;t='大成功'}else{m=8;t='變成獨角獸'}
+  const back=v.cost*m;p.cash+=back;
+  log(`${p.name} 投資的「${v.n}」${t}，拿回 ${fmt(back)}（投入 ${fmt(v.cost)}）`,p);
+  return {t,back,v};
+}
+
+/* ---------- turn loop ---------- */
+async function startTurn(){
+  if(G.over)return;const p=cur();
+  if(p.out)return nextTurn();
+  const done=[];p.ventures.forEach(v=>{v.t--;if(v.t<=0)done.push(resolveVenture(p,v))});
+  p.ventures=p.ventures.filter(v=>v.t>0);
+  if(done.length&&!p.bot){G.phase='choose';render();await notify('創業投資揭曉',done.map(d=>`<p>「${d.v.n}」${d.t}：投入 ${fmt(d.v.cost)}，拿回 <b class="num ${d.back>=d.v.cost?'gain':'loss'}">${fmt(d.back)}</b></p>`).join(''))}
+  if(p.skip>0){p.skip--;log(`${p.name} 出國旅遊中，跳過這回合`,p);say(`${p.name} 還在國外玩，跳過。`);G.phase='wait';render();await sleep(1100);return nextTurn()}
+  G.negDone=false;
+  G.phase='roll';say(p.bot?`${p.name} 準備擲骰子…`:`輪到 ${p.name}，擲骰子吧！`);render();
+  if(p.bot){await sleep(800);doRoll()}
+}
+async function doRoll(){
+  if(!G||G.phase!=='roll')return;
+  const p=cur();G.phase='moving';closeSheet();
+  for(let k=0;k<6;k++){G.dice=[d6(),d6()];renderDice();await sleep(60)}
+  const a=d6(),b=d6();G.dice=[a,b];say(`${p.name} 擲出 ${a+b} 點`);render();await sleep(350);
+  for(let s=0;s<a+b;s++){p.pos=(p.pos+1)%N;if(p.pos===0)passStart(p);render();await sleep(130)}
+  await landOn(p);
+  if(G.over)return;
+  G.phase='done';render();
+  if(p.bot||p.out){if(!p.out)botTrade(p);render();await sleep(900);endTurn()}
+}
+function botTrade(p){
+  AK.forEach(k=>{if(p.hold[k]&&(G.prices[k]>p.cost[k]*1.3||G.prices[k]<p.cost[k]*.6||Math.random()<.08))trade(p,k,-p.hold[k])});
+  if(p.cash>4500&&Math.random()<.55){const k=rnd(AK),q=Math.floor(p.cash*.12/G.prices[k]);if(q>0)trade(p,k,q)}
+}
+function endTurn(){
+  if(!G||G.over)return;closeSheet();if(G.online&&drivingNow())NET.handoff=true;tickMarket();nextTurn();
+}
+function nextTurn(){
+  if(G.over)return;
+  if(G.online&&drivingNow())NET.handoff=true;
+  if(G.players.filter(x=>!x.out).length<=1)return gameOver();
+  let guard=0;
+  do{G.turn=(G.turn+1)%G.players.length;if(G.turn===0)G.round++;}while(cur().out&&guard++<10);
+  if(G.mode==='goal'&&G.players.some(x=>!x.out&&worth(x)>=G.goal))return gameOver();
+  if(G.round>G.maxRounds)return gameOver();
+  G.seq=(G.seq||0)+1;G.phase='start';render();maybeStart();
+}
+function maybeStart(){
+  if(!G||G.over||G.phase!=='start'||!isDriverOf(cur()))return;
+  const k=G.gid+':'+G.seq;if(NET.started===k)return;NET.started=k;startTurn();
+}
+function gameOver(){
+  if(G.over&&G.phase==='over'){showResults();return}
+  G.over=true;G.phase='over';
+  const r=[...G.players].sort((a,b)=>(a.out-b.out)||worth(b)-worth(a));
+  log(`遊戲結束！${r[0].name} 以 ${fmt(worth(r[0]))} 總資產獲勝。`,r[0]);say(`${r[0].name} 獲勝！`);
+  render();showResults();
+}
+function showResults(){
+  const r=[...G.players].sort((a,b)=>(a.out-b.out)||worth(b)-worth(a));
+  openSheet(`${r[0].name} 獲勝！`,`<p>${G.mode==='goal'&&G.players.some(x=>!x.out&&worth(x)>=G.goal)?`${esc(r[0].name)} 最先達到 ${fmt(G.goal)}！`:G.mode==='last'&&G.players.filter(x=>!x.out).length===1?`其他人都破產了，${esc(r[0].name)} 撐到最後！`:'比賽結束'}依總資產排名：</p><div class="rank">${r.map((p,i)=>`<div><span><b>第 ${i+1} 名</b>　<i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${p.color}"></i> ${esc(p.name)}</span><span class="num">${p.out?'破產':fmt(worth(p))}</span></div>`).join('')}</div>`,
+    G.online?(G.host===NET.uid?[{label:'同一群人再玩一局',kind:'primary',on:()=>{closeSheet();NET.ref&&NET.ref.update({status:'lobby',gs:'',v:0}).catch(()=>{})}},{label:'離開房間',on:leaveRoom}]:[{label:'離開房間',on:leaveRoom}]):[{label:'再玩一局',kind:'primary',on:showSetup}],true);
+}
+
+/* ---------- sheets ---------- */
+let sheetActs=[],sheetDismiss=true;
+function openSheet(title,body,acts,dismiss=true){
+  sheetActs=acts||[];sheetDismiss=dismiss;
+  $('#sheet').innerHTML=`${dismiss?'<button class="x" data-x aria-label="關閉">×</button>':''}<h2>${esc(title)}</h2><div class="body">${body}</div>${sheetActs.length?`<div class="acts">${sheetActs.map((a,i)=>`<button data-a="${i}" class="${a.kind||''}" ${a.disabled?'disabled':''}>${esc(a.label)}</button>`).join('')}</div>`:''}`;
+  $('#sheetWrap').hidden=false;
+}
+function closeSheet(){$('#sheetWrap').hidden=true;sheetActs=[];sheetOnClose=null}
+let sheetOnClose=null;
+$('#sheet').addEventListener('click',e=>{
+  const x=e.target.closest('[data-x]');if(x){const f=sheetOnClose;closeSheet();f&&f();return}
+  const b=e.target.closest('[data-a]');if(b&&!b.disabled){sheetActs[+b.dataset.a].on();return}
+  const t=e.target.closest('[data-t]');if(t&&!t.disabled){const [k,q]=t.dataset.t.split(':');const p=cur();
+    trade(p,k,q==='all'?-p.hold[k]:+q);render();openMarket(true)}
+});
+$('#bd').addEventListener('click',()=>{if(sheetDismiss){const f=sheetOnClose;closeSheet();f&&f()}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&sheetDismiss&&!$('#sheetWrap').hidden){const f=sheetOnClose;closeSheet();f&&f()}});
+
+function spark(h,up){
+  const w=96,ht=28,mn=Math.min(...h),mx=Math.max(...h),r=mx-mn||1;
+  const pts=h.map((v,i)=>`${(i/(Math.max(1,h.length-1))*w).toFixed(1)},${(ht-2-(v-mn)/r*(ht-4)).toFixed(1)}`).join(' ');
+  return `<svg width="${w}" height="${ht}" viewBox="0 0 ${w} ${ht}" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="var(${up?'--gain':'--loss'})" stroke-width="1.8" stroke-linejoin="round"/></svg>`;
+}
+function canTrade(){const p=cur();return G&&!G.over&&!p.bot&&drivingNow()&&(G.phase==='roll'||G.phase==='done'||G.phase==='choose')}
+function openMarket(keep){
+  const ok=canTrade(),p=ok?cur():(meP()||cur());
+  const body=`<p style="color:var(--muted);font-size:13px">${ok?`${esc(p.name)} 的現金：<b class="num" style="color:var(--ink)">${fmt(p.cash)}</b>　價格每個人的回合結束都會變動。`:'輪到你的回合才能交易，現在只能看行情。'}</p><div class="mk">${AK.map(k=>{
+    const a=ASSETS[k],pr=G.prices[k],ch=(pr/G.prev[k]-1)*100,up=pr>=G.prev[k],h=p.hold[k],pl=h?(pr/p.cost[k]-1)*100:0;
+    return `<div class="asset"><div class="top"><span><b>${a.n}</b><span class="tag">${a.tag}</span></span>${spark(G.hist[k],G.hist[k][G.hist[k].length-1]>=G.hist[k][0])}<span class="num"><b>${fmt(pr)}</b> <span class="${up?'gain':'loss'}">${up?'+':''}${ch.toFixed(1)}%</span></span></div>
+    <div class="meta"><span>持有 <b class="num" style="color:var(--ink)">${h}</b> ${a.u}${h?`・市值 ${fmt(h*pr)}`:''}</span>${h?`<span class="${pl>=0?'gain':'loss'}">損益 ${pl>=0?'+':''}${pl.toFixed(1)}%</span>`:''}</div>
+    <div class="btns"><button class="buy" data-t="${k}:${a.lot}" ${!ok||p.cash<pr*a.lot?'disabled':''}>買 ${a.lot}</button><button class="buy" data-t="${k}:${a.lot*5}" ${!ok||p.cash<pr*a.lot*5?'disabled':''}>買 ${a.lot*5}</button><button class="sell" data-t="${k}:-${a.lot}" ${!ok||!h?'disabled':''}>賣 ${a.lot}</button><button class="sell" data-t="${k}:all" ${!ok||!h?'disabled':''}>全賣</button></div></div>`}).join('')}</div>`;
+  const prevSt=$('#sheet').scrollTop;
+  openSheet('股市・幣市',body,sheetOnClose?[{label:'賣好了，回去',kind:'primary',on:()=>{const f=sheetOnClose;closeSheet();f()}}]:[],true);
+  if(keep)$('#sheet').scrollTop=prevSt;
+}
+function openAssets(p){
+  const props=Object.keys(G.own).filter(i=>G.own[i].p===p.id);
+  const stocks=AK.filter(k=>p.hold[k]);
+  openSheet(`${p.name} 的資產`,`<div class="kv">
+    <span>職位</span><span>${JOBS[p.job][0]}（薪水 ${fmt(salary(p))}）</span>
+    <span>現金</span><span class="num">${fmt(p.cash)}</span>
+    <span>銀行存款</span><span class="num gain">${fmt(p.savings)}</span>
+    <span>貸款</span><span class="num loss">${fmt(p.loan)}</span>
+    <span>總資產</span><span class="num"><b>${fmt(worth(p))}</b></span></div>
+    <div class="sec"><h3>地產</h3><div class="chips">${props.length?props.map(i=>`<span class="chip"><i style="background:var(--g${B[i].g})"></i>${B[i].n}・${LV[G.own[i].l]}・過路費 ${fmt(rentOf(i))}</span>`).join(''):'<span style="color:var(--muted)">還沒有地</span>'}</div></div>
+    <div class="sec"><h3>股票與加密貨幣</h3><div class="chips">${stocks.length?stocks.map(k=>`<span class="chip">${ASSETS[k].n} ${p.hold[k]}${ASSETS[k].u}・${fmt(p.hold[k]*G.prices[k])}</span>`).join(''):'<span style="color:var(--muted)">沒有持有</span>'}</div></div>
+    <div class="sec"><h3>創業投資</h3><div class="chips">${p.ventures.length?p.ventures.map(v=>`<span class="chip">${v.n} ${fmt(v.cost)}・${v.t} 回合後揭曉</span>`).join(''):'<span style="color:var(--muted)">沒有投資</span>'}</div></div>`,[],true);
+}
+function showRules(){
+  openSheet('玩法',`<p>2～4 人輪流擲兩顆骰子繞台灣一圈圈走。<b>總資產</b>＝現金＋存款＋地產＋股票＋幣＋創業投資－貸款。中途破產就出局。</p><p>開新遊戲時可以選三種結束方式：<b>比輪數</b>（輪數到了資產最高的人贏）、<b>先達標</b>（誰先達到目標資產就贏）、<b>撐到最後</b>（玩到其他人都破產）。</p>
+  <ol class="rules">
+  <li><b>地產</b>：買地、蓋房子收過路費（空地約地價的 25%，蓋到大樓是 10 倍）。同色地買齊，空地過路費加倍。踩到別人的地，可以出價（1.5～3 倍）跟對方買，對方可以拒絕，最多加價三次。</li>
+  <li><b>薪水</b>：每經過起點領薪水。去<b>人力銀行</b>面試、去<b>大學</b>進修可以升職，薪水從 $800 一路漲到 $4,000。</li>
+  <li><b>股票</b>：三檔股票風險不同，輪到你時隨時能買賣。停在<b>證券所</b>領 6% 股利。</li>
+  <li><b>企鵝幣</b>：漲跌超大的加密貨幣。停在<b>幣交易所</b>會碰到暴漲、崩盤或空投。</li>
+  <li><b>創業園區</b>：投資新創，3 回合後可能倒閉、打平、翻 3 倍或翻 8 倍。</li>
+  <li><b>網銀</b>（中間按鈕）：輪到你時隨時借錢、還錢、領存款。貸款每過起點 +8%。能借多少看你的資產：4 個月薪水＋地產 60%＋股票 50%＋企鵝幣 20%＋存款 90%。</li><li><b>銀行格子</b>：只有走到這裡才能<b>存錢</b>（每過起點 +5% 利息），停下來再多拿一次 5% 利息，還能<b>九折還清貸款</b>。</li>
+  <li><b>夜市</b>擺攤、<b>打工</b>賺現金；<b>彩券行</b>試手氣；<b>機會／命運</b>卡有好有壞。</li>
+  <li>付不出錢時，會自動提存款、賣股票和幣、最後半價賣地。</li></ol>`,[],true);
+}
+
+/* ---------- setup ---------- */
+let setupCfg={where:'local',n:3,rounds:20,mode:'rounds',goal:50000,players:[{name:'我',bot:false},{name:'阿財',bot:true},{name:'小美',bot:true},{name:'王董',bot:true}]};
+function modeOpts(c){return `<div class="opt"><span>怎麼結束</span><div class="seg">${[['rounds','比輪數'],['goal','先達標'],['last','撐到最後']].map(([k,l])=>`<button data-sm="${k}" class="${c.mode===k?'on':''}">${l}</button>`).join('')}</div></div>
+  ${c.mode==='rounds'?`<div class="opt"><span>輪數</span><div class="seg">${[12,20,30].map(n=>`<button data-sr="${n}" class="${c.rounds===n?'on':''}">${n} 輪</button>`).join('')}</div></div>`
+   :c.mode==='goal'?`<div class="opt"><span>目標資產</span><div class="seg">${[30000,50000,100000].map(n=>`<button data-sg="${n}" class="${c.goal===n?'on':''}">${n/10000} 萬</button>`).join('')}</div></div>`:''}`}
+function showSetup(){
+  const c=setupCfg;
+  const where=`<div class="seg" style="margin-bottom:12px"><button data-sw="local" class="${c.where==='local'?'on':''}" style="flex:1">同一支手機</button><button data-sw="online" class="${c.where==='online'?'on':''}" style="flex:1">線上連線</button></div>`;
+  if(G&&G.online&&NET.code){openSheet('線上遊戲',`<p>你正在線上房間 <b>${esc(NET.code)}</b>。要開新遊戲，請先離開房間。</p>`,[{label:'離開房間',on:leaveRoom},{label:'繼續玩',kind:'primary',on:closeSheet}],true);return}
+  if(c.where==='online'){
+    const body=`<div class="setup">${where}${NET.ok?`
+    <div class="opt"><span>你的暱稱</span><input id="nick" value="${esc(nick())}" maxlength="8" placeholder="例如：小明" style="max-width:60%"></div>
+    <div class="sec"><h3>建立房間（你當房主）</h3>${modeOpts(c)}</div>
+    <div class="sec"><h3>加入朋友的房間</h3><div class="opt"><input id="codeIn" maxlength="4" placeholder="輸入 4 碼房號" style="text-transform:uppercase;max-width:60%"><button data-join="1" style="background:var(--ink);color:var(--bg)">加入</button></div></div>
+    <p style="color:var(--muted);font-size:13px">每個人用自己的手機，輪到誰就由誰操作。電腦玩家由房主的手機代打，房主要一直開著這個頁面。</p>`
+    :NET.kind==='fbfail'||window.FBNET?`<p>正在連線到線上伺服器…如果一直停在這裡，請確認網路，或重新整理頁面。</p>`
+    :`<p>現在這個畫面連不上線上功能。線上連線需要：</p><ol class="rules"><li>每個人都登入 claude.ai。</li><li>房主在網頁右上角「分享」裡，用 email 邀請朋友，權限選「<b>編輯者</b>」。</li><li>朋友從邀請連結打開，再選「線上連線」。</li></ol>`}</div>`;
+    openSheet('新遊戲',body,NET.ok?[{label:'建立房間',kind:'primary',on:createRoom}]:[],!!G);
+    return;
+  }
+  const body=`<div class="setup">${where}<div class="opt"><span>人數</span><div class="seg">${[2,3,4].map(n=>`<button data-sn="${n}" class="${c.n===n?'on':''}">${n} 人</button>`).join('')}</div></div>
+  ${c.players.slice(0,c.n).map((p,i)=>`<div class="prow"><i style="background:var(--p${i})"></i><input id="pn${i}" value="${esc(p.name)}" maxlength="6" aria-label="玩家 ${i+1} 名字"><div class="seg"><button data-sb="${i}:0" class="${!p.bot?'on':''}">真人</button><button data-sb="${i}:1" class="${p.bot?'on':''}">電腦</button></div></div>`).join('')}
+  ${modeOpts(c)}
+  ${c.mode==='rounds'?`<p style="color:var(--muted);font-size:13px">輪數到了，總資產最高的人贏。時間最好掌握。</p>`
+   :c.mode==='goal'?`<p style="color:var(--muted);font-size:13px">誰的總資產先達到目標就直接獲勝，像在比誰先財富自由。</p>`
+   :`<p style="color:var(--muted);font-size:13px">玩到其他人全部破產為止，最刺激但可能玩很久（最多 80 輪，到了就比總資產）。</p>`}
+  <p style="color:var(--muted);font-size:13px">多個真人可以用同一支手機輪流玩。想用各自的手機一起玩，選上面的「線上連線」。</p></div>`;
+  openSheet('新遊戲',body,[{label:'開始遊戲',kind:'primary',on:()=>{readNames();closeSheet();newGame({rounds:c.rounds,mode:c.mode,goal:c.goal,players:c.players.slice(0,c.n)})}}],!!G);
+}
+function readNames(){const nk=$('#nick');if(nk)setNick(nk.value.trim());setupCfg.players.forEach((p,i)=>{const el=$('#pn'+i);if(el)p.name=el.value.trim()||('玩家'+(i+1))})}
+$('#sheet').addEventListener('click',e=>{
+  if(e.target.closest('[data-join]')){joinRoom();return}
+  const t=e.target.closest('[data-sn],[data-sb],[data-sr],[data-sm],[data-sg],[data-sw]');if(!t)return;readNames();
+  if(t.dataset.sw)setupCfg.where=t.dataset.sw;
+  if(t.dataset.sn)setupCfg.n=+t.dataset.sn;
+  if(t.dataset.sr)setupCfg.rounds=+t.dataset.sr;
+  if(t.dataset.sm)setupCfg.mode=t.dataset.sm;
+  if(t.dataset.sg)setupCfg.goal=+t.dataset.sg;
+  if(t.dataset.sb){const [i,b]=t.dataset.sb.split(':');setupCfg.players[i].bot=b==='1'}
+  showSetup();
+});
+
+/* ---------- online sync ---------- */
+function persist(){
+  if(!G||NET.applying)return;
+  if(!G.online){try{localStorage.setItem('tw-tycoon-v1',JSON.stringify(G))}catch(e){}return}
+  if(!NET.ref||!(drivingNow()||NET.handoff))return;
+  queueWrite();
+}
+async function queueWrite(){
+  if(NET.writing){NET.pend=true;return}
+  NET.writing=true;
+  try{
+    do{
+      NET.pend=false;
+      G.v=(G.v||0)+1;
+      const body={gs:JSON.stringify(G),v:G.v,status:'playing'};
+      try{await NET.ref.update(body)}catch(e){await sleep(600);try{await NET.ref.update(body)}catch(e2){}}
+      await sleep(120);
+    }while(NET.pend);
+  }finally{NET.writing=false;NET.handoff=false}
+}
+function applySnapshot(d){
+  let g;try{g=JSON.parse(d.gs)}catch(e){return}
+  if(!g||!g.players)return;
+  if(G&&G.online&&G.gid===g.gid&&(g.v||0)<=(G.v||0))return;
+  const newGameArrived=!G||G.gid!==g.gid;
+  NET.applying=true;G=g;render();NET.applying=false;
+  if(newGameArrived)NET.first=true;
+  if(G.over){if(NET.overShown!==G.gid){NET.overShown=G.gid;showResults()}return}
+  if(G.ask&&G.players[G.ask.seller]&&G.players[G.ask.seller].uid===NET.uid&&!NET.answered[G.ask.id]){
+    const a=G.ask;NET.answered[a.id]=true;
+    const buyer=G.players[a.buyer];
+    openSheet(`${buyer.name} 想買你的${B[a.i].n}`,`<p>${esc(buyer.name)} 出價 <b class="num">${fmt(a.price)}</b> 想買下${B[a.i].n}（現在過路費 ${fmt(G.own[a.i]?rentOf(a.i):0)}）。</p><p>60 秒內沒回覆就當作不賣。</p>`,
+      [{label:`賣 ${fmt(a.price)}`,kind:'primary',on:()=>{closeSheet();NET.db.doc(`games/${NET.code}/ans/${a.id}`).set({ok:true}).catch(()=>{})}},
+       {label:'不賣',on:()=>{closeSheet();NET.db.doc(`games/${NET.code}/ans/${a.id}`).set({ok:false}).catch(()=>{})}}],false);
+  }
+  if(NET.first){NET.first=false;recoverStale()}
+  maybeStart();
+}
+function recoverStale(){
+  const p=cur();if(!isDriverOf(p))return;
+  if(['moving','choose','wait'].includes(G.phase)){G.phase='done';render()}
+  if(p.bot){if(G.phase==='roll')doRoll();else if(G.phase==='done')endTurn()}
+}
+function askRemote(seller,buyer,i,price){
+  const id='a'+Date.now().toString(36)+Math.floor(Math.random()*1e4);
+  G.ask={id,seller:seller.id,buyer:buyer.id,i,price};say(`等 ${seller.name} 回覆要不要賣…`);render();
+  return new Promise(res=>{
+    let un=null,done=false;
+    const fin=v=>{if(done)return;done=true;clearTimeout(t);un&&un();G.ask=null;res(v)};
+    const t=setTimeout(()=>fin(false),60000);
+    try{un=NET.db.doc(`games/${NET.code}/ans/${id}`).onSnapshot(sn=>{if(sn.exists)fin(!!(sn.data()||{}).ok)},()=>fin(false))}catch(e){fin(false)}
+  });
+}
+const CODE_CH='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const BOTN=['阿財','小美','王董','阿嬤','包租公'];
+function nick(){try{return localStorage.getItem('tw-tycoon-nick')||''}catch(e){return ''}}
+function setNick(v){try{localStorage.setItem('tw-tycoon-nick',v)}catch(e){}}
+function rememberRoom(c){try{c?localStorage.setItem('tw-tycoon-room',c):localStorage.removeItem('tw-tycoon-room')}catch(e){}}
+function subscribe(code){
+  NET.unsub&&NET.unsub();
+  NET.code=code;NET.ref=NET.db.doc('games/'+code);NET.first=true;rememberRoom(code);
+  NET.unsub=NET.ref.onSnapshot(sn=>{
+    if(!sn.exists){return}
+    const d=sn.data();NET.room=d;
+    if(d.status==='lobby'){NET.inLobby=true;showLobby(d)}
+    else if(d.gs){if(NET.inLobby){NET.inLobby=false;closeSheet()}applySnapshot(d)}
+  },()=>{});
+}
+function leaveRoom(){
+  NET.unsub&&NET.unsub();NET.unsub=null;NET.ref=null;NET.code=null;NET.inLobby=false;rememberRoom(null);
+  G=null;try{const sv=JSON.parse(localStorage.getItem('tw-tycoon-v1')||'null');if(sv&&sv.players)G=sv}catch(e){}
+  if(!G){newGame({players:[{name:'我',bot:false},{name:'阿財',bot:true},{name:'小美',bot:true}],rounds:20});G.msg='設定玩家後就能開始。'}
+  render();showSetup();
+}
+async function createRoom(){
+  const n=($('#nick')?.value||'').trim()||'玩家';setNick(n);
+  let code='';for(let k=0;k<4;k++)code+=CODE_CH[Math.floor(Math.random()*CODE_CH.length)];
+  const c=setupCfg;
+  try{await NET.db.doc('games/'+code).set({status:'lobby',host:NET.uid,seats:[{uid:NET.uid,name:n,bot:false}],cfg:{rounds:c.rounds,mode:c.mode,goal:c.goal},gs:'',v:0})}
+  catch(e){openSheet('建立失敗',`<p>${permErr(e)||'連線出問題了，請稍後再試一次。'}</p>`,[{label:'回去',kind:'primary',on:showSetup}],true);return}
+  subscribe(code);
+}
+async function joinRoom(){
+  const n=($('#nick')?.value||'').trim()||'玩家';setNick(n);
+  const code=($('#codeIn')?.value||'').trim().toUpperCase();
+  const err=m=>openSheet('加入失敗',`<p>${m}</p>`,[{label:'回去',kind:'primary',on:showSetup}],true);
+  if(!/^[A-Z0-9]{4}$/.test(code))return err('房號是 4 個英文或數字，請再確認一次。');
+  const ref=NET.db.doc('games/'+code);
+  try{
+    let sn=await ref.get();
+    if(!sn.exists)return err(`找不到房間 ${code}。請確認房號，或請房主先建立房間。`);
+    let d=sn.data();
+    if(!d.seats.some(x=>x.uid===NET.uid)){
+      if(d.status!=='lobby'){subscribe(code);return}
+      if(d.seats.length>=4)return err('這個房間已經滿 4 人了。');
+      if(ref.addSeat){const r=await ref.addSeat({uid:NET.uid,name:n,bot:false});if(r==='full')return err('這個房間已經滿 4 人了。')}
+      else{
+        const l=await ref.acquire({holder:NET.uid,ttlMs:4000});
+        if(!l.acquired){await sleep(1500)}
+        sn=await ref.get();d=sn.data();
+        if(d.seats.length>=4)return err('這個房間已經滿 4 人了。');
+        await ref.update({seats:[...d.seats,{uid:NET.uid,name:n,bot:false}]});
+      }
+    }
+    subscribe(code);
+  }catch(e){err(permErr(e)||'連線出問題了，請稍後再試一次。')}
+}
+function showLobby(d){
+  const host=d.host===NET.uid;
+  const body=`<p style="font-size:13px;color:var(--muted)">房號</p><p class="big" style="letter-spacing:.2em;margin:0 0 8px">${esc(NET.code)}</p>
+  <p>請朋友打開這個網頁，選「線上連線」，輸入房號 <b>${esc(NET.code)}</b> 就能加入。</p>
+  <div class="rank">${d.seats.map((x,i)=>`<div><span><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--p${i})"></i> ${esc(x.name)}${x.bot?'（電腦）':''}${x.uid===NET.uid?'（你）':''}${x.uid===d.host?'・房主':''}</span><span style="color:var(--muted);font-size:13px">${x.bot?'由房主的手機代打':'已加入'}</span></div>`).join('')}</div>
+  <p style="font-size:13px;color:var(--muted)">${host?'人到齊就按開始。2～4 人，不夠可以加電腦。':'等房主按開始…'}</p>`;
+  const acts=host?[{label:'開始遊戲',kind:'primary',disabled:d.seats.length<2,on:()=>hostStart(d)},
+     {label:'加一個電腦',disabled:d.seats.length>=4,on:()=>NET.ref.update({seats:[...d.seats,{uid:null,name:BOTN.find(b=>!d.seats.some(x=>x.name===b))||'電腦',bot:true}]}).catch(()=>{})},
+     {label:'移除電腦',disabled:!d.seats.some(x=>x.bot),on:()=>{const k=d.seats.map(x=>x.bot).lastIndexOf(true);NET.ref.update({seats:d.seats.filter((_,i)=>i!==k)}).catch(()=>{})}},
+     {label:'離開房間',on:leaveRoom}]
+    :[{label:'離開房間',on:async()=>{try{await NET.ref.update({seats:d.seats.filter(x=>x.uid!==NET.uid)})}catch(e){}leaveRoom()}}];
+  openSheet(`線上房間 ${NET.code}`,body,acts,false);
+}
+function hostStart(d){
+  closeSheet();NET.inLobby=false;
+  newGame({...d.cfg,online:true,host:NET.uid,players:d.seats.map(x=>({name:x.name,bot:x.bot,uid:x.uid||'bot'}))});
+}
+function permErr(e){
+  if(!e)return '';
+  if(NET.kind==='fb'&&(e.code==='permission-denied'||e.code==='firestore/permission-denied'))return '線上伺服器還沒開放權限，請網站管理員到 Firebase 的 Firestore 規則加上大富翁那一段。';
+  if(e.code==='invalid_argument')return '你沒有寫入這個遊戲的權限。請房主在「分享」裡用 email 邀請你，權限選「編輯者」。';
+  return '';
+}
+async function initNet(){
+  if(window.FBNET){
+    try{
+      const fb=await window.FBNET;if(!fb)return;
+      let id=null;try{id=localStorage.getItem('tw-tycoon-uid')}catch(e){}
+      if(!id){id='p'+Math.random().toString(36).slice(2,12)+Date.now().toString(36);try{localStorage.setItem('tw-tycoon-uid',id)}catch(e){}}
+      NET.db=fb;NET.uid=id;NET.ok=true;NET.kind='fb';
+      let code=null;try{code=localStorage.getItem('tw-tycoon-room')}catch(e){}
+      if(code){closeSheet();subscribe(code)}
+      else if($('#sheetWrap').hidden===false&&setupCfg.where==='online')showSetup();
+    }catch(e){}
+    return;
+  }
+  if(!window.claude||!window.claude.use)return;
+  try{
+    const [db,user]=await Promise.all([window.claude.use('db'),window.claude.use('user')]);
+    if(!db||!user)return;
+    const id=await user.id();if(!id)return;
+    NET.db=db;NET.uid=id;NET.ok=true;
+    let code=null;try{code=localStorage.getItem('tw-tycoon-room')}catch(e){}
+    if(code){closeSheet();subscribe(code)}
+  }catch(e){}
+}
+
+/* ---------- render ---------- */
+const PIPS={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
+function dieHTML(n){return Array.from({length:9},(_,i)=>`<span class="${PIPS[n].includes(i)?'on':''}"></span>`).join('')}
+function renderDice(){[$('#d1'),$('#d2')].forEach((el,i)=>{el.innerHTML=dieHTML(G.dice[i]);el.classList.toggle('d1',G.dice[i]===1)})}
+function buildBoard(){
+  const bd=$('#board');
+  B.forEach((s,i)=>{const [r,c]=rc(i);const el=document.createElement('div');
+    el.className=`cell ${s.t==='prop'?'prop':''} ${s.c||''}`;el.style.gridRow=r;el.style.gridColumn=c;el.id='c'+i;
+    el.innerHTML=(s.t==='prop'?`<i class="band" style="background:var(--g${s.g})"></i><span class="pips"></span><b>${s.n}</b><small>$${s.price}</small>`:`<b>${s.n}</b>`)+'<span class="tok"></span>';
+    bd.appendChild(el)});
+}
+function render(){
+  if(!G)return;
+  B.forEach((s,i)=>{const el=$('#c'+i),o=G.own[i];
+    if(s.t==='prop'){el.style.borderBottomColor=o?G.players[o.p].color:'transparent';el.querySelector('.pips').innerHTML=o?'<i></i>'.repeat(o.l):''}
+    el.querySelector('.tok').innerHTML=G.players.filter(p=>!p.out&&p.pos===i).map(p=>`<i style="background:${p.color}" title="${esc(p.name)}"></i>`).join('');
+    el.classList.toggle('here',!G.over&&cur().pos===i)});
+  const p=cur();
+  $('#who').innerHTML=`<i style="background:${p.color}"></i>${esc(p.name)}${p.bot?'（電腦）':''}${G.online&&!p.bot&&p.uid===NET.uid?'（你）':''}`;
+  $('#rd').textContent=G.mode==='goal'?`第 ${G.round} 輪・目標 ${G.goal/10000} 萬`:G.mode==='last'?`第 ${G.round} 輪・撐到最後`:`第 ${Math.min(G.round,G.maxRounds)} / ${G.maxRounds} 輪`;
+  renderDice();$('#msg').textContent=G.msg;
+  const ab=$('#actBtn'),sqh=B[p.pos],oh=G.own[p.pos];
+  let at='';
+  if(!G.over&&!p.bot&&drivingNow()&&G.phase==='done'&&sqh.t==='prop'){
+    if(!oh)at=`買下${sqh.n} ${fmt(sqh.price)}`;
+    else if(oh.p===p.id&&oh.l<3)at=`在${sqh.n}蓋房子 ${fmt(upCost(sqh))}`;
+    else if(oh.p!==p.id&&!G.negDone)at=`跟 ${G.players[oh.p].name} 出價買${sqh.n}`;
+  }
+  ab.hidden=!at;ab.textContent=at;
+  const mb=$('#mainBtn');
+  if(G.over){mb.textContent='看排名';mb.disabled=false}
+  else if(p.bot){mb.textContent='電腦行動中…';mb.disabled=true}
+  else if(!drivingNow()){mb.textContent=`等 ${p.name} 行動…`;mb.disabled=true}
+  else if(G.phase==='roll'){mb.textContent='擲骰子';mb.disabled=false}
+  else if(G.phase==='done'){mb.textContent='結束回合';mb.disabled=false}
+  else{mb.textContent='…';mb.disabled=true}
+  $('#players').innerHTML=G.players.map((q,i)=>`<button class="pc ${i===G.turn&&!G.over?'now':''} ${q.out?'out':''}" data-p="${i}">
+    <span class="nm"><i style="background:${q.color}"></i>${esc(q.name)}${q.bot?'<em>電腦</em>':''}${G.online&&!q.bot&&q.uid===NET.uid?'<em>你</em>':''}${q.out?'<em>破產</em>':''}</span>
+    <span class="job">${JOBS[q.job][0]}${q.skip?'・出國中':''}</span>
+    <span class="row"><span>現金</span><span class="num">${fmt(q.cash)}</span></span>
+    <span class="row"><span>總資產</span><span class="num"><b>${fmt(worth(q))}</b></span></span></button>`).join('');
+  $('#log').innerHTML=G.log.slice(0,40).map(l=>`<li><i style="background:${l.c}"></i><span>${esc(l.t)}</span></li>`).join('');
+  persist();
+}
+$('#mainBtn').addEventListener('click',()=>{if(!G)return;if(G.over)return showResults();if(cur().bot||!drivingNow())return;if(G.phase==='roll')doRoll();else if(G.phase==='done')endTurn()});
+$('#actBtn').addEventListener('click',async()=>{
+  if(!G||G.over)return;const p=cur();if(p.bot||!drivingNow()||G.phase!=='done')return;
+  const i=p.pos,o=G.own[i];
+  if(!o||o.p===p.id)await propOffer(p,i);else if(!G.negDone)await negotiate(p,G.players[o.p],i);
+  G.phase='done';render();
+});
+$('#mktBtn').addEventListener('click',()=>G&&openMarket());
+$('#bankBtn').addEventListener('click',async()=>{
+  if(!G||G.over)return;const p=cur();
+  if(p.bot||!drivingNow()||!(G.phase==='roll'||G.phase==='done')){openSheet('手機網銀','<p>輪到你的回合時才能用網銀借錢、還錢。</p>',[],true);return}
+  const ph=G.phase;await bankLoop(p);G.phase=ph;render();
+});
+$('#meBtn').addEventListener('click',()=>{if(!G)return;openAssets(meP()||cur())});
+$('#players').addEventListener('click',e=>{const b=e.target.closest('[data-p]');if(b)openAssets(G.players[+b.dataset.p])});
+$('#rulesBtn').addEventListener('click',showRules);
+$('#newBtn').addEventListener('click',showSetup);
+
+function resume(){
+  if(G.seq===undefined)G.seq=0;
+  render();
+  if(G.phase==='start'){maybeStart();return}
+  if(G.over){showResults();return}
+  const p=cur();
+  if(G.phase==='roll'){if(p.bot)doRoll()}
+  else{G.phase='done';render();if(p.bot)endTurn()}
+}
+function start(data){
+  buildBoard();
+  let saved=data&&data.G;
+  if(!saved){try{saved=JSON.parse(localStorage.getItem('tw-tycoon-v1')||'null')}catch(e){}}
+  if(saved&&saved.players&&!saved.online){G=saved;resume()}
+  else{
+    G=null;
+    // sample frame behind the setup sheet
+    const demo={players:[{name:'我',bot:false},{name:'阿財',bot:true},{name:'小美',bot:true}],rounds:20};
+    newGame(demo);G.msg='設定玩家後就能開始。';render();
+    showSetup();
+  }
+  initNet();
+}
+window.claude?.hot?.snapshot?.(()=>({G}));
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+</script>
+
+</body></html>
