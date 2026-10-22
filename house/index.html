@@ -2046,38 +2046,121 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-even]'); i
 
 /* ---------- 室內擺件（家具） ---------- */
 const FURN={
+  /* 臥室 */
   bed2:{n:'雙人床',w:1.5,d:1.9,h:0.5,c:'#8E7CC3',g:'臥室',tip:'兩側各留 0.6 m 走道，床尾留 0.8 m。'},
   bedK:{n:'加大雙人床',w:1.8,d:1.9,h:0.5,c:'#8E7CC3',g:'臥室',tip:'兩側各留 0.6 m 走道，床尾留 0.8 m。'},
   bed1:{n:'單人床',w:1.0,d:1.9,h:0.5,c:'#9F8FD0',g:'臥室',tip:'至少一側留 0.6 m 走道。'},
+  bunk:{n:'上下舖',w:1.0,d:2.0,h:1.7,c:'#9F8FD0',g:'臥室',tip:'上舖離天花板至少 0.8 m，坐起來才不會撞頭。'},
+  crib:{n:'嬰兒床',w:0.7,d:1.25,h:1.0,c:'#F8BBD0',g:'臥室',tip:'放在大人床邊，不要靠窗、不要在冷氣出風口正下方。'},
+  nstand:{n:'床頭櫃',w:0.45,d:0.4,h:0.55,c:'#C8A97E',g:'臥室',tip:'放在床的兩側，旁邊留插座給手機充電。'},
   ward:{n:'衣櫃',w:1.2,d:0.6,h:2.2,c:'#A1887F',g:'臥室',tip:'前面留 0.8 m 以上才能開門、站著換衣服；不要擋住窗戶。'},
+  dresser:{n:'梳妝台',w:1.0,d:0.45,h:0.75,c:'#D7B49E',g:'臥室',tip:'放在窗邊有自然光最好；前面留 0.7 m 放椅子。'},
+  drawer:{n:'抽屜櫃',w:0.8,d:0.45,h:1.0,c:'#B08D6A',g:'臥室',tip:'前面留 0.8 m 才拉得開抽屜。'},
+  /* 更衣室 */
+  hang:{n:'開放式吊衣架',w:1.5,d:0.6,h:2.0,c:'#A1887F',g:'更衣室',tip:'單邊吊衣服要 0.6 m 深，前面走道 0.8 m。'},
+  mirror:{n:'全身鏡',w:0.5,d:0.1,h:1.6,c:'#CFD8DC',g:'更衣室',tip:'前面要留 1 m 才照得到全身。'},
+  /* 書房 */
   desk:{n:'書桌',w:1.2,d:0.6,h:0.75,c:'#C8A97E',g:'書房',tip:'椅子後面要留 0.8 m 才拉得開；放在窗邊光線最好。'},
+  deskL:{n:'L 型書桌',w:1.6,d:1.4,h:0.75,c:'#C8A97E',g:'書房',tip:'適合放兩個螢幕；轉角要留給椅子轉身。'},
+  chairO:{n:'電腦椅',w:0.6,d:0.6,h:1.1,c:'#546E7A',g:'書房',tip:'書桌前面要留 0.8 m 讓椅子拉出來。'},
   shelf:{n:'書櫃',w:0.9,d:0.35,h:2.0,c:'#B08D6A',g:'書房',tip:'高櫃要固定在牆上，地震時才不會倒。'},
+  sofabed:{n:'沙發床',w:1.9,d:0.9,h:0.8,c:'#6D9DC5',g:'書房',tip:'攤開變床時大約 1.9 × 1.4 m，前面要留空間。'},
+  /* 客廳 */
   sofa3:{n:'三人沙發',w:2.1,d:0.9,h:0.8,c:'#6D9DC5',g:'客廳',tip:'沙發到電視最好 2.5 m 以上；沙發後面走路要留 0.8 m。'},
   sofa2:{n:'雙人沙發',w:1.6,d:0.9,h:0.8,c:'#6D9DC5',g:'客廳',tip:'沙發到電視最好 2.5 m 以上。'},
+  sofaL:{n:'L 型沙發',w:2.6,d:1.6,h:0.8,c:'#6D9DC5',g:'客廳',tip:'L 型轉角適合放在牆角，另一邊對著電視。'},
+  sofa1:{n:'單人沙發',w:0.9,d:0.9,h:0.8,c:'#7FA7CF',g:'客廳',tip:'放在三人沙發旁邊，兩個之間留 0.5 m 放邊几。'},
+  massage:{n:'按摩椅',w:0.8,d:1.4,h:1.2,c:'#455A64',g:'客廳',tip:'躺下來會往後伸展，後面要留 0.5 m。'},
   coffee:{n:'茶几',w:1.1,d:0.6,h:0.4,c:'#C8A97E',g:'客廳',tip:'茶几和沙發之間留 0.4 m 放腳。'},
+  side:{n:'邊几',w:0.5,d:0.5,h:0.55,c:'#C8A97E',g:'客廳',tip:'放在沙發旁邊擺檯燈或飲料。'},
   tv:{n:'電視櫃',w:1.8,d:0.45,h:0.5,c:'#5D6D7E',g:'客廳',tip:'電視不要正對窗戶，會反光。'},
+  rug:{n:'地毯',w:2.0,d:1.4,h:0.01,c:'#D7CCC8',g:'客廳',flat:true,tip:'鋪在沙發和茶几下面，讓客廳有一區的感覺。'},
+  piano:{n:'直立式鋼琴',w:1.5,d:0.6,h:1.3,c:'#3E2723',g:'客廳',tip:'鋼琴很重，最好放一樓；前面留 1 m 放琴椅。'},
+  tank:{n:'魚缸',w:1.2,d:0.45,h:1.3,c:'#4FC3F7',g:'客廳',tip:'裝滿水非常重（約 250 kg），要放在柱子或梁附近，不要放樓板中間。'},
+  lamp:{n:'落地燈',w:0.4,d:0.4,h:1.6,c:'#FFE082',g:'客廳',tip:'放在沙發旁邊或角落。'},
+  ac:{n:'冷氣室內機（掛牆）',w:0.9,d:0.25,h:0.3,c:'#ECEFF1',g:'通用',ceil:true,elev:2.3,tip:'裝在牆上高處，不要正對床或沙發直吹；旁邊要有排水管到室外。'},
+  /* 餐廳 */
   dine4:{n:'四人餐桌',w:1.2,d:0.8,h:0.75,c:'#C8A97E',g:'餐廳',tip:'餐桌四周要留 0.7 m 拉椅子。'},
   dine6:{n:'六人餐桌',w:1.8,d:0.9,h:0.75,c:'#C8A97E',g:'餐廳',tip:'餐桌四周要留 0.7 m 拉椅子。'},
-  counter:{n:'流理台',w:2.4,d:0.6,h:0.85,c:'#B0BEC5',g:'廚房',tip:'流理台前面走道至少 0.9 m；水槽、爐子、冰箱排成三角形最順手。'},
-  fridge:{n:'冰箱',w:0.7,d:0.7,h:1.8,c:'#ECEFF1',g:'廚房',tip:'冰箱前面要留 0.9 m 開門。'},
+  dineR:{n:'圓桌（6～8 人）',w:1.3,d:1.3,h:0.75,c:'#C8A97E',g:'餐廳',tip:'圓桌四周要留 0.7 m；過年家族聚餐很好用。'},
+  chair:{n:'餐椅',w:0.45,d:0.5,h:0.9,c:'#A1887F',g:'餐廳',tip:'椅子後面要留 0.6 m 讓人走過去。'},
+  buffet:{n:'餐具櫃',w:1.2,d:0.45,h:0.9,c:'#B08D6A',g:'餐廳',tip:'放碗盤、熱水壺；靠近餐桌和廚房最方便。'},
+  wine:{n:'酒櫃',w:1.0,d:0.45,h:1.9,c:'#6D4C41',g:'餐廳',tip:'不要放在太陽直射的地方。'},
+  water:{n:'飲水機',w:0.4,d:0.4,h:1.2,c:'#E3F2FD',g:'餐廳',tip:'旁邊要有插座和水管。'},
+  /* 廚房 */
+  counter:{n:'流理台（一字型）',w:2.4,d:0.6,h:0.85,c:'#B0BEC5',g:'廚房',tip:'流理台前面走道至少 0.9 m；水槽、爐子、冰箱排成三角形最順手。'},
+  sink:{n:'水槽區',w:0.8,d:0.6,h:0.85,c:'#90A4AE',g:'廚房',tip:'水槽最好靠窗或靠外牆，排水管才好走。'},
+  stove:{n:'瓦斯爐／電磁爐區',w:0.8,d:0.6,h:0.85,c:'#78909C',g:'廚房',tip:'爐子兩邊各留 0.4 m 放鍋子；不要放在窗戶正下方，風會吹熄火。'},
+  hood:{n:'抽油煙機',w:0.8,d:0.5,h:0.4,c:'#CFD8DC',g:'廚房',ceil:true,elev:1.6,tip:'裝在爐子正上方，離爐面約 0.65～0.75 m；排煙管要接到室外。'},
+  upper:{n:'上櫃（吊櫃）',w:1.2,d:0.35,h:0.7,c:'#D7CCC8',g:'廚房',ceil:true,elev:1.55,tip:'掛在流理台上方，離檯面約 0.7 m，放乾貨和碗盤。'},
+  cornerC:{n:'轉角流理台（L 型轉角）',w:1.0,d:1.0,h:0.85,c:'#B0BEC5',g:'廚房',tip:'接在一字型流理台旁邊，變成 L 型廚房。'},
+  island:{n:'中島',w:1.8,d:0.9,h:0.9,c:'#ECEFF1',g:'廚房',tip:'四周走道都要 0.9 m 以上；可以當備料台或吃早餐的吧台。'},
+  stool:{n:'吧台椅',w:0.4,d:0.4,h:0.75,c:'#795548',g:'廚房',tip:'放在中島旁邊，每張椅子寬 0.6 m。'},
+  fridge:{n:'冰箱（單門）',w:0.7,d:0.7,h:1.8,c:'#ECEFF1',g:'廚房',tip:'冰箱前面要留 0.9 m 開門；後面和兩側要留幾公分散熱。'},
+  fridge2:{n:'冰箱（對開門）',w:0.9,d:0.75,h:1.8,c:'#ECEFF1',g:'廚房',tip:'對開門冰箱比較寬，要先量好位置，前面留 0.9 m。'},
+  appl:{n:'電器高櫃',w:0.6,d:0.6,h:2.1,c:'#D7CCC8',g:'廚房',tip:'放烤箱、微波爐、電鍋；每一層都要有插座。'},
+  dish:{n:'洗碗機',w:0.6,d:0.6,h:0.85,c:'#CFD8DC',g:'廚房',tip:'放在水槽旁邊，排水才方便。'},
+  pantry:{n:'食品儲物櫃',w:0.9,d:0.45,h:2.0,c:'#BCAAA4',g:'廚房',tip:'放米、罐頭、乾貨；不要放在爐子旁邊太熱。'},
+  bin:{n:'垃圾桶／資源回收',w:0.6,d:0.4,h:0.7,c:'#9E9E9E',g:'廚房',tip:'台灣要分類回收，留 2～3 個桶子的空間。'},
+  /* 浴室 */
   toilet:{n:'馬桶',w:0.4,d:0.7,h:0.4,c:'#F5F5F5',g:'浴室',tip:'馬桶兩側各留 0.2 m 以上、前面留 0.6 m。'},
   basin:{n:'洗手台',w:0.6,d:0.45,h:0.85,c:'#E0E0E0',g:'浴室',tip:'洗手台前面留 0.6 m 站著。'},
+  vanity:{n:'浴櫃（洗手台＋櫃子）',w:0.8,d:0.5,h:0.85,c:'#D7CCC8',g:'浴室',tip:'下面可以收納衛生用品；前面留 0.6 m。'},
   shower:{n:'淋浴間',w:0.9,d:0.9,h:2.0,c:'#B3E5FC',g:'浴室',tip:'淋浴間至少 0.9 × 0.9 m，再小會轉不過身。'},
+  showerL:{n:'乾濕分離淋浴間（大）',w:1.2,d:0.9,h:2.0,c:'#B3E5FC',g:'浴室',tip:'用玻璃門把淋浴區隔開，浴室其他地方就不會濕。'},
   tub:{n:'浴缸',w:1.5,d:0.75,h:0.55,c:'#E1F5FE',g:'浴室',tip:'浴缸通常靠牆放，旁邊留 0.6 m 進出。'},
-  washer:{n:'洗衣機',w:0.6,d:0.6,h:0.85,c:'#ECEFF1',g:'洗衣',tip:'要有排水孔和水龍頭，最好放在陽台或通風的地方。'},
-  dryer:{n:'烘衣機',w:0.6,d:0.65,h:0.85,c:'#CFD8DC',g:'洗衣',tip:'旁邊要有專用插座（電流大）；排氣式要接管到室外，熱泵式不用排氣管但比較貴。'},
-  washdry:{n:'洗衣機＋烘衣機（疊放）',w:0.6,d:0.65,h:1.75,c:'#CFD8DC',g:'洗衣',tip:'烘衣機疊在洗衣機上面，只佔一台的地板，要用專用的疊放架固定。'},
-  rackC:{n:'升降曬衣架（天花板）',w:1.8,d:0.5,h:0.1,c:'#B0BEC5',g:'曬衣',ceil:true,tip:'裝在陽台天花板，可以降下來掛衣服再升上去，不佔地板；要裝在有陽光、通風的陽台。'},
-  rack:{n:'落地曬衣架',w:1.5,d:0.6,h:1.5,c:'#B0BEC5',g:'曬衣',tip:'可以收起來；放在陽台或窗邊有陽光的地方，衣服比較快乾。'},
+  heater:{n:'浴室暖風機',w:0.4,d:0.4,h:0.2,c:'#ECEFF1',g:'浴室',ceil:true,elev:2.4,tip:'裝在天花板，冬天洗澡比較暖，也可以除濕。'},
+  hamper:{n:'洗衣籃',w:0.4,d:0.4,h:0.6,c:'#BCAAA4',g:'浴室',tip:'放在浴室門口或工作陽台附近。'},
+  /* 洗衣／曬衣 */
+  washer:{n:'洗衣機',w:0.6,d:0.6,h:0.85,c:'#ECEFF1',g:'洗衣曬衣',tip:'要有排水孔和水龍頭，最好放在陽台或通風的地方。'},
+  dryer:{n:'烘衣機',w:0.6,d:0.65,h:0.85,c:'#CFD8DC',g:'洗衣曬衣',tip:'旁邊要有專用插座（電流大）；排氣式要接管到室外，熱泵式不用排氣管但比較貴。'},
+  washdry:{n:'洗衣機＋烘衣機（疊放）',w:0.6,d:0.65,h:1.75,c:'#CFD8DC',g:'洗衣曬衣',tip:'烘衣機疊在洗衣機上面，只佔一台的地板，要用專用的疊放架固定。'},
+  laundrySink:{n:'洗衣槽',w:0.6,d:0.5,h:0.85,c:'#B0BEC5',g:'洗衣曬衣',tip:'手洗衣服、洗拖把用；要有排水孔。'},
+  rackC:{n:'升降曬衣架（天花板）',w:1.8,d:0.5,h:0.1,c:'#B0BEC5',g:'洗衣曬衣',ceil:true,elev:2.2,tip:'裝在陽台天花板，可以降下來掛衣服再升上去，不佔地板；要裝在有陽光、通風的陽台。'},
+  rack:{n:'落地曬衣架',w:1.5,d:0.6,h:1.5,c:'#B0BEC5',g:'洗衣曬衣',tip:'可以收起來；放在陽台或窗邊有陽光的地方，衣服比較快乾。'},
+  heaterW:{n:'熱水器（掛牆）',w:0.5,d:0.3,h:0.8,c:'#ECEFF1',g:'洗衣曬衣',ceil:true,elev:1.4,tip:'瓦斯熱水器一定要裝在室外通風的地方（陽台），不能裝在室內或加窗封起來的陽台，會一氧化碳中毒。'},
+  acOut:{n:'冷氣室外機',w:0.8,d:0.3,h:0.6,c:'#BDBDBD',g:'洗衣曬衣',tip:'放在陽台或外牆架子上，前面要通風，不要對著曬衣服的地方吹熱風。'},
+  utilC:{n:'雜物櫃',w:0.8,d:0.45,h:1.8,c:'#BCAAA4',g:'洗衣曬衣',tip:'放清潔劑、拖把、掃把。'},
+  /* 車庫 */
   car:{n:'小客車',w:1.8,d:4.6,h:1.5,c:'#78909C',g:'車庫',tip:'車子兩側要留 0.6 m 以上才能開門下車。'},
+  suv:{n:'休旅車',w:1.9,d:4.8,h:1.8,c:'#607D8B',g:'車庫',tip:'休旅車比較長，車庫深度至少 5.5 m；兩側留 0.6 m。'},
   scooter:{n:'機車',w:0.7,d:1.9,h:1.1,c:'#90A4AE',g:'車庫',tip:'機車停在車子旁邊或前陽台都可以。'},
-  tread:{n:'跑步機',w:0.8,d:2.0,h:1.3,c:'#546E7A',g:'健身',tip:'跑步機後面要留 2 m 安全距離；重的器材最好放一樓。'},
-  bench:{n:'重訓椅',w:0.6,d:1.4,h:0.5,c:'#546E7A',g:'健身',tip:'四周留 0.6 m 活動空間。'},
-  altarT:{n:'神明桌',w:1.5,d:0.6,h:1.0,c:'#C0912F',g:'其他',tip:'通常背靠牆、面向外面或大門。'},
+  bike:{n:'腳踏車',w:0.6,d:1.8,h:1.0,c:'#A5D6A7',g:'車庫',tip:'可以掛在牆上省空間。'},
+  tools:{n:'工具櫃',w:1.0,d:0.5,h:1.8,c:'#8D6E63',g:'車庫',tip:'放在車子前面的牆，不擋開門。'},
+  charger:{n:'電動車充電樁',w:0.3,d:0.2,h:0.4,c:'#81C784',g:'車庫',ceil:true,elev:1.0,tip:'裝在車頭附近的牆上，要從電箱拉專用迴路。'},
+  /* 健身房 */
+  tread:{n:'跑步機',w:0.8,d:2.0,h:1.3,c:'#546E7A',g:'健身房',tip:'跑步機後面要留 2 m 安全距離；重的器材最好放一樓。'},
+  bikeS:{n:'飛輪',w:0.6,d:1.2,h:1.2,c:'#546E7A',g:'健身房',tip:'四周留 0.6 m。'},
+  bench:{n:'重訓椅',w:0.6,d:1.4,h:0.5,c:'#546E7A',g:'健身房',tip:'四周留 0.6 m 活動空間。'},
+  rackSq:{n:'深蹲架',w:1.2,d:1.2,h:2.2,c:'#37474F',g:'健身房',tip:'很重而且會落槓，最好放一樓，地板鋪防震墊；上方要夠高。'},
+  dumb:{n:'啞鈴架',w:1.2,d:0.5,h:0.8,c:'#455A64',g:'健身房',tip:'啞鈴很重，放在靠牆、靠柱子的地方。'},
+  yoga:{n:'瑜珈墊',w:0.6,d:1.8,h:0.01,c:'#80CBC4',g:'健身房',flat:true,tip:'四周留 0.5 m 伸展。'},
+  /* 玄關 */
+  shoe:{n:'鞋櫃',w:1.0,d:0.4,h:1.0,c:'#B08D6A',g:'玄關',tip:'放在大門旁邊；做到天花板可以多放很多雙。'},
+  shoeB:{n:'穿鞋椅',w:0.8,d:0.35,h:0.45,c:'#A1887F',g:'玄關',tip:'坐著穿鞋，長輩比較安全。'},
+  /* 神明廳／其他 */
+  altarT:{n:'神明桌',w:1.5,d:0.6,h:1.0,c:'#C0912F',g:'神明廳',tip:'通常背靠牆、面向外面或大門。'},
+  altarL:{n:'供桌（矮桌）',w:1.2,d:0.6,h:0.8,c:'#C0912F',g:'神明廳',tip:'放在神明桌前面擺供品。'},
+  shelfS:{n:'置物架',w:1.2,d:0.45,h:1.8,c:'#9E9E9E',g:'儲藏室',tip:'儲藏室三面牆放置物架，中間留 0.8 m 走道。'},
+  beanbag:{n:'懶骨頭',w:0.8,d:0.8,h:0.6,c:'#FFB74D',g:'其他',tip:'遊戲室、閱讀角落很適合。'},
   plant:{n:'盆栽',w:0.5,d:0.5,h:1.0,c:'#7CB342',g:'其他',tip:'放在窗邊或陽台，有陽光比較好養。'}
 };
-const FURN_FOR={bedroom:['bed2','bedK','bed1','ward','desk'],living:['sofa3','sofa2','coffee','tv','plant'],study:['desk','shelf','bed1'],dining:['dine4','dine6'],kitchen:['counter','fridge','dine4'],
-  bath:['toilet','basin','shower','tub'],garage:['car','scooter'],gym:['tread','bench'],closet:['ward'],wardrobe:['ward'],laundry:['washer','dryer','washdry','rackC','rack'],balcony:['rackC','washer','dryer','washdry','rack','plant'],altar:['altarT'],multi:['sofa2','desk','bed1'],entry:['shelf','plant']};
+const FURN_FOR={
+  bedroom:['bed2','bedK','bed1','nstand','ward','dresser','drawer','desk','bunk','crib','ac'],
+  living:['sofa3','sofaL','sofa2','sofa1','coffee','side','tv','rug','lamp','piano','tank','massage','shelf','ac','plant'],
+  study:['desk','deskL','chairO','shelf','sofabed','bed1','ac'],
+  dining:['dine4','dine6','dineR','chair','buffet','wine','water','ac'],
+  kitchen:['counter','sink','stove','hood','upper','cornerC','island','stool','fridge','fridge2','appl','dish','pantry','bin','dine4'],
+  bath:['toilet','basin','vanity','shower','showerL','tub','heater','hamper','washdry'],
+  garage:['car','suv','scooter','bike','tools','charger'],
+  gym:['tread','bikeS','bench','rackSq','dumb','yoga','ac'],
+  closet:['hang','ward','drawer','mirror'], wardrobe:['ward','hang','drawer'],
+  laundry:['washer','dryer','washdry','laundrySink','rackC','rack','heaterW','utilC'],
+  balcony:['rackC','washer','dryer','washdry','laundrySink','rack','heaterW','acOut','utilC','plant'],
+  altar:['altarT','altarL','plant'], multi:['sofa2','beanbag','desk','bed1','tv','rug','ac'],
+  entry:['shoe','shoeB','mirror','plant'], storage:['shelfS','utilC'], hall:['shelf','plant'], other:['plant']
+};
+const onFloor=K=>!K.ceil&&!K.flat;
 let selFurn=null;
 const fSize=f=>{const K=FURN[f.k]||{w:1,d:1}; return f.rot%180?{w:K.d,d:K.w}:{w:K.w,d:K.d};};
 const roomOfFurn=f=>{const s=fSize(f), cx=f.x+s.w/2, cy=f.y+s.d/2; return S.rooms.find(r=>r.f===f.f&&cx>=r.x&&cx<=r.x+r.w&&cy>=r.y&&cy<=r.y+r.d);};
@@ -2086,9 +2169,11 @@ function addFurn(k,r){
   let rot=0; if((K.w>r.w-0.1&&K.d<=r.w-0.1)) rot=90;
   const s=rot?{w:K.d,d:K.w}:{w:K.w,d:K.d};
   // try to place against a wall inside the room, avoiding other furniture
-  const others=S.furn.filter(o=>o.f===r.f), hit=(x,y)=>others.some(o=>{const t=fSize(o); return x<o.x+t.w-0.01&&x+s.w>o.x+0.01&&y<o.y+t.d-0.01&&y+s.d>o.y+0.01;});
-  const cands=[[r.x+0.05,r.y+r.d-s.d-0.05],[r.x+r.w-s.w-0.05,r.y+r.d-s.d-0.05],[r.x+0.05,r.y+0.05],[r.x+r.w-s.w-0.05,r.y+0.05],[r.x+(r.w-s.w)/2,r.y+(r.d-s.d)/2]];
-  let p=cands.find(([x,y])=>x>=r.x-0.01&&y>=r.y-0.01&&!hit(x,y))||cands[4];
+  const fl=onFloor(K), others=S.furn.filter(o=>o.f===r.f&&FURN[o.k]&&(fl?onFloor(FURN[o.k]):FURN[o.k].ceil)), hit=(x,y)=>others.some(o=>{const t=fSize(o); return x<o.x+t.w-0.01&&x+s.w>o.x+0.01&&y<o.y+t.d-0.01&&y+s.d>o.y+0.01;});
+  const x0=r.x+0.05, x1=r.x+r.w-s.w-0.05, y0=r.y+0.05, y1=r.y+r.d-s.d-0.05, cands=[];
+  if(x1>=x0-1e-6&&y1>=y0-1e-6){ for(let x=x0;x<=x1+1e-6;x+=0.1) for(let y=y0;y<=y1+1e-6;y+=0.1){ const dw=Math.min(x-x0,x1-x,y-y0,y1-y); cands.push([x,y,dw+(y1-y)*0.01]); } }
+  cands.sort((a,b)=>a[2]-b[2]);
+  let p=cands.find(([x,y])=>!hit(x,y))||[r.x+(r.w-s.w)/2,r.y+(r.d-s.d)/2];
   const id=Math.max(0,...S.furn.map(f=>f.id))+1;
   S.furn.push({id,f:r.f,k,x:r2(Math.max(0,p[0])),y:r2(Math.max(0,p[1])),rot}); selFurn=id; return id;
 }
@@ -2101,7 +2186,7 @@ function furnChecks(add){
     if(!r) {add('info','擺件',`${f.f}F ${K.n}不在任何房間裡`,'它放在沒有規劃房間的空地（例如走廊）。','如果那裡是走廊，要確認還有 0.9 m 可以走。','layout',tagF); return;}
     if(f.x<r.x-e||f.y<r.y-e||f.x+s.w>r.x+r.w+e||f.y+s.d>r.y+r.d+e) add('warn','擺件',`${f.f}F ${K.n}卡在牆上`,`它跨在「${r.n}」的牆外面，真的擺會撞到牆。`,'拖進房間裡面，或把房間放大。','layout',tagF);
     // windows blocked by tall furniture against an exterior wall
-    if(K.h>0.9&&!K.ceil){ const blk=S.windows.filter(w=>w.f===f.f&&w.sill<K.h).find(w=>{
+    if(K.h>0.9&&onFloor(K)){ const blk=S.windows.filter(w=>w.f===f.f&&w.sill<K.h).find(w=>{
         let near=false,a0=0,a1=0; if(w.side==='front'){near=f.y<0.15;a0=f.x;a1=f.x+s.w;} else if(w.side==='back'){near=f.y+s.d>S.D-0.15;a0=f.x;a1=f.x+s.w;}
         else if(w.side==='left'){near=f.x<0.15;a0=f.y;a1=f.y+s.d;} else if(w.side==='right'){near=f.x+s.w>S.W-0.15;a0=f.y;a1=f.y+s.d;}
         else if(isH(w.side)){near=Math.abs(f.y-inC(w.side))<0.15||Math.abs(f.y+s.d-inC(w.side))<0.15;a0=f.x;a1=f.x+s.w;} else {near=Math.abs(f.x-inC(w.side))<0.15||Math.abs(f.x+s.w-inC(w.side))<0.15;a0=f.y;a1=f.y+s.d;}
@@ -2109,13 +2194,13 @@ function furnChecks(add){
       if(blk) add('info','擺件',`${f.f}F ${K.n}擋到窗戶`,`${K.n}高 ${f2(K.h)} m，比窗台（${f2(blk.sill)} m）還高，會擋住光線。`,'移到沒有窗戶的牆，或換成矮的家具。','layout',tagF); }
   });
   for(let fl=1;fl<=S.floors;fl++){
-    const fs=S.furn.filter(f=>f.f===fl&&FURN[f.k]&&!FURN[f.k].ceil);
+    const fs=S.furn.filter(f=>f.f===fl&&FURN[f.k]&&onFloor(FURN[f.k]));
     for(let a=0;a<fs.length;a++)for(let b=a+1;b<fs.length;b++){const A1=fs[a],B1=fs[b],sa=fSize(A1),sb=fSize(B1);
       const ov=Math.max(0,Math.min(A1.x+sa.w,B1.x+sb.w)-Math.max(A1.x,B1.x))*Math.max(0,Math.min(A1.y+sa.d,B1.y+sb.d)-Math.max(A1.y,B1.y));
       if(ov>0.02) add('warn','擺件',`${fl}F ${FURN[A1.k].n}和${FURN[B1.k].n}疊在一起`,'兩件家具佔用同一塊地板。','移開其中一件。','layout',{furn:B1.id});}
     S.rooms.filter(r=>r.f===fl&&r.w>0&&r.d>0).forEach(r=>{
       const inR=fs.filter(f=>roomOfFurn(f)===r); if(!inR.length) return;
-      const used=inR.reduce((t,f)=>{const s=fSize(f); return t+s.w*s.d;},0)/(r.w*r.d);
+      const used=inR.filter(f=>onFloor(FURN[f.k])).reduce((t,f)=>{const s=fSize(f); return t+s.w*s.d;},0)/(r.w*r.d);
       if(used>0.65) add('info','擺件',`${fl}F「${r.n}」家具太擠`,`家具佔了地板的 ${Math.round(used*100)}%，一般 50% 以內走起來才舒服。`,'拿掉一些家具，或換小一點的。','layout',{room:r.id});
       if(r.t==='garage'){const car=inR.find(f=>f.k==='car'); if(car){const s=fSize(car), side=Math.min(car.x-r.x,r.x+r.w-car.x-s.w); if(side<0.55) add('info','擺件',`${fl}F 車子旁邊開不了門`,`車子離牆只有 ${f2(Math.max(0,side))} m，開車門至少要 0.6 m。`,'把車子移到中間，或車庫加寬。','layout',{furn:car.id});}}
     });
@@ -2125,7 +2210,7 @@ function drawFurnPlan(u,Y){
   let o='';
   (S.furn||[]).filter(f=>f.f===floor&&FURN[f.k]).forEach(f=>{
     const K=FURN[f.k], s=fSize(f), sel=f.id===selFurn, fs=Math.max(0.12,Math.min(.24*u,s.w/(K.n.length*1.05),s.d/1.6));
-    o+=`<g class="furn${sel?' sel':''}" data-fid="${f.id}"><rect x="${f.x}" y="${Y(f.y+s.d)}" width="${s.w}" height="${s.d}" rx="${.05*u}" fill="${K.c}" fill-opacity="${K.ceil?.35:.85}" class="furnr" stroke-width="${(sel?.06:.025)*u}"${K.ceil?` stroke-dasharray="${.1*u} ${.06*u}"`:''}/>`;
+    o+=`<g class="furn${sel?' sel':''}" data-fid="${f.id}"><rect x="${f.x}" y="${Y(f.y+s.d)}" width="${s.w}" height="${s.d}" rx="${.05*u}" fill="${K.c}" fill-opacity="${K.ceil?.35:K.flat?.45:.85}" class="furnr" stroke-width="${(sel?.06:.025)*u}"${K.ceil?` stroke-dasharray="${.1*u} ${.06*u}"`:''}/>`;
     if(f.k==='bed2'||f.k==='bedK'||f.k==='bed1'){ // pillow at the "head" end
       const ph=0.35; if(f.rot%360===0) o+=`<rect x="${f.x+.08}" y="${Y(f.y+s.d)+.08}" width="${s.w-.16}" height="${ph}" rx=".06" fill="#fff" fill-opacity=".8" style="pointer-events:none"/>`;
       else if(f.rot%360===180) o+=`<rect x="${f.x+.08}" y="${Y(f.y)-ph-.08}" width="${s.w-.16}" height="${ph}" rx=".06" fill="#fff" fill-opacity=".8" style="pointer-events:none"/>`;
@@ -2141,7 +2226,8 @@ function renderFurnPanel(){
   const all=(S.furn||[]).filter(f=>f.f===floor);
   if(!r){box.innerHTML=`<h3>擺家具</h3><p class="help">點一間房間，就能放家具。家具都是真實尺寸，放進去就知道房間夠不夠大。${floor}F 目前有 ${all.length} 件家具。</p>`; return;}
   const sug=FURN_FOR[r.t]||[], inR=all.filter(f=>roomOfFurn(f)===r);
-  const opts=Object.entries(FURN).map(([k,v])=>`<option value="${k}">${v.g}・${v.n}（${f2(v.w)}×${f2(v.d)} m）</option>`).join('');
+  const groups={}; Object.entries(FURN).forEach(([k,v])=>{(groups[v.g]=groups[v.g]||[]).push(`<option value="${k}">${v.n}（${f2(v.w)}×${f2(v.d)} m）</option>`);});
+  const opts=Object.entries(groups).map(([g,a])=>`<optgroup label="${g}">${a.join('')}</optgroup>`).join('');
   box.innerHTML=`<h3>「${esc(r.n)}」的家具</h3>
     ${sug.length?`<div class="row">${sug.map(k=>`<button class="btn sm" data-addfurn="${k}">＋ ${FURN[k].n}</button>`).join('')}</div>`:''}
     <div class="row" style="align-items:center"><select id="furnPick" aria-label="選擇家具" style="flex:1;min-width:0">${opts}</select><button class="btn sm" id="furnAddPick">加入</button></div>
@@ -2160,7 +2246,7 @@ function furnCoach(){
   const f=S.furn.find(x=>x.id===selFurn);
   if(!f) return {t:'擺家具',now:[],how:['先點一間房間，按「＋ 雙人床」這類按鈕加入家具，家具都是真實尺寸。','在平面圖上拖曳家具移動，靠近牆或其他家具會自動貼齊；按「↻ 轉 90°」旋轉。','擺完到「3D 成品」的「室內」看看實際感覺。'],rec:null,l:'layout'};
   const K=FURN[f.k], s=fSize(f), r=roomOfFurn(f);
-  return {t:`正在擺「${K.n}」`,now:[`尺寸 ${f2(s.w)} × ${f2(s.d)} m，高 ${f2(K.h)} m`, r?`在「${esc(r.n)}」裡`:'<span class="tag tag-warn">! 不在任何房間裡</span>'],
+  return {t:`正在擺「${K.n}」`,now:[`尺寸 ${f2(s.w)} × ${f2(s.d)} m，${K.ceil?`裝在離地 ${f2(K.elev||2)} m 的牆上或天花板，不佔地板`:K.flat?'平鋪在地上':`高 ${f2(K.h)} m`}`, r?`在「${esc(r.n)}」裡`:'<span class="tag tag-warn">! 不在任何房間裡</span>'],
     how:[K.tip,'拖曳移動，靠近牆或其他家具會自動貼齊；在左邊清單按「↻ 轉 90°」旋轉。','走道：人要走過去至少留 0.6 m，常走的路線 0.8～0.9 m。'],rec:null,l:'layout'};
 }
 
@@ -2412,8 +2498,10 @@ function buildScene(){
       // interior partitions + room floors (cutaway)
       if(cut&&f===topF) (S.furn||[]).filter(fu=>fu.f===f&&FURN[fu.k]).forEach(fu=>{
         const K=FURN[fu.k], s=fSize(fu), [X,Z]=P(fu.x+s.w/2,fu.y+s.d/2), y0=base+0.15, m=mat(K.c);
-        if(K.ceil){ const long=s.w>=s.d; for(let k=0;k<4;k++){ const off=(k-1.5)*(long?s.d:s.w)/4; box(long?s.w:0.03,0.03,long?0.03:s.d,mat('#90a4ae'),X+(long?0:off),y0+2.2,Z+(long?off:0)); } }
-        else if(fu.k==='car'){ box(s.w-0.04,0.75,s.d-0.04,m,X,y0+0.4,Z); box(s.w*0.85,0.55,s.d*0.5,mat('#90a4ae'),X,y0+1.05,Z); }
+        if(K.ceil&&fu.k!=='rackC'){ box(s.w-0.02,K.h,s.d-0.02,m,X,y0+(K.elev||2)+K.h/2,Z); }
+        else if(K.flat){ box(s.w-0.02,0.02,s.d-0.02,m,X,y0+0.01,Z); }
+        else if(K.ceil){ const long=s.w>=s.d; for(let k=0;k<4;k++){ const off=(k-1.5)*(long?s.d:s.w)/4; box(long?s.w:0.03,0.03,long?0.03:s.d,mat('#90a4ae'),X+(long?0:off),y0+2.2,Z+(long?off:0)); } }
+        else if(fu.k==='car'||fu.k==='suv'){ box(s.w-0.04,0.75,s.d-0.04,m,X,y0+0.4,Z); box(s.w*0.85,0.55,s.d*0.5,mat('#90a4ae'),X,y0+1.05,Z); }
         else if(fu.k.startsWith('bed')){ box(s.w-0.04,0.45,s.d-0.04,m,X,y0+0.225,Z); const hz=fu.rot%360===0?1:fu.rot%360===180?-1:0, hx=fu.rot%360===90?-1:fu.rot%360===270?1:0;
           box(hx?0.35:s.w-0.2,0.12,hz?0.35:s.d-0.2,mat('#ffffff'),X+hx*(s.w/2-0.25),y0+0.51,Z+hz*(s.d/2-0.25)); }
         else if(fu.k.startsWith('sofa')){ box(s.w-0.04,0.42,s.d-0.04,m,X,y0+0.21,Z); const bz=fu.rot%360===0?1:fu.rot%360===180?-1:0, bx=fu.rot%360===90?-1:fu.rot%360===270?1:0;
@@ -2424,7 +2512,7 @@ function buildScene(){
         S.rooms.filter(r=>r.f===f&&r.w>0&&r.d>0).forEach(r=>{
           const [X,Z]=P(r.x+r.w/2,r.y+r.d/2), T=TYPES[r.t]||TYPES.other;
           if(f===topF){ const fl=add(new THREE.PlaneGeometry(r.w-0.06,r.d-0.06),mat(T.c,{transparent:true,opacity:0.55}),X,base+0.16,Z,false); fl.rotation.x=-Math.PI/2; fl.receiveShadow=true;
-            addLabel(sc,`${r.n}`,`${f1(r.w*r.d)} m²`,X,base+2.4,Z); }
+            addLabel(sc,`${r.n}`,`${f1(r.w*r.d)} m²`,X,base+2.9,Z); }
           const ph=f===topF?1.2:h-bd, e=0.02;
           [[r.x,r.y,r.x+r.w,r.y],[r.x,r.y+r.d,r.x+r.w,r.y+r.d],[r.x,r.y,r.x,r.y+r.d],[r.x+r.w,r.y,r.x+r.w,r.y+r.d]].forEach(([x0,y0,x1,y1])=>{
             const ext=(y0===y1&&(y0<=e||y0>=D-e))||(x0===x1&&(x0<=e||x0>=W-e)); if(ext) return;
@@ -2449,10 +2537,10 @@ function buildScene(){
 }
 function addLabel(sc,a,b,x,y,z){
   const THREE=window.THREE, cv=document.createElement('canvas'), k=2; cv.width=256*k; cv.height=96*k; const g=cv.getContext('2d');
-  g.fillStyle='rgba(255,255,255,0.88)'; g.strokeStyle='rgba(20,35,42,0.6)'; g.lineWidth=3*k; const r=14*k;
+  g.fillStyle='rgba(255,255,255,0.72)'; g.strokeStyle='rgba(20,35,42,0.6)'; g.lineWidth=3*k; const r=14*k;
   g.beginPath(); g.moveTo(r,2*k); g.arcTo(254*k,2*k,254*k,94*k,r); g.arcTo(254*k,94*k,2*k,94*k,r); g.arcTo(2*k,94*k,2*k,2*k,r); g.arcTo(2*k,2*k,254*k,2*k,r); g.fill(); g.stroke();
   g.fillStyle='#15232a'; g.textAlign='center'; g.font=`700 ${34*k}px "Noto Sans TC",sans-serif`; g.fillText(a,128*k,44*k); g.font=`${24*k}px "IBM Plex Mono",monospace`; g.fillStyle='#4a5a5f'; g.fillText(b,128*k,80*k);
-  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),depthTest:false})); sp.position.set(x,y,z); sp.scale.set(3.2,1.2,1); sp.renderOrder=10; sc.add(sp);
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),depthTest:false})); sp.position.set(x,y,z); sp.scale.set(2.4,0.9,1); sp.renderOrder=10; sc.add(sp);
 }
 function renderFinalControls(){
   $$('#mode3d [data-m]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===T3.mode));
