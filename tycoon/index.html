@@ -535,6 +535,9 @@ async function bankVisit(p){
 async function bankLoop(p,branch){
   while(true){
     const half=Math.floor(p.cash/2/100)*100,disc=discPay(p),fresh=freshLoan(p);
+    const payAll=Math.min(p.loan,Math.floor(Math.max(0,p.cash)));
+    const repay=[{label:'還 $1,000',v:'r1',disabled:p.loan<1000||p.cash<1000},{label:'還 $3,000',v:'r3',disabled:p.loan<3000||p.cash<3000},
+      {label:payAll>0&&payAll<p.loan?`現金全部拿去還 ${fmt(payAll)}`:'現金全部拿去還',v:'ra',disabled:!(payAll>0&&payAll<p.loan)}];
     const cr=credit(p),av=canBorrow(p);
     const kv=`<div class="kv"><span>現金</span><span class="num">${fmt(p.cash)}</span><span>存款（每過起點 +5%）</span><span class="num gain">${fmt(p.savings)}</span><span>已借貸款（每過起點 +8%）</span><span class="num loss">${fmt(p.loan)}</span>${p.loan>0?`<span><b>還款期限</b></span><span class="${p.loanDue<=1?'loss':''}"><b>${dueText(p)}</b></span>`:''}<span><b>還能借</b></span><span class="num"><b>${fmt(av)}</b></span></div>
     <details style="margin-top:8px;font-size:13px"><summary style="cursor:pointer;color:var(--muted)">銀行怎麼算你能借多少（總額度 ${fmt(cr.cap)}）</summary>
@@ -542,13 +545,14 @@ async function bankLoop(p,branch){
     <p style="margin:6px 0 0;color:var(--muted)">資產越多、職位越高，能借越多。額度扣掉已借的，就是還能借的。</p></details>`;
     const note=branch
       ?`<p style="margin-top:10px">你在銀行櫃台，這裡才有的服務：<b>存錢</b>、<b>還清貸款打九折</b>，而且存款已經多給你一次 5% 利息。</p>${fresh?`<p class="hint">九折只算借超過一圈的貸款。這一圈才借的 <b class="num">${fmt(fresh)}</b> 要全額還，經過起點之後才能打折。</p>`:''}`
-      :`<p style="margin-top:10px">這是手機網銀，可以借錢、還錢、領錢。<b>存錢</b>和<b>還款打九折</b>要走到棋盤上的「銀行」格子才能辦。</p>`;
+      :`<p style="margin-top:10px">這是手機網銀，可以借錢、還錢、領錢。還錢可以分好幾次還，錢不夠就先還一部分。<b>存錢</b>和<b>還款打九折</b>要走到棋盤上的「銀行」格子才能辦。</p>`;
     const borrow=[{label:'借 $1,000',v:'b1',disabled:av<1000},{label:'借 $3,000',v:'b3',disabled:av<3000},{label:av?`借滿 ${fmt(av)}`:'額度用完了',v:'bm',disabled:av<100}];
     const acts=branch
       ?[...borrow,{label:'存 $1,000',v:'d1',disabled:p.cash<1000},{label:`存一半 ${fmt(half)}`,v:'dh',disabled:half<100},
+        ...repay,
         {label:p.loan?(fresh>=p.loan?`還清 ${fmt(disc)}（剛借的不打折）`:`九折還清 ${fmt(disc)}`):'九折還清貸款',v:'rd',disabled:!p.loan||p.cash<disc},
         {label:'全部領出',v:'w',disabled:!p.savings},{label:'離開銀行',v:0,kind:'primary'}]
-      :[...borrow,{label:'還 $3,000',v:'r3',disabled:p.loan<3000||p.cash<3000},
+      :[...borrow,...repay,
         {label:'還清貸款',v:'r',disabled:!p.loan||p.cash<p.loan},{label:'全部領出',v:'w',disabled:!p.savings},{label:'關閉',v:0,kind:'primary'}];
     const v=await choose(branch?'銀行櫃台':'手機網銀',kv+note,acts,()=>0,true);
     if(!v)break;
@@ -556,10 +560,10 @@ async function bankLoop(p,branch){
     if(v==='dh'){p.cash-=half;p.savings+=half}
     if(v==='w'){p.cash+=p.savings;log(`${p.name} 領出存款 ${fmt(p.savings)}`,p);p.savings=0}
     if(v==='b1'||v==='b3'||v==='bm'){const x=v==='b1'?1000:v==='b3'?3000:av;borrowMoney(p,x);log(`${p.name} 借款 ${fmt(x)}（${dueText(p)}）`,p)}
-    if(v==='r3'){p.cash-=3000;p.loan-=3000;p.loanNew=Math.max(0,(p.loanNew||0)-3000);log(`${p.name} 還款 $3,000`,p)}
+    if(v==='r1'||v==='r3'||v==='ra'){const x=v==='r1'?1000:v==='r3'?3000:payAll;p.cash-=x;p.loan-=x;p.loanNew=Math.max(0,(p.loanNew||0)-x);log(`${p.name} 還款 ${fmt(x)}，還欠 ${fmt(p.loan)}`,p);if(p.loan<=0)p.loanDue=0}
     if(v==='r'){p.cash-=p.loan;log(`${p.name} 還清貸款 ${fmt(p.loan)}`,p);p.loan=0;p.loanNew=0;p.loanDue=0}
     if(v==='rd'){p.cash-=disc;log(`${p.name} 在銀行櫃台還清貸款 ${fmt(disc)}`,p);p.loan=0;p.loanNew=0;p.loanDue=0}
-    if(v==='r3'&&p.loan<=0){p.loanDue=0}
+
     render();
   }
 }
