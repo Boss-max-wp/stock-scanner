@@ -121,7 +121,7 @@ select,input[type=number],input[type=text],textarea{background:var(--sheet);bord
 .sheet-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--sheet)}
 .sheet-head h2{margin:0;font-family:var(--f-display);font-size:16px;letter-spacing:.05em}
 .sheet svg{display:block;width:100%;height:auto;max-height:620px}
-#plan{touch-action:none}
+#plan,#bub{touch-action:none;-webkit-user-select:none;user-select:none}
 .tblock{display:grid;grid-template-columns:auto auto auto;border-top:1px solid var(--ink);font-size:11.5px;background:var(--sheet)}
 .tblock div{padding:5px 10px;border-right:1px solid var(--line)}
 .tblock div:last-child{border-right:0}
@@ -149,6 +149,7 @@ select,input[type=number],input[type=text],textarea{background:var(--sheet);bord
 .axh{cursor:grab}
 #plan [data-col]{cursor:pointer} #plan.cols-off [data-col]{pointer-events:none}
 .colp.csel{stroke:var(--accent);stroke-width:.12} .colx.sel rect{stroke:var(--accent)!important}
+.furn{cursor:grab} .furnr{stroke:var(--ink)} .furn.sel .furnr{stroke:var(--accent)} .furnt{fill:#1b2a30;font-family:var(--f-body);pointer-events:none}
 .winp{cursor:ew-resize} .winr{fill:var(--glass);stroke:var(--ink)} .winp.sel .winr{stroke:var(--accent)} .winl{stroke:var(--ink)}
 .gridbox{border:1px solid var(--line);border-radius:6px;padding:10px;background:var(--sheet);gap:8px}
 .gridrow{display:flex;flex-direction:column;gap:4px}
@@ -383,6 +384,7 @@ td.n{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:now
       <div class="room-list" id="roomList"></div>
       <div class="row"><button class="btn primary" id="addRoom">＋ 加入房間</button><button class="btn" id="copyBelow" hidden>複製樓下格局</button></div>
       <div id="winPanel" class="winpanel"></div>
+      <div id="furnPanel" class="winpanel"></div>
     </div>
     <details class="io" id="io">
       <summary>存檔／分享設計</summary>
@@ -748,6 +750,15 @@ td.n{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:now
       </table></div>
       <h3>樓梯</h3>
       <p>舒適的樓梯每階<b>高 17～18 cm、深 26～28 cm</b>。樓高 3.2 m 大約要 18 階。直的樓梯需要約 4.5 m 長、1 m 寬；U 形迴轉樓梯約 3.3 m 長、2.1 m 寬（兩段並排加一個平台）。樓梯在每一層的位置要<b>上下對齊</b>。</p>
+      <h3>擺家具：用真實尺寸檢查房間夠不夠大</h3>
+      <p>房間的大小，其實是由<b>家具 ＋ 走路的空間</b>決定的。畫完房間後，把真的要用的家具放進去，最容易發現問題。</p>
+      <ul>
+        <li><b>走道</b>：人要走過去至少 0.6 m，常走的路線 0.8～0.9 m。</li>
+        <li><b>開門開抽屜</b>：衣櫃、冰箱前面留 0.8～0.9 m。</li>
+        <li><b>家具不要擋窗戶</b>：高的櫃子放在沒有窗戶的牆。</li>
+        <li><b>家具佔地板一半以內</b>：超過 65% 會覺得很擠。</li>
+        <li><b>高櫃要固定在牆上</b>：台灣地震多，衣櫃、書櫃倒下來很危險。</li>
+      </ul>
       <h3>開窗</h3>
       <ul>
         <li><b>面積</b>：居室的窗戶面積至少是地板面積的 1/8。20 m² 的臥室，至少要 2.5 m² 的窗戶，例如 1.8 × 1.4 m。</li>
@@ -862,6 +873,14 @@ const DEFAULT={floors:2,storeyH:3.2,W:10,D:12,roof:'gable',roofPitch:25,wall:'br
     {id:7,f:2,side:'left',pos:5.5,w:2,h:1.5,sill:0.9},{id:8,f:2,side:'back',pos:1.5,w:2,h:1.5,sill:1.0},
     {id:9,f:1,side:'right',pos:5.5,w:0.9,h:0.6,sill:1.6},{id:10,f:2,side:'right',pos:5.5,w:0.9,h:0.6,sill:1.6}
   ],
+  furn:[
+    {id:1,f:1,k:'sofa3',x:1.45,y:5.6,rot:0},{id:2,f:1,k:'tv',x:1.6,y:2.4,rot:0},{id:3,f:1,k:'coffee',x:1.95,y:4.6,rot:0},
+    {id:4,f:1,k:'counter',x:5.6,y:0.05,rot:0},{id:5,f:1,k:'fridge',x:9.2,y:0.05,rot:0},
+    {id:6,f:1,k:'toilet',x:9.55,y:4.2,rot:0},{id:7,f:1,k:'basin',x:7.6,y:7.5,rot:0},{id:8,f:1,k:'shower',x:9.05,y:7.05,rot:0},
+    {id:9,f:1,k:'bed2',x:1.75,y:8.05,rot:180},{id:10,f:1,k:'ward',x:0.05,y:10.5,rot:90},{id:11,f:1,k:'dine4',x:6.9,y:9.6,rot:0},
+    {id:12,f:2,k:'bedK',x:0.05,y:1.6,rot:90},{id:13,f:2,k:'ward',x:4.35,y:0.5,rot:90},
+    {id:14,f:2,k:'bed1',x:5.05,y:0.3,rot:180},{id:15,f:2,k:'desk',x:8.6,y:3.35,rot:0}
+  ],
   land:{on:false,a:14,b:11,h:22,align:'left',fs:3,bs:2,ss:0,hx:1,hy:3,bcr:60,far:200},
   links:[[1,2],[2,3],[1,4],[5,6],[1,5],[7,8],[7,10],[7,11],[7,12],[8,9],[9,7],[10,11]]};
 
@@ -908,7 +927,7 @@ const bubble=id=>S.bubbles.find(b=>b.id===id);
 const linked=(a,b)=>S.links.some(l=>(l[0]===a&&l[1]===b)||(l[0]===b&&l[1]===a));
 
 let lastJ='', localT=0, legacyLocal=false;
-function fromSaved(o){const x=Object.assign(clone(DEFAULT),o); if(!('windows' in o)) x.windows=[]; return x;}
+function fromSaved(o){const x=Object.assign(clone(DEFAULT),o); if(!('windows' in o)) x.windows=[]; if(!('furn' in o)) x.furn=[]; return x;}
 function load(){
   try{localT=+(localStorage.getItem(KEY+'-t')||0); const j=localStorage.getItem(KEY); if(j){legacyLocal=!localT;S=fromSaved(JSON.parse(j)); lastJ=JSON.stringify(S); return;}}catch(e){}
   S=clone(DEFAULT); lastJ=JSON.stringify(S);
@@ -1113,6 +1132,7 @@ function analyze(){
     if(!rs.length) add('info','室內',`${fl}F 還沒有任何房間`,'到「室內配置」選這一層開始放房間。','可以用「複製樓下格局」快速開始。','layout');
   }
   windowChecks(add,roomBad);
+  furnChecks(add);
   landCheck(add);
   // --- bubbles
   const fpA=S.W*S.D;
@@ -1166,6 +1186,7 @@ function drawPlan(){
       `<text x="${cx}" y="${cy}" class="t" font-size="${fs}" text-anchor="middle" font-weight="500">${esc(r.n)}</text>`+
       `<text x="${cx}" y="${cy+fs*1.15}" class="tm" font-size="${fs*.75}" text-anchor="middle">${f1(r.w*r.d)} m²</text></g>`;
   });
+  o+=drawFurnPlan(u,Y);
   // gaps & overlaps overlay
   const fr=S.rooms.filter(r=>r.f===floor&&r.w>0&&r.d>0);
   let gapA=0, ovA=0;
@@ -1337,7 +1358,7 @@ function renderReadouts(){
 
 /* ---------- checks ---------- */
 const SEVN={err:'危險',warn:'注意',info:'建議'};
-const AREA_TAB={'土地':'bub','泡泡圖':'bub','外觀':'ext','結構':'str','地基':'str','室內':'room'};
+const AREA_TAB={'擺件':'room','土地':'bub','泡泡圖':'bub','外觀':'ext','結構':'str','地基':'str','室內':'room'};
 function renderChecks(){
   const c={err:0,warn:0,info:0}; A.L.forEach(x=>c[x.sev]++);
   let h='';
@@ -1373,7 +1394,7 @@ function renderAll(opt){
   A=analyze();
   syncFields(); renderReadouts(); drawBubble(); drawPlan(); drawSec(); renderChecks(); renderFloorTabs();
   if(opt.keepList){markList(); markBubList();} else {renderRoomList(); renderBubList();}
-  syncLand(); renderGridBox(); renderWinPanel(); renderCoach();
+  syncLand(); renderGridBox(); renderWinPanel(); renderFurnPanel(); renderCoach();
   save();
 }
 
@@ -1411,6 +1432,7 @@ $('#checks').addEventListener('click',e=>{
   const c=e.target.closest('.ck'); if(!c||e.target.closest('[data-lesson]')) return;
   const it=A.L[+c.dataset.i];
   if(it.room){const r=room(it.room); if(r){floor=r.f; selId=r.id;}}
+  if(it.furn){const fu=S.furn.find(z=>z.id===it.furn); if(fu){floor=fu.f; selFurn=fu.id; const rr=roomOfFurn(fu); if(rr) selId=rr.id; ctx={type:'furn'};}}
   if(it.bub){const b=bubble(it.bub); if(b){floor=b.f; selBub=b.id;}}
   setTab(AREA_TAB[it.area]||'ext'); renderAll();
   if(window.innerWidth<1281) $('.controls').scrollIntoView({block:'start',behavior:'smooth'});
@@ -1424,7 +1446,7 @@ rl.addEventListener('input',e=>{
   else {const v=parseFloat(e.target.value); if(!isNaN(v)) r[p]=v; else return;}
   selId=r.id; renderAll({keepList:true});
 });
-rl.addEventListener('focusin',e=>{const it=e.target.closest('.ri'); if(it&&+it.dataset.id!==selId){selId=+it.dataset.id; drawPlan(); markList(); renderWinPanel();}});
+rl.addEventListener('focusin',e=>{const it=e.target.closest('.ri'); if(it&&+it.dataset.id!==selId){selId=+it.dataset.id; drawPlan(); markList(); renderWinPanel(); renderFurnPanel();}});
 rl.addEventListener('click',e=>{
   if(e.target.closest('.ri-del')){const id=+e.target.closest('.ri').dataset.id; S.rooms=S.rooms.filter(r=>r.id!==id); if(selId===id) selId=null; renderAll(); return;}
 });
@@ -1480,6 +1502,11 @@ plan.addEventListener('pointerdown',e=>{
     const r=room(selId); drag={id:r.id,h:h.dataset.h,x1:r.x+r.w,y1:r.y+r.d,T:targets(r.id)};
     plan.setPointerCapture(e.pointerId); e.preventDefault(); return;
   }
+  const fp=e.target.closest('.furn');
+  if(fp){ const f=S.furn.find(x=>x.id===+fp.dataset.fid); if(!f) return; const p=pt(e);
+    selFurn=f.id; const rr=roomOfFurn(f); if(rr) selId=rr.id; drag={furn:f.id,dx:p.x-f.x,dy:p.y-f.y};
+    plan.setPointerCapture(e.pointerId); e.preventDefault(); setCtx({type:'furn'},false);
+    anchor(plan,()=>{ if(tab!=='room') setTab('room'); renderAll({keepList:true}); }); return; }
   const g=e.target.closest('.room');
   if(!g){ if(selId!=null){selId=null; drawPlan(); markList();} return; }
   const r=room(+g.dataset.id); const p=pt(e);
@@ -1492,6 +1519,12 @@ plan.addEventListener('pointermove',e=>{
     let v=dir==='x'?p.x:p.y; const T=targets(-1), arr=(dir==='x'?T.xs:T.ys).filter(z=>Math.abs(z-a[i])>1e-6);
     const n=near(v,arr,magTol()); v=n?n.v:q4(v); v=Math.min(a[i+1]-0.5,Math.max(a[i-1]+0.5,v));
     if(Math.abs(v-a[i])<1e-6) return; a[i]=v; const sp=spans(a); if(dir==='x') S.spanX=sp; else S.spanY=sp; liveStruct(); return; }
+  if(drag&&drag.furn){ const f=S.furn.find(x=>x.id===drag.furn); if(!f) return; const p=pt(e), s=fSize(f), tol=0.15;
+    const xs=[0,S.W], ys=[0,S.D]; S.rooms.filter(r=>r.f===f.f).forEach(r=>{xs.push(r.x,r.x+r.w); ys.push(r.y,r.y+r.d);});
+    S.furn.filter(o=>o!==f&&o.f===f.f).forEach(o=>{const t=fSize(o); xs.push(o.x,o.x+t.w); ys.push(o.y,o.y+t.d);});
+    const sn=(raw,size,arr,max)=>{const a=near(raw,arr,tol), b=near(raw+size,arr,tol); let v=a&&(!b||a.d<=b.d)?a.v:b?b.v-size:Math.round(raw*20)/20; return Math.min(Math.max(0,v),max-size);};
+    const nx=r2(sn(p.x-drag.dx,s.w,xs,S.W)), ny=r2(sn(p.y-drag.dy,s.d,ys,S.D));
+    if(nx!==f.x||ny!==f.y){f.x=nx; f.y=ny; A=analyze(); drawPlan(); renderChecks(); renderCoach();} return; }
   if(drag&&drag.win){ const w=S.windows.find(x=>x.id===drag.win); if(!w) return; const p=pt(e);
     const len=sideLen(w.side); let v=(isH(w.side)?p.x:p.y)-drag.off; v=Math.round(Math.min(len-w.w,Math.max(0,v))*10)/10;
     if(v!==w.pos){w.pos=v; liveStruct(); markList();} return; }
@@ -1817,7 +1850,8 @@ const STEPS={
     ['房間大小合格',()=>!A.L.some(x=>/太小|太窄/.test(x.title)),{re:/太小|太窄/}],
     ['每層有樓梯且上下對齊',()=>!A.L.some(x=>/樓梯/.test(x.title)&&x.sev!=='info'),{re:/樓梯/}],
     ['居室都開了夠大的窗（地板的 1/8）',()=>S.windows.length>0&&!A.L.some(x=>/採光不夠|窗戶超出|窗戶重疊/.test(x.title)),{re:/採光不夠|窗戶超出|窗戶重疊/,none:()=>!S.windows.length?'還沒有開任何窗戶':''}],
-    ['窗戶沒有撞到柱子或梁',()=>!A.L.some(x=>/撞到柱子|頂到梁/.test(x.title)),{re:/撞到柱子|頂到梁/}]
+    ['窗戶沒有撞到柱子或梁',()=>!A.L.some(x=>/撞到柱子|頂到梁/.test(x.title)),{re:/撞到柱子|頂到梁/}],
+    ['（選填）家具擺得下、沒有卡到牆',()=>!A.L.some(x=>x.area==='擺件'&&x.sev!=='info'),{re:/跑到房子外面|卡在牆上|疊在一起/}]
   ]
 };
 function coachContent(){
@@ -1826,6 +1860,7 @@ function coachContent(){
   if(ctx.type==='bubble'){const b=bubble(ctx.id); if(b) return bubCoach(b);}
   if(ctx.type==='land') return landCoach();
   if(ctx.type==='window') return windowCoach();
+  if(ctx.type==='furn') return furnCoach();
   if(ctx.type==='column'&&selCol) return columnCoach();
   if(ctx.type==='link') return {t:'連線：哪些空間要靠近',now:[],how:['點第一個泡泡，再點第二個，就會連一條線。','常見要連的：廚房↔餐廳、餐廳↔客廳、臥室↔浴室、樓梯↔客廳或走廊。','臥室和廚房最好不要直接連，避免油煙和噪音。'],rec:null,l:'bubble'};
   const T=TABCOACH[tab]; return {t:T.t,now:[],how:T.how,rec:null,l:T.l};
@@ -1859,6 +1894,7 @@ document.addEventListener('focusin',e=>{
   const t=e.target; if(!t.closest) return;
   if(t.dataset&&t.dataset.k){setCtx({type:'field',k:t.dataset.k}); return;}
   if(t.closest('#gridBox')){setCtx({type:'field',k:'grid'}); return;}
+  if(t.closest('#furnPanel')){const fi=t.closest('[data-fid]'); if(fi) selFurn=+fi.dataset.fid; setCtx({type:'furn'}); return;}
   if(t.closest('#landBox')||t.id==='landOn'){setCtx({type:'land'}); return;}
   const ri=t.closest('#roomList .ri'); if(ri){setCtx({type:'room',id:+ri.dataset.id}); return;}
   const bi=t.closest('#bubList .ri'); if(bi){setCtx({type:'bubble',id:+bi.dataset.id}); return;}
@@ -1892,7 +1928,7 @@ $('#coachBody').addEventListener('click',e=>{
     else if(s.focus){const el=$('#'+s.focus); if(el){el.scrollIntoView({block:'center',behavior:'smooth'}); el.focus({preventScroll:true});}}
     else if(s.floor){const f=s.floor(); if(f){floor=f; renderAll();}}
     else { const bad=A.L.find(x=>(s.re?s.re.test(x.title):x.area==='室內')&&x.room)||A.L.find(x=>s.re&&s.re.test(x.title));
-      if(bad){ const fm=bad.title.match(/^(\d)F/); const r=bad.room?room(bad.room):null;
+      if(bad){ const fm=bad.title.match(/^(\d)F/); const fu=bad.furn?S.furn.find(z=>z.id===bad.furn):null; if(fu){selFurn=fu.id;} const r=bad.room?room(bad.room):(fu?roomOfFurn(fu):null);
         if(r){floor=r.f; selId=r.id; setCtx({type:'room',id:r.id},false);} else if(fm){floor=+fm[1];}
         anchor($('#plan'),()=>renderAll({keepList:true})); const it=r&&$(`#roomList .ri[data-id="${r.id}"]`); if(it) it.scrollIntoView({block:'nearest',behavior:'smooth'}); } }
   }
@@ -2006,6 +2042,122 @@ document.addEventListener('change',e=>{
   setSpan(el.dataset.span,+el.dataset.i,v); el.blur(); renderAll({keepList:true});
 });
 document.addEventListener('click',e=>{const b=e.target.closest('[data-even]'); if(!b) return; if(b.dataset.even==='x') S.spanX=null; else S.spanY=null; renderAll({keepList:true});});
+
+/* ---------- 室內擺件（家具） ---------- */
+const FURN={
+  bed2:{n:'雙人床',w:1.5,d:1.9,h:0.5,c:'#8E7CC3',g:'臥室',tip:'兩側各留 0.6 m 走道，床尾留 0.8 m。'},
+  bedK:{n:'加大雙人床',w:1.8,d:1.9,h:0.5,c:'#8E7CC3',g:'臥室',tip:'兩側各留 0.6 m 走道，床尾留 0.8 m。'},
+  bed1:{n:'單人床',w:1.0,d:1.9,h:0.5,c:'#9F8FD0',g:'臥室',tip:'至少一側留 0.6 m 走道。'},
+  ward:{n:'衣櫃',w:1.2,d:0.6,h:2.2,c:'#A1887F',g:'臥室',tip:'前面留 0.8 m 以上才能開門、站著換衣服；不要擋住窗戶。'},
+  desk:{n:'書桌',w:1.2,d:0.6,h:0.75,c:'#C8A97E',g:'書房',tip:'椅子後面要留 0.8 m 才拉得開；放在窗邊光線最好。'},
+  shelf:{n:'書櫃',w:0.9,d:0.35,h:2.0,c:'#B08D6A',g:'書房',tip:'高櫃要固定在牆上，地震時才不會倒。'},
+  sofa3:{n:'三人沙發',w:2.1,d:0.9,h:0.8,c:'#6D9DC5',g:'客廳',tip:'沙發到電視最好 2.5 m 以上；沙發後面走路要留 0.8 m。'},
+  sofa2:{n:'雙人沙發',w:1.6,d:0.9,h:0.8,c:'#6D9DC5',g:'客廳',tip:'沙發到電視最好 2.5 m 以上。'},
+  coffee:{n:'茶几',w:1.1,d:0.6,h:0.4,c:'#C8A97E',g:'客廳',tip:'茶几和沙發之間留 0.4 m 放腳。'},
+  tv:{n:'電視櫃',w:1.8,d:0.45,h:0.5,c:'#5D6D7E',g:'客廳',tip:'電視不要正對窗戶，會反光。'},
+  dine4:{n:'四人餐桌',w:1.2,d:0.8,h:0.75,c:'#C8A97E',g:'餐廳',tip:'餐桌四周要留 0.7 m 拉椅子。'},
+  dine6:{n:'六人餐桌',w:1.8,d:0.9,h:0.75,c:'#C8A97E',g:'餐廳',tip:'餐桌四周要留 0.7 m 拉椅子。'},
+  counter:{n:'流理台',w:2.4,d:0.6,h:0.85,c:'#B0BEC5',g:'廚房',tip:'流理台前面走道至少 0.9 m；水槽、爐子、冰箱排成三角形最順手。'},
+  fridge:{n:'冰箱',w:0.7,d:0.7,h:1.8,c:'#ECEFF1',g:'廚房',tip:'冰箱前面要留 0.9 m 開門。'},
+  toilet:{n:'馬桶',w:0.4,d:0.7,h:0.4,c:'#F5F5F5',g:'浴室',tip:'馬桶兩側各留 0.2 m 以上、前面留 0.6 m。'},
+  basin:{n:'洗手台',w:0.6,d:0.45,h:0.85,c:'#E0E0E0',g:'浴室',tip:'洗手台前面留 0.6 m 站著。'},
+  shower:{n:'淋浴間',w:0.9,d:0.9,h:2.0,c:'#B3E5FC',g:'浴室',tip:'淋浴間至少 0.9 × 0.9 m，再小會轉不過身。'},
+  tub:{n:'浴缸',w:1.5,d:0.75,h:0.55,c:'#E1F5FE',g:'浴室',tip:'浴缸通常靠牆放，旁邊留 0.6 m 進出。'},
+  washer:{n:'洗衣機',w:0.6,d:0.6,h:0.85,c:'#ECEFF1',g:'洗衣',tip:'要有排水孔和水龍頭，最好放在陽台或通風的地方。'},
+  car:{n:'小客車',w:1.8,d:4.6,h:1.5,c:'#78909C',g:'車庫',tip:'車子兩側要留 0.6 m 以上才能開門下車。'},
+  scooter:{n:'機車',w:0.7,d:1.9,h:1.1,c:'#90A4AE',g:'車庫',tip:'機車停在車子旁邊或前陽台都可以。'},
+  tread:{n:'跑步機',w:0.8,d:2.0,h:1.3,c:'#546E7A',g:'健身',tip:'跑步機後面要留 2 m 安全距離；重的器材最好放一樓。'},
+  bench:{n:'重訓椅',w:0.6,d:1.4,h:0.5,c:'#546E7A',g:'健身',tip:'四周留 0.6 m 活動空間。'},
+  altarT:{n:'神明桌',w:1.5,d:0.6,h:1.0,c:'#C0912F',g:'其他',tip:'通常背靠牆、面向外面或大門。'},
+  plant:{n:'盆栽',w:0.5,d:0.5,h:1.0,c:'#7CB342',g:'其他',tip:'放在窗邊或陽台，有陽光比較好養。'}
+};
+const FURN_FOR={bedroom:['bed2','bedK','bed1','ward','desk'],living:['sofa3','sofa2','coffee','tv','plant'],study:['desk','shelf','bed1'],dining:['dine4','dine6'],kitchen:['counter','fridge','dine4'],
+  bath:['toilet','basin','shower','tub'],garage:['car','scooter'],gym:['tread','bench'],closet:['ward'],wardrobe:['ward'],laundry:['washer'],balcony:['washer','plant'],altar:['altarT'],multi:['sofa2','desk','bed1'],entry:['shelf','plant']};
+let selFurn=null;
+const fSize=f=>{const K=FURN[f.k]||{w:1,d:1}; return f.rot%180?{w:K.d,d:K.w}:{w:K.w,d:K.d};};
+const roomOfFurn=f=>{const s=fSize(f), cx=f.x+s.w/2, cy=f.y+s.d/2; return S.rooms.find(r=>r.f===f.f&&cx>=r.x&&cx<=r.x+r.w&&cy>=r.y&&cy<=r.y+r.d);};
+function addFurn(k,r){
+  const K=FURN[k]; if(!K||!r) return;
+  let rot=0; if((K.w>r.w-0.1&&K.d<=r.w-0.1)) rot=90;
+  const s=rot?{w:K.d,d:K.w}:{w:K.w,d:K.d};
+  // try to place against a wall inside the room, avoiding other furniture
+  const others=S.furn.filter(o=>o.f===r.f), hit=(x,y)=>others.some(o=>{const t=fSize(o); return x<o.x+t.w-0.01&&x+s.w>o.x+0.01&&y<o.y+t.d-0.01&&y+s.d>o.y+0.01;});
+  const cands=[[r.x+0.05,r.y+r.d-s.d-0.05],[r.x+r.w-s.w-0.05,r.y+r.d-s.d-0.05],[r.x+0.05,r.y+0.05],[r.x+r.w-s.w-0.05,r.y+0.05],[r.x+(r.w-s.w)/2,r.y+(r.d-s.d)/2]];
+  let p=cands.find(([x,y])=>x>=r.x-0.01&&y>=r.y-0.01&&!hit(x,y))||cands[4];
+  const id=Math.max(0,...S.furn.map(f=>f.id))+1;
+  S.furn.push({id,f:r.f,k,x:r2(Math.max(0,p[0])),y:r2(Math.max(0,p[1])),rot}); selFurn=id; return id;
+}
+function furnChecks(add){
+  if(!S.furn||!S.furn.length) return;
+  const e=0.02;
+  S.furn.filter(f=>f.f<=S.floors&&FURN[f.k]).forEach(f=>{
+    const K=FURN[f.k], s=fSize(f), tagF={furn:f.id}, r=roomOfFurn(f);
+    if(f.x<-e||f.y<-e||f.x+s.w>S.W+e||f.y+s.d>S.D+e){add('warn','擺件',`${f.f}F ${K.n}跑到房子外面`,'家具有一部分超出外牆。','拖回房子裡面。','layout',tagF); return;}
+    if(!r) {add('info','擺件',`${f.f}F ${K.n}不在任何房間裡`,'它放在沒有規劃房間的空地（例如走廊）。','如果那裡是走廊，要確認還有 0.9 m 可以走。','layout',tagF); return;}
+    if(f.x<r.x-e||f.y<r.y-e||f.x+s.w>r.x+r.w+e||f.y+s.d>r.y+r.d+e) add('warn','擺件',`${f.f}F ${K.n}卡在牆上`,`它跨在「${r.n}」的牆外面，真的擺會撞到牆。`,'拖進房間裡面，或把房間放大。','layout',tagF);
+    // windows blocked by tall furniture against an exterior wall
+    if(K.h>0.9){ const blk=S.windows.filter(w=>w.f===f.f&&w.sill<K.h).find(w=>{
+        let near=false,a0=0,a1=0; if(w.side==='front'){near=f.y<0.15;a0=f.x;a1=f.x+s.w;} else if(w.side==='back'){near=f.y+s.d>S.D-0.15;a0=f.x;a1=f.x+s.w;}
+        else if(w.side==='left'){near=f.x<0.15;a0=f.y;a1=f.y+s.d;} else if(w.side==='right'){near=f.x+s.w>S.W-0.15;a0=f.y;a1=f.y+s.d;}
+        else if(isH(w.side)){near=Math.abs(f.y-inC(w.side))<0.15||Math.abs(f.y+s.d-inC(w.side))<0.15;a0=f.x;a1=f.x+s.w;} else {near=Math.abs(f.x-inC(w.side))<0.15||Math.abs(f.x+s.w-inC(w.side))<0.15;a0=f.y;a1=f.y+s.d;}
+        return near&&Math.min(a1,w.pos+w.w)-Math.max(a0,w.pos)>0.1;});
+      if(blk) add('info','擺件',`${f.f}F ${K.n}擋到窗戶`,`${K.n}高 ${f2(K.h)} m，比窗台（${f2(blk.sill)} m）還高，會擋住光線。`,'移到沒有窗戶的牆，或換成矮的家具。','layout',tagF); }
+  });
+  for(let fl=1;fl<=S.floors;fl++){
+    const fs=S.furn.filter(f=>f.f===fl&&FURN[f.k]);
+    for(let a=0;a<fs.length;a++)for(let b=a+1;b<fs.length;b++){const A1=fs[a],B1=fs[b],sa=fSize(A1),sb=fSize(B1);
+      const ov=Math.max(0,Math.min(A1.x+sa.w,B1.x+sb.w)-Math.max(A1.x,B1.x))*Math.max(0,Math.min(A1.y+sa.d,B1.y+sb.d)-Math.max(A1.y,B1.y));
+      if(ov>0.02) add('warn','擺件',`${fl}F ${FURN[A1.k].n}和${FURN[B1.k].n}疊在一起`,'兩件家具佔用同一塊地板。','移開其中一件。','layout',{furn:B1.id});}
+    S.rooms.filter(r=>r.f===fl&&r.w>0&&r.d>0).forEach(r=>{
+      const inR=fs.filter(f=>roomOfFurn(f)===r); if(!inR.length) return;
+      const used=inR.reduce((t,f)=>{const s=fSize(f); return t+s.w*s.d;},0)/(r.w*r.d);
+      if(used>0.65) add('info','擺件',`${fl}F「${r.n}」家具太擠`,`家具佔了地板的 ${Math.round(used*100)}%，一般 50% 以內走起來才舒服。`,'拿掉一些家具，或換小一點的。','layout',{room:r.id});
+      if(r.t==='garage'){const car=inR.find(f=>f.k==='car'); if(car){const s=fSize(car), side=Math.min(car.x-r.x,r.x+r.w-car.x-s.w); if(side<0.55) add('info','擺件',`${fl}F 車子旁邊開不了門`,`車子離牆只有 ${f2(Math.max(0,side))} m，開車門至少要 0.6 m。`,'把車子移到中間，或車庫加寬。','layout',{furn:car.id});}}
+    });
+  }
+}
+function drawFurnPlan(u,Y){
+  let o='';
+  (S.furn||[]).filter(f=>f.f===floor&&FURN[f.k]).forEach(f=>{
+    const K=FURN[f.k], s=fSize(f), sel=f.id===selFurn, fs=Math.max(0.12,Math.min(.24*u,s.w/(K.n.length*1.05),s.d/1.6));
+    o+=`<g class="furn${sel?' sel':''}" data-fid="${f.id}"><rect x="${f.x}" y="${Y(f.y+s.d)}" width="${s.w}" height="${s.d}" rx="${.05*u}" fill="${K.c}" fill-opacity=".85" class="furnr" stroke-width="${(sel?.06:.025)*u}"/>`;
+    if(f.k==='bed2'||f.k==='bedK'||f.k==='bed1'){ // pillow at the "head" end
+      const ph=0.35; if(f.rot%360===0) o+=`<rect x="${f.x+.08}" y="${Y(f.y+s.d)+.08}" width="${s.w-.16}" height="${ph}" rx=".06" fill="#fff" fill-opacity=".8" style="pointer-events:none"/>`;
+      else if(f.rot%360===180) o+=`<rect x="${f.x+.08}" y="${Y(f.y)-ph-.08}" width="${s.w-.16}" height="${ph}" rx=".06" fill="#fff" fill-opacity=".8" style="pointer-events:none"/>`;
+      else if(f.rot%360===90) o+=`<rect x="${f.x+.08}" y="${Y(f.y+s.d)+.08}" width="${ph}" height="${s.d-.16}" rx=".06" fill="#fff" fill-opacity=".8" style="pointer-events:none"/>`;
+      else o+=`<rect x="${f.x+s.w-ph-.08}" y="${Y(f.y+s.d)+.08}" width="${ph}" height="${s.d-.16}" rx=".06" fill="#fff" fill-opacity=".8" style="pointer-events:none"/>`; }
+    o+=`<text x="${f.x+s.w/2}" y="${Y(f.y+s.d/2)+fs*.35}" font-size="${fs}" text-anchor="middle" class="furnt">${K.n}</text></g>`;
+  });
+  return o;
+}
+function renderFurnPanel(){
+  const box=$('#furnPanel'); if(!box||box.contains(document.activeElement)) return;
+  const r=S.rooms.find(x=>x.id===selId&&x.f===floor);
+  const all=(S.furn||[]).filter(f=>f.f===floor);
+  if(!r){box.innerHTML=`<h3>擺家具</h3><p class="help">點一間房間，就能放家具。家具都是真實尺寸，放進去就知道房間夠不夠大。${floor}F 目前有 ${all.length} 件家具。</p>`; return;}
+  const sug=FURN_FOR[r.t]||[], inR=all.filter(f=>roomOfFurn(f)===r);
+  const opts=Object.entries(FURN).map(([k,v])=>`<option value="${k}">${v.g}・${v.n}（${f2(v.w)}×${f2(v.d)} m）</option>`).join('');
+  box.innerHTML=`<h3>「${esc(r.n)}」的家具</h3>
+    ${sug.length?`<div class="row">${sug.map(k=>`<button class="btn sm" data-addfurn="${k}">＋ ${FURN[k].n}</button>`).join('')}</div>`:''}
+    <div class="row" style="align-items:center"><select id="furnPick" aria-label="選擇家具" style="flex:1;min-width:0">${opts}</select><button class="btn sm" id="furnAddPick">加入</button></div>
+    <div class="room-list">${inR.map(f=>{const K=FURN[f.k], s=fSize(f); return `<div class="ri${f.id===selFurn?' sel':''}" data-fid="${f.id}"><div class="ri-top"><span class="sw" style="background:${K.c}"></span><b style="flex:1">${K.n}</b><span class="help mono">${f2(s.w)}×${f2(s.d)} m</span><button class="btn sm" data-rotfurn="${f.id}" aria-label="旋轉">↻ 轉 90°</button><button class="ri-del" data-delfurn="${f.id}" aria-label="刪除${K.n}">×</button></div></div>`;}).join('')||'<p class="help">還沒有家具。按上面的按鈕加入，再到平面圖上拖到想要的位置。</p>'}</div>`;
+}
+document.addEventListener('click',e=>{
+  const a=e.target.closest('[data-addfurn]'), ap=e.target.id==='furnAddPick', rt=e.target.closest('[data-rotfurn]'), dl=e.target.closest('[data-delfurn]');
+  if(!a&&!ap&&!rt&&!dl) return;
+  if(a||ap){const r=room(selId); if(!r) return; addFurn(a?a.dataset.addfurn:$('#furnPick').value,r); setCtx({type:'furn'},false);}
+  if(rt){const f=S.furn.find(x=>x.id===+rt.dataset.rotfurn); if(f){const s0=fSize(f), cx=f.x+s0.w/2, cy=f.y+s0.d/2; f.rot=(f.rot+90)%360; const s1=fSize(f); f.x=r2(Math.min(Math.max(0,cx-s1.w/2),S.W-s1.w)); f.y=r2(Math.min(Math.max(0,cy-s1.d/2),S.D-s1.d)); selFurn=f.id; setCtx({type:'furn'},false);}}
+  if(dl){S.furn=S.furn.filter(x=>x.id!==+dl.dataset.delfurn); if(selFurn===+dl.dataset.delfurn) selFurn=null;}
+  document.activeElement&&document.activeElement.blur&&document.activeElement.blur();
+  anchor($('#plan'),()=>renderAll({keepList:true}));
+});
+function furnCoach(){
+  const f=S.furn.find(x=>x.id===selFurn);
+  if(!f) return {t:'擺家具',now:[],how:['先點一間房間，按「＋ 雙人床」這類按鈕加入家具，家具都是真實尺寸。','在平面圖上拖曳家具移動，靠近牆或其他家具會自動貼齊；按「↻ 轉 90°」旋轉。','擺完到「3D 成品」的「室內」看看實際感覺。'],rec:null,l:'layout'};
+  const K=FURN[f.k], s=fSize(f), r=roomOfFurn(f);
+  return {t:`正在擺「${K.n}」`,now:[`尺寸 ${f2(s.w)} × ${f2(s.d)} m，高 ${f2(K.h)} m`, r?`在「${esc(r.n)}」裡`:'<span class="tag tag-warn">! 不在任何房間裡</span>'],
+    how:[K.tip,'拖曳移動，靠近牆或其他家具會自動貼齊；在左邊清單按「↻ 轉 90°」旋轉。','走道：人要走過去至少留 0.6 m，常走的路線 0.8～0.9 m。'],rec:null,l:'layout'};
+}
 
 /* ---------- windows ---------- */
 const SIDE_={front:'前牆',back:'後牆',left:'左牆',right:'右牆'};
@@ -2253,11 +2405,20 @@ function buildScene(){
         seg(cur,len,0,wallH,M.wall);
       });
       // interior partitions + room floors (cutaway)
+      if(cut&&f===topF) (S.furn||[]).filter(fu=>fu.f===f&&FURN[fu.k]).forEach(fu=>{
+        const K=FURN[fu.k], s=fSize(fu), [X,Z]=P(fu.x+s.w/2,fu.y+s.d/2), y0=base+0.15, m=mat(K.c);
+        if(fu.k==='car'){ box(s.w-0.04,0.75,s.d-0.04,m,X,y0+0.4,Z); box(s.w*0.85,0.55,s.d*0.5,mat('#90a4ae'),X,y0+1.05,Z); }
+        else if(fu.k.startsWith('bed')){ box(s.w-0.04,0.45,s.d-0.04,m,X,y0+0.225,Z); const hz=fu.rot%360===0?1:fu.rot%360===180?-1:0, hx=fu.rot%360===90?-1:fu.rot%360===270?1:0;
+          box(hx?0.35:s.w-0.2,0.12,hz?0.35:s.d-0.2,mat('#ffffff'),X+hx*(s.w/2-0.25),y0+0.51,Z+hz*(s.d/2-0.25)); }
+        else if(fu.k.startsWith('sofa')){ box(s.w-0.04,0.42,s.d-0.04,m,X,y0+0.21,Z); const bz=fu.rot%360===0?1:fu.rot%360===180?-1:0, bx=fu.rot%360===90?-1:fu.rot%360===270?1:0;
+          box(bx?0.2:s.w-0.04,0.4,bz?0.2:s.d-0.04,m,X+bx*(s.w/2-0.12),y0+0.62,Z+bz*(s.d/2-0.12)); }
+        else box(s.w-0.04,K.h,s.d-0.04,m,X,y0+K.h/2,Z);
+      });
       if(cut){
         S.rooms.filter(r=>r.f===f&&r.w>0&&r.d>0).forEach(r=>{
           const [X,Z]=P(r.x+r.w/2,r.y+r.d/2), T=TYPES[r.t]||TYPES.other;
           if(f===topF){ const fl=add(new THREE.PlaneGeometry(r.w-0.06,r.d-0.06),mat(T.c,{transparent:true,opacity:0.55}),X,base+0.16,Z,false); fl.rotation.x=-Math.PI/2; fl.receiveShadow=true;
-            addLabel(sc,`${r.n}`,`${f1(r.w*r.d)} m²`,X,base+1.6,Z); }
+            addLabel(sc,`${r.n}`,`${f1(r.w*r.d)} m²`,X,base+2.4,Z); }
           const ph=f===topF?1.2:h-bd, e=0.02;
           [[r.x,r.y,r.x+r.w,r.y],[r.x,r.y+r.d,r.x+r.w,r.y+r.d],[r.x,r.y,r.x,r.y+r.d],[r.x+r.w,r.y,r.x+r.w,r.y+r.d]].forEach(([x0,y0,x1,y1])=>{
             const ext=(y0===y1&&(y0<=e||y0>=D-e))||(x0===x1&&(x0<=e||x0>=W-e)); if(ext) return;
@@ -2308,8 +2469,8 @@ function specSheet(){
     <div><b>地基</b><span>${SOIL[S.soil].n}・${FDN[S.fdn]}${S.fdn==='spread'||S.fdn==='strip'?` ${f1(S.footing)} m`:''}，深 ${f1(S.fdnDepth)} m</span><span>使用 ${Math.round(m.fRatio*100)}%（建議 80% 內）</span></div>
     ${land?`<div><b>土地</b><span>${f1(land.G.area)} m²（${f1(land.G.area/3.3058)} 坪）</span><span>建蔽率 ${Math.round(land.cov*100)}%・容積率 ${Math.round(land.far*100)}%</span></div>`:''}
   </div>
-  <div class="tw"><table><tr><th>樓層</th><th>房間</th><th>類型</th><th>尺寸</th><th>面積</th><th>窗戶</th></tr>
-  ${rooms.map(r=>`<tr><td>${r.f}F</td><td>${esc(r.n)}</td><td>${(TYPES[r.t]||TYPES.other).n}</td><td class="n">${f2(r.w)} × ${f2(r.d)} m</td><td class="n">${f1(r.w*r.d)} m²（${f1(r.w*r.d/3.3058)} 坪）</td><td class="n">${S.windows.length?f2(lightArea(r))+' m²':'—'}</td></tr>`).join('')}</table></div>
+  <div class="tw"><table><tr><th>樓層</th><th>房間</th><th>類型</th><th>尺寸</th><th>面積</th><th>窗戶</th><th>家具</th></tr>
+  ${rooms.map(r=>`<tr><td>${r.f}F</td><td>${esc(r.n)}</td><td>${(TYPES[r.t]||TYPES.other).n}</td><td class="n">${f2(r.w)} × ${f2(r.d)} m</td><td class="n">${f1(r.w*r.d)} m²（${f1(r.w*r.d/3.3058)} 坪）</td><td class="n">${S.windows.length?f2(lightArea(r))+' m²':'—'}</td><td>${(S.furn||[]).filter(fu=>roomOfFurn(fu)===r).map(fu=>FURN[fu.k].n).join('、')||'—'}</td></tr>`).join('')}</table></div>
   <p class="help">這份說明書和 3D 模型是依照網站的經驗法則產生的學習成果，可以拿去和建築師討論；正式興建仍需建築師設計、結構技師簽證。</p>`;
 }
 /* ---------- 造價估算 ---------- */
