@@ -240,6 +240,9 @@ function credit(p){
 }
 const loanCap=p=>credit(p).cap;
 // 九折只給「借超過一圈」的舊貸款；這一圈才借的錢要全額還，不然借了馬上九折還會白賺 10%
+const LOAN_LAPS=3; // 借錢後，經過起點 3 次內要還清
+function borrowMoney(p,x){ if(!(p.loan>0)) p.loanDue=LOAN_LAPS; p.cash+=x; p.loan+=x; p.loanNew=(p.loanNew||0)+x; }
+const dueText=p=>p.loan>0?(p.loanDue<=1?'下次經過起點就到期！':`再經過起點 ${p.loanDue} 次到期`):'';
 const freshLoan=p=>Math.min(p.loan,p.loanNew||0);
 const discPay=p=>Math.round((p.loan-freshLoan(p))*.9)+freshLoan(p);
 const canBorrow=p=>Math.max(0,Math.floor((loanCap(p)-p.loan)/100)*100);
@@ -307,6 +310,13 @@ function passStart(p){
   if(p.loan>0){const it=Math.round(p.loan*.08);p.loan+=it;t+=`，貸款利息 ${fmt(it)}`}
   p.loanNew=0;
   log(t,p);
+  if(p.loan>0){
+    p.loanDue=(p.loanDue||LOAN_LAPS)-1;
+    if(p.loanDue<=0){
+      const owe=p.loan;log(`${p.name} 的貸款到期了，銀行強制收回 ${fmt(owe)}`,p);say(`${p.name} 的貸款到期，銀行來收錢了！`);
+      p.loan=0;p.loanNew=0;p.loanDue=0;payTo(p,owe,null);
+    }else if(p.loanDue===1) log(`⚠ ${p.name} 的貸款下次經過起點就到期，要準備 ${fmt(Math.round(p.loan*1.08))} 還款，不然銀行會強制賣你的東西`,p);
+  }
 }
 function tickMarket(){
   AK.forEach(k=>{const a=ASSETS[k];G.prev[k]=G.prices[k];let m=Math.exp(a.drift-a.vol*a.vol/2+a.vol*gauss());
@@ -514,9 +524,9 @@ async function negotiate(p,ow,i){
 async function bankVisit(p){
   if(p.savings>0){const it=Math.round(p.savings*.05);p.savings+=it;log(`${p.name} 停在銀行，存款多拿 5% 利息 ${fmt(it)}`,p)}
   if(p.bot){
-    if(p.loan>0&&p.cash>p.loan+2000){const d=discPay(p);p.cash-=d;log(`${p.name} 在銀行櫃台還清貸款 ${fmt(d)}`,p);p.loan=0;p.loanNew=0}
+    if(p.loan>0&&p.cash>p.loan+2000){const d=discPay(p);p.cash-=d;log(`${p.name} 在銀行櫃台還清貸款 ${fmt(d)}`,p);p.loan=0;p.loanNew=0;p.loanDue=0}
     else if(p.cash>9000){const x=p.cash-5000;p.cash-=x;p.savings+=x;log(`${p.name} 存了 ${fmt(x)} 到銀行`,p)}
-    else if(p.cash<1500&&canBorrow(p)>=3000){p.loan+=3000;p.loanNew=(p.loanNew||0)+3000;p.cash+=3000;log(`${p.name} 向銀行借了 $3,000`,p)}
+    else if(p.cash<1500&&canBorrow(p)>=3000&&!(p.loan>0&&p.loanDue<=1)){borrowMoney(p,3000);log(`${p.name} 向銀行借了 $3,000`,p)}
     say(`${p.name} 去了銀行。`);await sleep(500);return;
   }
   await bankLoop(p,true);
@@ -526,7 +536,7 @@ async function bankLoop(p,branch){
   while(true){
     const half=Math.floor(p.cash/2/100)*100,disc=discPay(p),fresh=freshLoan(p);
     const cr=credit(p),av=canBorrow(p);
-    const kv=`<div class="kv"><span>現金</span><span class="num">${fmt(p.cash)}</span><span>存款（每過起點 +5%）</span><span class="num gain">${fmt(p.savings)}</span><span>已借貸款（每過起點 +8%）</span><span class="num loss">${fmt(p.loan)}</span><span><b>還能借</b></span><span class="num"><b>${fmt(av)}</b></span></div>
+    const kv=`<div class="kv"><span>現金</span><span class="num">${fmt(p.cash)}</span><span>存款（每過起點 +5%）</span><span class="num gain">${fmt(p.savings)}</span><span>已借貸款（每過起點 +8%）</span><span class="num loss">${fmt(p.loan)}</span>${p.loan>0?`<span><b>還款期限</b></span><span class="${p.loanDue<=1?'loss':''}"><b>${dueText(p)}</b></span>`:''}<span><b>還能借</b></span><span class="num"><b>${fmt(av)}</b></span></div>
     <details style="margin-top:8px;font-size:13px"><summary style="cursor:pointer;color:var(--muted)">銀行怎麼算你能借多少（總額度 ${fmt(cr.cap)}）</summary>
     <div class="kv" style="margin-top:6px;font-size:13px">${cr.parts.map(x=>`<span>${x[0]}${x[1]&&x[0][0]!=='薪'?`（值 ${fmt(x[1])}）`:''}</span><span class="num">${fmt(x[2])}</span>`).join('')}</div>
     <p style="margin:6px 0 0;color:var(--muted)">資產越多、職位越高，能借越多。額度扣掉已借的，就是還能借的。</p></details>`;
@@ -545,10 +555,11 @@ async function bankLoop(p,branch){
     if(v==='d1'){p.cash-=1000;p.savings+=1000}
     if(v==='dh'){p.cash-=half;p.savings+=half}
     if(v==='w'){p.cash+=p.savings;log(`${p.name} 領出存款 ${fmt(p.savings)}`,p);p.savings=0}
-    if(v==='b1'||v==='b3'||v==='bm'){const x=v==='b1'?1000:v==='b3'?3000:av;p.cash+=x;p.loan+=x;p.loanNew=(p.loanNew||0)+x;log(`${p.name} 借款 ${fmt(x)}`,p)}
+    if(v==='b1'||v==='b3'||v==='bm'){const x=v==='b1'?1000:v==='b3'?3000:av;borrowMoney(p,x);log(`${p.name} 借款 ${fmt(x)}（${dueText(p)}）`,p)}
     if(v==='r3'){p.cash-=3000;p.loan-=3000;p.loanNew=Math.max(0,(p.loanNew||0)-3000);log(`${p.name} 還款 $3,000`,p)}
-    if(v==='r'){p.cash-=p.loan;log(`${p.name} 還清貸款 ${fmt(p.loan)}`,p);p.loan=0;p.loanNew=0}
-    if(v==='rd'){p.cash-=disc;log(`${p.name} 在銀行櫃台還清貸款 ${fmt(disc)}`,p);p.loan=0;p.loanNew=0}
+    if(v==='r'){p.cash-=p.loan;log(`${p.name} 還清貸款 ${fmt(p.loan)}`,p);p.loan=0;p.loanNew=0;p.loanDue=0}
+    if(v==='rd'){p.cash-=disc;log(`${p.name} 在銀行櫃台還清貸款 ${fmt(disc)}`,p);p.loan=0;p.loanNew=0;p.loanDue=0}
+    if(v==='r3'&&p.loan<=0){p.loanDue=0}
     render();
   }
 }
@@ -660,7 +671,7 @@ function openAssets(p){
     <span>職位</span><span>${JOBS[p.job][0]}（薪水 ${fmt(salary(p))}）</span>
     <span>現金</span><span class="num">${fmt(p.cash)}</span>
     <span>銀行存款</span><span class="num gain">${fmt(p.savings)}</span>
-    <span>貸款</span><span class="num loss">${fmt(p.loan)}</span>
+    <span>貸款</span><span class="num loss">${fmt(p.loan)}${p.loan>0?`<br><small>${dueText(p)}</small>`:''}</span>
     <span>總資產</span><span class="num"><b>${fmt(worth(p))}</b></span></div>
     <div class="sec"><h3>地產</h3><div class="chips">${props.length?props.map(i=>`<span class="chip"><i style="background:var(--g${B[i].g})"></i>${B[i].n}・${LV[G.own[i].l]}・過路費 ${fmt(rentOf(i))}</span>`).join(''):'<span style="color:var(--muted)">還沒有地</span>'}</div></div>
     <div class="sec"><h3>股票與加密貨幣</h3><div class="chips">${stocks.length?stocks.map(k=>`<span class="chip">${ASSETS[k].n} ${p.hold[k]}${ASSETS[k].u}・${fmt(p.hold[k]*G.prices[k])}</span>`).join(''):'<span style="color:var(--muted)">沒有持有</span>'}</div></div>
@@ -674,7 +685,7 @@ function showRules(){
   <li><b>股票</b>：三檔股票風險不同，輪到你時隨時能買賣。停在<b>證券所</b>領 6% 股利。</li>
   <li><b>企鵝幣</b>：漲跌超大的加密貨幣。停在<b>幣交易所</b>會碰到暴漲、崩盤或空投。</li>
   <li><b>創業園區</b>：投資新創，3 回合後可能倒閉、打平、翻 3 倍或翻 8 倍。</li>
-  <li><b>網銀</b>（中間按鈕）：輪到你時隨時借錢、還錢、領存款。貸款每過起點 +8%。能借多少看你的資產：4 個月薪水＋地產 60%＋股票 50%＋企鵝幣 20%＋存款 90%（存款要先扣掉貸款，借來的錢存進去不會增加額度）。</li><li><b>銀行格子</b>：只有走到這裡才能<b>存錢</b>（每過起點 +5% 利息），停下來再多拿一次 5% 利息，還能<b>九折還清貸款</b>（只限借超過一圈、已經算過利息的貸款）。</li>
+  <li><b>網銀</b>（中間按鈕）：輪到你時隨時借錢、還錢、領存款。貸款每過起點 +8%，而且<b>借錢後經過起點 3 次內要還清</b>，到期還沒還，銀行會強制收回：先拿現金和存款，不夠就賣股票、企鵝幣、半價賣地，還不夠就破產。能借多少看你的資產：4 個月薪水＋地產 60%＋股票 50%＋企鵝幣 20%＋存款 90%（存款要先扣掉貸款，借來的錢存進去不會增加額度）。</li><li><b>銀行格子</b>：只有走到這裡才能<b>存錢</b>（每過起點 +5% 利息），停下來再多拿一次 5% 利息，還能<b>九折還清貸款</b>（只限借超過一圈、已經算過利息的貸款）。</li>
   <li><b>夜市</b>擺攤、<b>打工</b>賺現金；<b>彩券行</b>試手氣；<b>機會／命運</b>卡有好有壞。</li>
   <li>付不出錢時，會自動提存款、賣股票和幣、最後半價賣地。</li></ol>`,[],true);
 }
