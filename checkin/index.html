@@ -179,6 +179,7 @@ button,[role=button]{touch-action:manipulation;-webkit-tap-highlight-color:trans
 .link .line i{flex:1;border-top:2px dashed var(--line)}
 .link svg{width:26px;height:26px;color:var(--heart)}
 .link .tg{font-size:12px;color:var(--muted);text-align:center}
+.link .tg2{font-size:11px;color:var(--heart);text-align:center;min-height:1em}
 .link .tg b{font-family:var(--mono);color:var(--heart);font-size:16px}
 
 /* week strip */
@@ -295,6 +296,18 @@ label.q{display:grid;gap:4px;font-size:13px;color:var(--muted)}
 .rwstat{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;font-size:11px}
 .rwstat span{padding:2px 8px;border-radius:999px;background:var(--bg);color:var(--muted);white-space:nowrap}
 .rwstat b{font-family:var(--mono);color:var(--ink)}
+.card.wish::before{content:"";position:absolute;inset:0 0 auto 0;height:6px;background:var(--heart)}
+.wishes{display:grid;gap:8px}
+.wishrow{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:10px 12px;border-radius:14px;background:var(--bg)}
+.wishrow .wck{width:30px;height:30px;border-radius:50%;padding:0;border:2px solid var(--line);background:var(--paper);display:grid;place-items:center}
+.wishrow .wck svg{width:16px;height:16px;color:#fff;opacity:0}
+.wishrow.done .wck{background:var(--heart);border-color:var(--heart)}.wishrow.done .wck svg{opacity:1}
+.wishrow .wt{min-width:0;display:grid;gap:2px}
+.wishrow .wt b{font-weight:400;font-family:var(--display);font-size:16px;overflow-wrap:anywhere}
+.wishrow.done .wt b{text-decoration:line-through;text-decoration-color:var(--heart);text-decoration-thickness:2px;color:var(--muted)}
+.wishrow .wt span{font-size:11px;color:var(--muted)}
+.wishrow .wdel{border:0;background:transparent;color:var(--muted);font-size:12px;padding:4px 6px}
+#wishform button{background:var(--heart);border-color:var(--heart);color:#fff}
 .rwkinds{grid-column:1/-1;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .rwkinds .mode{grid-column:auto;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:13px;padding:5px 12px;border-radius:999px;border:1px solid var(--line)}
 .rwkinds .mode[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
@@ -420,7 +433,7 @@ body{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
     <div class="person me" role="button" tabindex="0" data-go="me"><div class="av" id="avMe">我</div><div class="n">我</div><div class="st"><b id="stMe">0</b> 天</div></div>
     <div class="link">
       <div class="line"><i></i><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3.1 4.5 6.9 4.5c2.1 0 3.6 1.2 5.1 3 1.5-1.8 3-3 5.1-3 3.8 0 6 3.9 4.5 7.3C19.5 16.4 12 21 12 21z"/></svg><i></i></div>
-      <div class="tg">一起連續 <b id="stBoth">0</b> 天</div>
+      <div class="tg">在一起 <b id="stBoth">0</b> 天</div><div class="tg2" id="loveNote"></div>
     </div>
     <div class="person you" role="button" tabindex="0" data-go="you"><div class="av" id="avYou">?</div><div class="n" id="nYou">等她加入</div><div class="st"><b id="stYou">0</b> 天</div></div>
   </div>
@@ -479,7 +492,13 @@ body{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
   </div>
 
   <div class="page" id="page-rewards" hidden>
-  <div class="pagehead"><h1>獎勵兌換券</h1><div class="sub">各自的獎勵分開算，誰連續達標誰就能兌換</div></div>
+  <div class="pagehead"><h1>獎勵與願望</h1><div class="sub">一起想做的事寫下來，各自的獎勵分開算</div></div>
+  <section class="card wish">
+    <div class="who"><h2>💭 我們的願望清單</h2><span class="rwstat" id="wishStat"></span></div>
+    <div class="wishes" id="wishes"></div>
+    <form class="addrow" id="wishform"><input type="text" id="wishtext" maxlength="60" placeholder="例：一起去北海道看雪"><button type="submit">新增</button></form>
+    <div class="status" id="wishmsg"></div>
+  </section>
   <section class="card me">
     <div class="who"><h2><span class="mini" id="rwMiniMe">我</span>我達標可以換</h2><span class="rwstat" id="rwStatMe"></span></div>
     <div class="rewards" id="rewardsMe"></div>
@@ -551,7 +570,7 @@ body{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
     <button class="tab" role="tab" data-tab="me" aria-selected="true"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1.2-3.8 4-5.5 7.5-5.5s6.3 1.7 7.5 5.5"/></svg><span>我</span></button>
     <button class="tab tyou" role="tab" data-tab="you" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1.2-3.8 4-5.5 7.5-5.5s6.3 1.7 7.5 5.5"/></svg><span id="tabYou">她</span></button>
     <button class="tab" role="tab" data-tab="photos" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span>每小時</span></button>
-    <button class="tab" role="tab" data-tab="rewards" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M12 8v13M3 12h18M12 8c-1.5-3-5-4-5-1.5S10 8 12 8zM12 8c1.5-3 5-4 5-1.5S14 8 12 8z"/></svg>獎勵<span class="badge" id="rwBadge" hidden></span></button>
+    <button class="tab" role="tab" data-tab="rewards" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M12 8v13M3 12h18M12 8c-1.5-3-5-4-5-1.5S10 8 12 8zM12 8c1.5-3 5-4 5-1.5S14 8 12 8z"/></svg>獎勵願望<span class="badge" id="rwBadge" hidden></span></button>
     <button class="tab" role="tab" data-tab="board" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/></svg>留言<span class="badge" id="msgBadge" hidden></span></button>
     <button class="tab" role="tab" data-tab="history" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M9.3 20V4M14.6 20v-7M20 20V8"/></svg>紀錄</button>
   </div>
@@ -599,11 +618,19 @@ function fmtDate(s){const [y,m,d]=s.split('-').map(Number);
   const rel=s===TODAY?'今天':s===addDays(TODAY,-1)?'昨天':'';return `${m}月${d}日 星期${WK[dow(s)]}${rel?' · '+rel:''}`}
 
 /* ---------- header + week ---------- */
+const TOGETHER='2025-09-20'; // day 1
+function daysBetween(a,b){const [y1,m1,d1]=a.split('-').map(Number),[y2,m2,d2]=b.split('-').map(Number);return Math.round((Date.UTC(y2,m2-1,d2)-Date.UTC(y1,m1-1,d1))/864e5)}
+function renderLove(){
+  const n=daysBetween(TOGETHER,TODAY)+1;$('stBoth').textContent=n;
+  const ann=TODAY.slice(5)===TOGETHER.slice(5)&&TODAY>TOGETHER?`今天是 ${+TODAY.slice(0,4)-+TOGETHER.slice(0,4)} 週年 🎉`:'';
+  const next=Math.ceil((n+1)/100)*100,left=next-n;
+  $('loveNote').textContent=ann||(n%100===0?`今天滿 ${n} 天 🎉`:left<=7?(left===1?`明天就 ${next} 天了 💕`:`再 ${left} 天就 ${next} 天`):'');
+}
 function renderPair(){
   const p=partner();
   $('stMe').textContent=streak(S.me);
   $('stYou').textContent=streak(p);
-  $('stBoth').textContent=p?runStreak(d=>did(d,S.me)&&did(d,p)):0;
+  renderLove();
   $('nYou').textContent=p?nameOf(p):'等她加入';
   $('avYou').innerHTML=p?avatar(p,nameOf(p)[0]||'她'):'?';$('avYou').classList.toggle('ph',!!(p&&AVATARS[p]));
   $('avMe').innerHTML=avatar(S.me,'我');$('avMe').classList.toggle('ph',!!AVATARS[S.me]);$('miniMe').innerHTML=avatar(S.me,'我');
@@ -854,6 +881,34 @@ document.querySelectorAll('.rwform').forEach(f=>f.addEventListener('submit',asyn
   btn.disabled=false;
 }));
 
+/* ---------- wishlist ---------- */
+S.wishes=[];S.confirmWish=null;
+function renderWishes(){
+  const list=S.wishes.slice().sort((a,b)=>(a.done?1:0)-(b.done?1:0)||(a.createdAt||'').localeCompare(b.createdAt||''));
+  const done=list.filter(w=>w.done).length;
+  $('wishStat').innerHTML=list.length?`<span>已實現 <b>${done}</b> / ${list.length}</span>`:'';
+  $('wishes').innerHTML=list.length?list.map(w=>`<div class="wishrow ${w.done?'done':''}">
+    <button type="button" class="wck" data-wtoggle="${w.id}" aria-pressed="${!!w.done}" aria-label="${esc(w.text)}">${CHECK}</button>
+    <div class="wt"><b>${esc(w.text)}</b><span>${esc(nameOf(w.by))}許的願${w.done&&w.doneAt?` · ${+w.doneAt.slice(5,7)}/${+w.doneAt.slice(8,10)} 實現了 ✨`:''}</span></div>
+    <button type="button" class="wdel" data-wdel="${w.id}">${S.confirmWish===w.id?'確定刪除？':'刪除'}</button></div>`).join('')
+    :`<p class="empty">還沒有願望。寫下想一起做的事吧，例如「一起去北海道看雪」「一起看日出」。</p>`;
+}
+$('wishes').addEventListener('click',async e=>{
+  const t=e.target.closest('[data-wtoggle]'),d=e.target.closest('[data-wdel]');
+  try{
+    if(t){const w=S.wishes.find(x=>x.id===t.dataset.wtoggle);if(!w)return;const v=!w.done;const patch={done:v,doneAt:v?TODAY:null};
+      await S.db.doc('wishes/'+w.id).update(patch);Object.assign(w,patch);renderWishes()}
+    if(d){if(S.confirmWish!==d.dataset.wdel){S.confirmWish=d.dataset.wdel;renderWishes();return}
+      S.confirmWish=null;const id=d.dataset.wdel;await S.db.doc('wishes/'+id).delete();S.wishes=S.wishes.filter(x=>x.id!==id);renderWishes()}
+  }catch(err){$('wishmsg').textContent='沒存成功，請再試一次'}
+});
+$('wishform').addEventListener('submit',async e=>{e.preventDefault();
+  const text=$('wishtext').value.trim();if(!text)return;if(!S.db||!S.me){$('wishmsg').textContent='需要登入';return}
+  try{const doc={text,by:S.me,done:false,createdAt:new Date().toISOString()};const r=await S.db.collection('wishes').add(doc);
+    if(!S.wishes.some(x=>x.id===r.id)){S.wishes.push({id:r.id,...doc});renderWishes()}
+    $('wishtext').value='';$('wishmsg').textContent='許願成功 ✨'}catch(err){$('wishmsg').textContent='沒存成功，請再試一次'}
+});
+
 /* ---------- message board ---------- */
 S.messages=[];S.confirmMsg=null;S.reads={};
 function lastSeen(){try{return localStorage.getItem('msgSeen')||''}catch(e){return ''}}
@@ -1013,7 +1068,7 @@ function renderBadge(){const n=S.rewards.filter(r=>!r.claimedAt&&rTo(r)===S.me&&
 function setDate(d){if(d>TODAY)return;if(S.dirty&&saveTimer)saveNow(false);S.date=d;renderWeek();if(window.__subPhotos)window.__subPhotos();renderPhotos();loadDraft();renderPartner();renderStrip()}
 
 let rafQ=false;function renderAll(){if(rafQ)return;rafQ=true;requestAnimationFrame(()=>{rafQ=false;renderAllNow()})}
-function renderAllNow(){
+function renderAllNow(){renderWishes();
   renderPair();renderWeek();renderPartner();renderStrip();renderRewards();renderEditor();
   const typing=document.activeElement&&$('mecard').contains(document.activeElement)&&/INPUT|TEXTAREA/.test(document.activeElement.tagName);
   if(!S.dirty&&!typing)loadDraft();
@@ -1023,7 +1078,7 @@ function renderAllNow(){
 
 /* ---------- boot ---------- */
 setInterval(()=>{if(S.tab==='photos')renderPhotos()},300000);
-S.draft={items:[],happy:'',share:'',stuck:'',improve:'',score:0};setDate(TODAY);renderAll();renderBoard();
+S.draft={items:[],happy:'',share:'',stuck:'',improve:'',score:0};setDate(TODAY);renderAll();renderBoard();renderWishes();
 (async()=>{
   const [db,user]=await Promise.all([claude.use('db'),claude.use('user')]);
   if(!db||!user){$('notice').hidden=false;$('notice').textContent='請先登入。';return}
@@ -1042,6 +1097,7 @@ S.draft={items:[],happy:'',share:'',stuck:'',improve:'',score:0};setDate(TODAY);
   db.collection('reads').onSnapshot(s=>{s.docs.forEach(d=>{const a=d.data()?.at||'';if(d.id!==S.me||a>(S.reads[S.me]||''))S.reads[d.id]=a});renderBoard()});
   claude.use('assets').then(a=>{S.assets=a;renderPhotos()});
   let unPh=null;window.__subPhotos=()=>{if(unPh)unPh();unPh=db.collection('photos').where('date','==',S.date).onSnapshot(s=>{S.photos={};s.docs.forEach(d=>S.photos[d.id]=d.data());renderPhotos()})};window.__subPhotos();
+  db.collection('wishes').onSnapshot(s=>{S.wishes=s.docs.map(d=>({id:d.id,...d.data()}));renderWishes()});
   db.collection('messages').orderBy('at','desc').limit(200).onSnapshot(s=>{S.messages=s.docs.map(d=>({id:d.id,...d.data()})).reverse();renderBoard()});
   db.collection('cheers').where('date','>=',from).onSnapshot(s=>{S.cheers={};s.docs.forEach(d=>S.cheers[d.id]=true);renderPartner();renderMeta()});
 })();
@@ -1084,7 +1140,7 @@ S.draft={items:[],happy:'',share:'',stuck:'',improve:'',score:0};setDate(TODAY);
 document.getElementById('page-history').appendChild(document.getElementById('logoutbtn').parentNode);</script>
 <script>
 // Home-screen apps can keep showing a cached copy; check for a newer build whenever the app is opened.
-window.__BUILD='1791917890';
+window.__BUILD='1792746405';
 async function checkUpdate(){try{const t=await (await fetch('./?nocache='+Date.now(),{cache:'no-store'})).text();const m=t.match(/__BUILD='(\d+)'/);
   if(m&&m[1]!==window.__BUILD)location.replace('./?v='+m[1]);}catch(e){}}
 checkUpdate();document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});
