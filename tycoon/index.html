@@ -276,6 +276,11 @@ header h1{display:flex;align-items:center;gap:10px}
 #actBtn{background:var(--on-felt);color:var(--felt-hi)}
 
 .logo{width:40px;height:40px;border-radius:12px;flex:none;box-shadow:0 2px 6px var(--shadow),0 0 0 2px var(--panel)}
+
+.amtrow{display:flex;align-items:center;gap:10px;margin-top:12px}
+.amtrow label{color:var(--muted);font-size:14px;flex:none}
+.amtrow input{flex:1;min-width:0;font:inherit;font-family:var(--f-num);padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--cell);color:var(--ink)}
+.amtmsg{margin:8px 0 0;font-size:14px;font-weight:500;color:var(--accent-ink,var(--ink));background:var(--t-money);border-radius:10px;padding:6px 10px}
 </style>
 
 <div id="app">
@@ -642,36 +647,53 @@ async function bankVisit(p){
   say(`${p.name} 離開銀行。`);
 }
 async function bankLoop(p,branch){
+  let note2='';
   while(true){
     const half=Math.floor(p.cash/2/100)*100,disc=Math.round(p.loan*.9);
-    const cr=credit(p),av=canBorrow(p);
+    const cr=credit(p),av=canBorrow(p),canPay=Math.min(p.cash,p.loan);
     const kv=`<div class="kv"><span>現金</span><span class="num">${fmt(p.cash)}</span><span>存款（每過起點 +5%）</span><span class="num gain">${fmt(p.savings)}</span><span>已借貸款（每過起點 +8%）</span><span class="num loss">${fmt(p.loan)}</span><span><b>還能借</b></span><span class="num"><b>${fmt(av)}</b></span></div>
     <details style="margin-top:8px;font-size:13px"><summary style="cursor:pointer;color:var(--muted)">銀行怎麼算你能借多少（總額度 ${fmt(cr.cap)}）</summary>
     <div class="kv" style="margin-top:6px;font-size:13px">${cr.parts.map(x=>`<span>${x[0]}${x[1]&&x[0][0]!=='薪'?`（值 ${fmt(x[1])}）`:''}</span><span class="num">${fmt(x[2])}</span>`).join('')}</div>
-    <p style="margin:6px 0 0;color:var(--muted)">資產越多、職位越高，能借越多。額度扣掉已借的，就是還能借的。</p></details>`;
+    <p style="margin:6px 0 0;color:var(--muted)">資產越多、職位越高，能借越多。額度扣掉已借的，就是還能借的。</p></details>
+    <div class="amtrow"><label for="amt">自訂金額</label><input id="amt" type="number" inputmode="numeric" min="1" step="100" placeholder="例如 800"></div>
+    ${note2?`<p class="amtmsg">${note2}</p>`:''}`;
     const note=branch
-      ?`<p style="margin-top:10px">你在銀行櫃台，這裡才有的服務：<b>存錢</b>、<b>還清貸款打九折</b>，而且存款已經多給你一次 5% 利息。</p>`
-      :`<p style="margin-top:10px">這是手機網銀，可以借錢、還錢、領錢。<b>存錢</b>和<b>還款打九折</b>要走到棋盤上的「銀行」格子才能辦。</p>`;
-    const borrow=[{label:'借 $1,000',v:'b1',disabled:av<1000},{label:'借 $3,000',v:'b3',disabled:av<3000},{label:av?`借滿 ${fmt(av)}`:'額度用完了',v:'bm',disabled:av<100}];
-    const acts=branch
-      ?[...borrow,{label:'存 $1,000',v:'d1',disabled:p.cash<1000},{label:`存一半 ${fmt(half)}`,v:'dh',disabled:half<100},
-        {label:p.loan?`九折還清 ${fmt(disc)}`:'九折還清貸款',v:'rd',disabled:!p.loan||p.cash<disc},
-        {label:'全部領出',v:'w',disabled:!p.savings},{label:'離開銀行',v:0,kind:'primary'}]
-      :[...borrow,{label:'還 $3,000',v:'r3',disabled:p.loan<3000||p.cash<3000},
-        {label:'還清貸款',v:'r',disabled:!p.loan||p.cash<p.loan},{label:'全部領出',v:'w',disabled:!p.savings},{label:'關閉',v:0,kind:'primary'}];
+      ?`<p style="margin-top:10px">你在<b>銀行櫃台</b>：可以存錢，貸款一次<b>全部還清打九折</b>。這回合還沒按「結束回合」前，都能再按「銀行櫃台」回來。</p>`
+      :`<p style="margin-top:10px">這是手機網銀，可以借錢、還錢（多少都可以）、領錢。<b>存錢</b>和<b>還清打九折</b>要走到棋盤上的「銀行」格子才能辦。</p>`;
+    const acts=[
+      {label:'借 $1,000',v:'b1',disabled:av<1000},{label:'借 $3,000',v:'b3',disabled:av<3000},{label:av?`借滿 ${fmt(av)}`:'額度用完了',v:'bm',disabled:av<100},
+      {label:'還 $500',v:'r5',disabled:!p.loan||p.cash<Math.min(500,p.loan)},{label:'還 $1,000',v:'r1k',disabled:!p.loan||p.cash<Math.min(1000,p.loan)},{label:canPay?`能還多少還多少 ${fmt(canPay)}`:'能還多少還多少',v:'ra',disabled:!canPay},
+      ...(branch?[{label:'存 $1,000',v:'d1',disabled:p.cash<1000},{label:`存一半 ${fmt(half)}`,v:'dh',disabled:half<100},{label:p.loan?`九折還清 ${fmt(disc)}`:'九折還清貸款',v:'rd',disabled:!p.loan||p.cash<disc}]
+             :[{label:'還清貸款',v:'r',disabled:!p.loan||p.cash<p.loan}]),
+      {label:'用自訂金額借',v:'cb',kind:'tool'},{label:'用自訂金額還',v:'cr',kind:'tool'},
+      ...(branch?[{label:'用自訂金額存',v:'cd',kind:'tool'}]:[]),
+      {label:'全部領出存款',v:'w',disabled:!p.savings},
+      {label:branch?'離開銀行':'關閉',v:0,kind:'primary'}];
     const v=await choose(branch?'銀行櫃台':'手機網銀',kv+note,acts,()=>0,true);
     if(!v)break;
+    note2='';
+    const raw=Math.floor(+(($('#amt')||{}).value||0));
+    const pay=x=>{x=Math.min(x,p.cash,p.loan);if(x<=0)return;p.cash-=x;p.loan-=x;log(`${p.name} 還款 ${fmt(x)}`,p);note2=`還了 ${fmt(x)}，還欠 ${fmt(p.loan)}。`};
     if(v==='d1'){p.cash-=1000;p.savings+=1000}
     if(v==='dh'){p.cash-=half;p.savings+=half}
     if(v==='w'){p.cash+=p.savings;log(`${p.name} 領出存款 ${fmt(p.savings)}`,p);p.savings=0}
     if(v==='b1'||v==='b3'||v==='bm'){const x=v==='b1'?1000:v==='b3'?3000:av;p.cash+=x;p.loan+=x;log(`${p.name} 借款 ${fmt(x)}`,p)}
-    if(v==='r3'){p.cash-=3000;p.loan-=3000;log(`${p.name} 還款 $3,000`,p)}
+    if(v==='r5')pay(500);
+    if(v==='r1k')pay(1000);
+    if(v==='ra')pay(canPay);
     if(v==='r'){p.cash-=p.loan;log(`${p.name} 還清貸款 ${fmt(p.loan)}`,p);p.loan=0}
     if(v==='rd'){p.cash-=disc;log(`${p.name} 在銀行櫃台九折還清貸款 ${fmt(disc)}`,p);p.loan=0}
+    if(v==='cb'||v==='cr'||v==='cd'){
+      if(!(raw>0))note2='請先在「自訂金額」輸入一個數字。';
+      else if(v==='cb'){if(raw>av)note2=`最多只能再借 ${fmt(av)}。`;else{p.cash+=raw;p.loan+=raw;log(`${p.name} 借款 ${fmt(raw)}`,p);note2=`借了 ${fmt(raw)}。`}}
+      else if(v==='cr'){if(!p.loan)note2='你沒有貸款要還。';else if(raw>p.cash)note2=`現金只有 ${fmt(p.cash)}，不夠還 ${fmt(raw)}。`;else pay(raw)}
+      else{if(raw>p.cash)note2=`現金只有 ${fmt(p.cash)}，不夠存 ${fmt(raw)}。`;else{p.cash-=raw;p.savings+=raw;note2=`存了 ${fmt(raw)}。`}}
+    }
     render();
   }
 }
 
+const atCounter=p=>!!G&&G.phase==='done'&&B[p.pos].t==='bank'&&!p.bot&&drivingNow();
 function resolveVenture(p,v){
   const r=Math.random();let m,t;
   if(r<.4){m=0;t='倒閉了'}else if(r<.65){m=1;t='打平收場'}else if(r<.9){m=3;t='大成功'}else{m=8;t='變成獨角獸'}
@@ -794,7 +816,7 @@ function showRules(){
   <li><b>股票</b>：三檔股票風險不同，輪到你時隨時能買賣。停在<b>證券所</b>領 6% 股利。</li>
   <li><b>企鵝幣</b>：漲跌超大的加密貨幣。停在<b>幣交易所</b>會碰到暴漲、崩盤或空投。</li>
   <li><b>創業園區</b>：投資新創，3 回合後可能倒閉、打平、翻 3 倍或翻 8 倍。</li>
-  <li><b>網銀</b>（中間按鈕）：輪到你時隨時借錢、還錢、領存款。貸款每過起點 +8%。能借多少看你的資產：4 個月薪水＋地產 60%＋股票 50%＋企鵝幣 20%＋存款 90%。</li><li><b>銀行格子</b>：只有走到這裡才能<b>存錢</b>（每過起點 +5% 利息），停下來再多拿一次 5% 利息，還能<b>九折還清貸款</b>。</li>
+  <li><b>網銀</b>（中間按鈕）：輪到你時隨時借錢、還錢（多少都行）、領存款。貸款每過起點 +8%。能借多少看你的資產：4 個月薪水＋地產 60%＋股票 50%＋企鵝幣 20%＋存款 90%。</li><li><b>銀行格子</b>：只有走到這裡才能<b>存錢</b>（每過起點 +5% 利息），停下來再多拿一次 5% 利息，還能<b>九折還清貸款</b>。按「結束回合」前都能再按「銀行櫃台」回去。</li>
   <li><b>夜市</b>擺攤、<b>打工</b>賺現金；<b>彩券行</b>試手氣；<b>機會／命運</b>卡有好有壞。</li>
   <li>付不出錢時，會自動提存款、賣股票和幣、最後半價賣地。</li></ol>`,[],true);
 }
@@ -1042,7 +1064,9 @@ function render(){
     else if(oh.p===p.id&&oh.l<3)at=`在${sqh.n}蓋房子 ${fmt(upCost(sqh))}`;
     else if(oh.p!==p.id&&!G.negDone)at=`跟 ${G.players[oh.p].name} 出價買${sqh.n}`;
   }
+  if(!G.over&&atCounter(p))at='回到銀行櫃台';
   ab.hidden=!at;ab.textContent=at;
+  $('#bankBtn').textContent=!G.over&&atCounter(p)?'銀行櫃台':'網銀';
   const mb=$('#mainBtn');
   if(G.over){mb.textContent='看排名';mb.disabled=false}
   else if(p.bot){mb.textContent='電腦行動中…';mb.disabled=true}
@@ -1071,6 +1095,7 @@ $('#mainBtn').addEventListener('click',()=>{if(!G)return;if(G.over)return showRe
 $('#actBtn').addEventListener('click',async()=>{
   if(!G||G.over)return;const p=cur();if(p.bot||!drivingNow()||G.phase!=='done')return;
   const i=p.pos,o=G.own[i];
+  if(B[i].t==='bank'){await bankLoop(p,true);G.phase='done';render();return}
   if(!o||o.p===p.id)await propOffer(p,i);else if(!G.negDone)await negotiate(p,G.players[o.p],i);
   G.phase='done';render();
 });
@@ -1078,7 +1103,7 @@ $('#mktBtn').addEventListener('click',()=>G&&openMarket());
 $('#bankBtn').addEventListener('click',async()=>{
   if(!G||G.over)return;const p=cur();
   if(p.bot||!drivingNow()||!(G.phase==='roll'||G.phase==='done')){openSheet('手機網銀','<p>輪到你的回合時才能用網銀借錢、還錢。</p>',[],true);return}
-  const ph=G.phase;await bankLoop(p);G.phase=ph;render();
+  const ph=G.phase;await bankLoop(p,atCounter(p));G.phase=ph;render();
 });
 $('#meBtn').addEventListener('click',()=>{if(!G)return;openAssets(meP()||cur())});
 $('#players').addEventListener('click',e=>{const b=e.target.closest('[data-p]');if(b)openAssets(G.players[+b.dataset.p])});
