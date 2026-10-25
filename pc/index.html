@@ -1,0 +1,1088 @@
+<!doctype html><html lang="zh-Hant-TW"><head><meta charset=utf8><title>自組電腦工作台｜輸入預算自動配電腦、相容性檢查、估價單</title><meta name="description" content="2026 組電腦推薦：輸入預算（2萬、3萬、5萬…）自動配出整台電腦，檢查 CPU、主機板、顯卡、電源是否相容，附原價屋參考價、估價單和新手教學，還能練習接線、開機測試。"><meta property="og:title" content="自組電腦工作台"><meta property="og:description" content="輸入預算就幫你配好整台電腦，含相容性檢查、估價單和新手教練。"><meta property="og:type" content="website"><link rel="canonical" href="https://boss-max-wp.github.io/stock-scanner/pc/"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;600&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* Layout: 工作台 — 步驟列；① 選件：零件清單（左）＋整機模擬圖／預算／等級表（右上）＋相容性（右下）② 接線 ③ 開機 */
+:root{
+  --bg:#E9EDF2; --surface:#FFFFFF; --sunk:#F3F5F8; --thumb:#E4E8EE; --ink:#18212C; --muted:#586474; --line:#D2D9E2;
+  --accent:#2448C8; --accent-ink:#FFFFFF; --accent-soft:#E3E9FB; --gold:#B7831A;
+  --ok:#1C8A4C; --ok-soft:#E1F3E8; --warn:#B66E00; --warn-soft:#FBF0DC; --bad:#C2332F; --bad-soft:#FBE4E3;
+  --pcb:#27313D; --pcb-edge:#1B232C; --silk:#D7DFE8; --slot:#11171E; --metal:#B8A574; --metal-dark:#4A5562;
+  --ramc:#3B5BD9; --gpuc:#20262E; --cable:#E2B13C; --glow:#7FA0FF;
+  --f-display:"Chakra Petch","Noto Sans TC",system-ui,sans-serif;
+  --f-body:"Noto Sans TC",system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11151B; --surface:#1A2029; --sunk:#151A21; --thumb:#2A323E; --ink:#E5EAF0; --muted:#9AA6B5; --line:#2C3543;
+  --accent:#7E9BFF; --accent-ink:#0E1424; --accent-soft:#1F2A4A; --gold:#E0AC48;
+  --ok:#4CC37E; --ok-soft:#173326; --warn:#E6A33A; --warn-soft:#382A12; --bad:#F06C66; --bad-soft:#3A1C1C;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11151B; --surface:#1A2029; --sunk:#151A21; --thumb:#2A323E; --ink:#E5EAF0; --muted:#9AA6B5; --line:#2C3543;
+  --accent:#7E9BFF; --accent-ink:#0E1424; --accent-soft:#1F2A4A; --gold:#E0AC48;
+  --ok:#4CC37E; --ok-soft:#173326; --warn:#E6A33A; --warn-soft:#382A12; --bad:#F06C66; --bad-soft:#3A1C1C;
+  color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 100px}
+header.top{background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+header.top .wrap{padding-block:10px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px}
+.brand{font-family:var(--f-display);font-weight:700;font-size:18px;letter-spacing:.02em;display:flex;align-items:center;gap:8px;margin-right:auto}
+.brand i{width:12px;height:12px;border-radius:2px;background:var(--accent);box-shadow:4px 4px 0 var(--gold);display:inline-block}
+.steps{display:flex;gap:4px;width:100%}
+@media (min-width:720px){.steps{width:auto}}
+.steps button{flex:1;font:inherit;font-size:14px;border:1px solid var(--line);background:var(--sunk);color:var(--muted);padding:6px 12px;border-radius:999px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;justify-content:center;gap:6px}
+.steps button b{font-family:var(--f-display);font-size:13px;width:20px;height:20px;border-radius:50%;display:inline-grid;place-items:center;border:1px solid currentColor}
+.steps button[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button:focus-visible,.zone:focus-visible,summary:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.25}
+.intro{padding-block:20px 8px;display:grid;gap:4px}
+.intro h1{font-size:clamp(22px,4vw,30px)}
+.intro p{margin:0;color:var(--muted);max-width:62ch}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-width:0}
+.card h3{font-size:16px}
+.note{font-size:12.5px;color:var(--muted);margin:0}
+
+/* step 1 */
+.build{display:grid;gap:16px 20px;grid-template-columns:minmax(0,1fr);grid-template-areas:"top" "parts" "bot";align-items:start}
+.b-top{grid-area:top;display:grid;gap:12px;min-width:0}
+.b-parts{grid-area:parts;min-width:0}
+.b-bot{grid-area:bot;display:grid;gap:12px;min-width:0}
+@media (min-width:900px){.build{grid-template-columns:minmax(0,1fr) 390px;grid-template-areas:"parts top" "parts bot";grid-template-rows:auto 1fr}}
+.parts{display:grid;gap:10px}
+details.part{background:var(--surface);border:1px solid var(--line);border-radius:10px;min-width:0}
+details.part[open]{border-color:var(--accent)}
+details.part summary{list-style:none;cursor:pointer;padding:10px 12px;display:grid;grid-template-columns:72px minmax(0,1fr) auto;gap:0 12px;align-items:center}
+details.part summary::-webkit-details-marker{display:none}
+.th{display:block;width:100%;height:auto;background:var(--thumb);border-radius:6px}
+.part summary .th{grid-row:1/3}
+.part .cat{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.part .cat .dot{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.part .cat .dot.warn{background:var(--warn)}.part .cat .dot.bad{background:var(--bad)}
+.part .cur{font-weight:700;grid-column:2;min-width:0;line-height:1.35}
+.part .pr{grid-row:1/3;grid-column:3;text-align:right;font-size:14px}
+.part .body{padding:0 12px 14px;display:grid;gap:10px}
+.why{background:var(--sunk);border-radius:8px;padding:10px 12px;font-size:14px;margin:0}
+.why b{color:var(--accent)}
+.photo{font-size:13px;color:var(--accent);text-decoration:none;justify-self:start}
+.photo:hover{text-decoration:underline}
+.opts{display:grid;gap:6px;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.opt{font:inherit;text-align:left;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:8px 10px;cursor:pointer;display:grid;grid-template-columns:60px minmax(0,1fr) auto;gap:0 10px;align-items:center}
+.opt:hover{border-color:var(--accent)}
+.opt[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 1px var(--accent) inset}
+.opt .th{grid-row:1/3}
+.opt .n{font-weight:600;font-size:14px;line-height:1.35}
+.opt .s{font-size:12px;color:var(--muted);grid-column:2;line-height:1.4}
+.opt .p{grid-row:1/3;grid-column:3;font-size:12.5px}
+.sim svg{display:block;width:100%;height:auto;border-radius:8px}
+.sim .legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted);margin-top:8px}
+.bin{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:10px;padding:4px 10px;background:var(--sunk);margin-top:6px}
+.bin:focus-within{border-color:var(--accent)}
+.bin span{font-family:var(--f-display);font-weight:700;font-size:20px;color:var(--muted)}
+.bin input{font-family:var(--f-display);font-weight:700;font-variant-numeric:tabular-nums;border:0;background:transparent;color:var(--ink);width:100%;min-width:0;font-size:26px;padding:2px 0;outline:none}
+.budget input[type=range]{width:100%;accent-color:var(--accent);margin-block:10px 2px}
+.meter{height:10px;border-radius:5px;background:var(--sunk);overflow:hidden;border:1px solid var(--line);margin-top:8px}
+.meter span{display:block;height:100%;background:var(--accent);transition:width .3s}
+.meter span.over{background:var(--bad)}
+.kv{display:grid;grid-template-columns:1fr auto;gap:4px 12px;font-size:14px;margin:10px 0 0}
+.kv dt{color:var(--muted)}.kv dd{margin:0;text-align:right}
+.tiers{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px}
+.tiers li{border:1px solid var(--line);border-radius:8px;padding:7px 10px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1px 10px;font-size:13px;align-items:center}
+.tiers .rg{font-family:var(--f-mono);font-size:11.5px;color:var(--muted)}
+.tiers .tn{font-weight:700;font-size:14px}
+.tiers .ex{grid-column:1/-1;display:none;gap:4px;margin-top:4px}
+.tiers .ex p{margin:0;font-size:13px}
+.tiers .ex b{color:var(--accent);font-weight:600}
+.tiers .ap{grid-column:2;grid-row:1/3}
+.tiers li.here{border-color:var(--accent);background:var(--accent-soft)}
+.tiers li.here .ex{display:grid}
+.tiers li.here .tn::after{content:"  ← 你的預算在這級";color:var(--accent);font-size:12px;font-weight:600}
+.chip{font:inherit;font-size:12.5px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:4px 10px;border-radius:999px;cursor:pointer;white-space:nowrap}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+.checks{display:grid;gap:8px;margin:8px 0 0;padding:0;list-style:none}
+.checks li{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 10px;font-size:14px;padding:8px 10px;border-radius:8px;background:var(--sunk)}
+.checks li .tag{grid-row:1/3;font-family:var(--f-mono);font-size:11px;font-weight:600;padding:2px 6px;border-radius:4px;align-self:start;margin-top:2px}
+.checks li.ok .tag{background:var(--ok-soft);color:var(--ok)}
+.checks li.warn{background:var(--warn-soft)} .checks li.warn .tag{background:var(--warn);color:var(--surface)}
+.checks li.bad{background:var(--bad-soft)} .checks li.bad .tag{background:var(--bad);color:var(--surface)}
+.checks li .d{color:var(--muted);font-size:13px}
+.checks li.warn .d,.checks li.bad .d{color:var(--ink)}
+.cta{font:inherit;font-weight:700;border:0;background:var(--accent);color:var(--accent-ink);padding:12px 16px;border-radius:10px;cursor:pointer;width:100%;font-size:15px}
+.cta.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+
+/* step 2 */
+.bench{display:grid;gap:16px;grid-template-columns:minmax(0,1fr);align-items:start}
+@media (min-width:900px){.bench{grid-template-columns:minmax(0,1fr) 380px}}
+.boardbox svg{display:block;width:100%;max-width:520px;margin:0 auto;height:auto;touch-action:manipulation}
+.boardtools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:8px}
+.toggle{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);cursor:pointer}
+.toggle input{accent-color:var(--accent);width:16px;height:16px}
+.zone{cursor:pointer}
+.zone rect{fill:var(--slot);stroke:var(--silk);stroke-width:.8;transition:fill .15s}
+.zone:hover rect{fill:#2C3A4C}
+.zone.valid rect{stroke:var(--glow);stroke-width:2;animation:pulse 1.1s ease-in-out infinite}
+@keyframes pulse{50%{fill:#30477F}}
+.zone.flash rect{fill:#7A2626}
+.silk{fill:var(--silk);font-family:var(--f-mono);font-size:7.5px;pointer-events:none}
+.ov{pointer-events:none}
+.fan-spin{transform-box:fill-box;transform-origin:center}
+.on .fan-spin{animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.msg{border-radius:10px;padding:10px 12px;font-size:14px;background:var(--sunk);border:1px solid var(--line);min-height:48px;margin-top:10px}
+.msg.ok{background:var(--ok-soft);border-color:var(--ok)}
+.msg.bad{background:var(--bad-soft);border-color:var(--bad)}
+.msg.warn{background:var(--warn-soft);border-color:var(--warn)}
+.tray{display:grid;gap:12px}
+.tray h3{font-size:15px;display:flex;justify-content:space-between;align-items:baseline}
+.items{display:grid;gap:6px}
+.item{font:inherit;text-align:left;display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:0 10px;align-items:center;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:8px 10px;cursor:pointer}
+.item:hover{border-color:var(--accent)}
+.item .ic{width:28px;height:28px;border-radius:6px;display:grid;place-items:center;font-family:var(--f-mono);font-size:10px;font-weight:600;background:var(--sunk);color:var(--muted);border:1px solid var(--line)}
+.item.cable .ic{background:var(--cable);color:#2A1E00;border-color:transparent}
+.item .nm{font-weight:600;font-size:14px}
+.item .sb{font-size:12px;color:var(--muted);grid-column:2}
+.item .st{grid-row:1/3;grid-column:3;font-size:12px;font-family:var(--f-mono)}
+.item[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 2px var(--accent) inset}
+.item.done{opacity:.62}
+.item.done .st{color:var(--ok)}
+.item.locked .st{color:var(--muted)}
+.prog{height:6px;border-radius:3px;background:var(--sunk);overflow:hidden;margin-top:6px}
+.prog span{display:block;height:100%;background:var(--ok);transition:width .3s}
+
+/* step 3 */
+.post{display:grid;gap:16px;grid-template-columns:minmax(0,1fr);align-items:start}
+@media (min-width:900px){.post{grid-template-columns:340px minmax(0,1fr)}}
+.leds{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+.led{text-align:center;font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.led i{display:block;width:22px;height:22px;border-radius:50%;margin:0 auto 6px;background:var(--sunk);border:2px solid var(--line)}
+.led.on i{background:#FF8A2A;border-color:#FFB070;box-shadow:0 0 14px #FF8A2A}
+.led.on{color:var(--ink);font-weight:600}
+.pwr{width:120px;height:120px;border-radius:50%;margin:16px auto 4px;display:grid;place-items:center;border:3px solid var(--line);background:var(--sunk);cursor:pointer;color:var(--accent);transition:transform .1s}
+.pwr:active{transform:scale(.96)}
+.pwr svg{width:52px;height:52px}
+.pwr.lit{border-color:var(--ok);color:var(--ok);box-shadow:0 0 0 6px var(--ok-soft)}
+.result h2{font-size:22px;margin-bottom:6px}
+.result .lead{margin:0 0 12px;color:var(--muted)}
+.issues{display:grid;gap:8px;list-style:none;margin:0;padding:0}
+.issues li{border-left:4px solid var(--line);background:var(--sunk);border-radius:0 8px 8px 0;padding:8px 12px;font-size:14px}
+.issues li.bad{border-color:var(--bad)}.issues li.warn{border-color:var(--warn)}
+.issues li b{display:block}
+.issues li span{color:var(--muted)}
+.screen{background:#0B0F14;color:#CFE3FF;font-family:var(--f-mono);font-size:12.5px;border-radius:10px;padding:14px;line-height:1.7;overflow-x:auto;white-space:pre;border:1px solid var(--line)}
+.score{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.score div{background:var(--sunk);border-radius:8px;padding:8px 12px}
+.score b{font-family:var(--f-display);font-size:20px;display:block}
+.score span{font-size:12px;color:var(--muted)}
+.pricebadge{font-size:13px!important;color:var(--ink)!important;background:var(--warn-soft);border:1px solid var(--warn);border-radius:8px;padding:6px 10px;margin-top:6px!important}
+.guide{border:1px dashed var(--line);border-radius:8px;padding:8px 12px;font-size:13.5px}
+.guide b.gt{display:block;font-family:var(--f-display);font-size:14px;margin-bottom:4px;color:var(--ink)}
+.guide ul{margin:0;padding-left:18px;display:grid;gap:3px}
+.sortbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12.5px;color:var(--muted)}
+.sortbar .chip[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.bars{grid-column:2/-1;display:grid;gap:2px;margin-top:4px}
+.bar{display:grid;grid-template-columns:52px minmax(0,1fr) 28px;gap:6px;align-items:center;font-size:11px;color:var(--muted)}
+.bar i{display:block;height:6px;border-radius:3px;background:var(--sunk);overflow:hidden;border:1px solid var(--line)}
+.bar i span{display:block;height:100%;background:var(--accent)}
+.bar.w i span{background:var(--gold)}
+.bar em{font-style:normal;font-family:var(--f-mono);text-align:right}
+.quote{overflow-x:auto;margin-top:8px}
+.quote table{width:100%;border-collapse:collapse;font-size:13px;min-width:300px}
+.quote td{padding:5px 4px;border-bottom:1px solid var(--line);vertical-align:top}
+.quote td:first-child{color:var(--muted);white-space:nowrap;width:4.5em}
+.quote td:last-child{text-align:right;font-family:var(--f-mono);white-space:nowrap}
+.quote tr.tot td{font-weight:700;border-bottom:0;color:var(--ink)}
+.buy{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.buy a{font-size:13px;font-weight:600;text-decoration:none;padding:5px 12px;border-radius:999px;border:1px solid var(--line);color:var(--ink);background:var(--surface)}
+.buy a.sp{background:#EE4D2D;border-color:#EE4D2D;color:#fff}
+.buy a:hover{border-color:var(--accent)}
+.qbuy{font-size:12px;color:#EE4D2D;text-decoration:none;white-space:nowrap;margin-left:4px}
+.aff{font-size:12px;color:var(--muted);margin:8px 0 0}
+.qbtns{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
+.qtext{width:100%;min-height:140px;margin-top:8px;font-family:var(--f-mono);font-size:12px;background:var(--sunk);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px}
+.rec{border:2px solid var(--ok);background:var(--ok-soft);border-radius:10px;padding:10px 12px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:center}
+.rec .rl{font-size:12px;font-weight:700;color:var(--ok);letter-spacing:.04em}
+.rec .rn{font-weight:700;font-size:15px;grid-column:1}
+.rec .rw{grid-column:1/-1;font-size:13.5px}
+.rec .rb{grid-row:1/3;grid-column:2}
+.rec .rb button{font:inherit;font-weight:700;font-size:13px;border:0;border-radius:8px;padding:7px 12px;background:var(--ok);color:#fff;cursor:pointer}
+.rec .rb span{font-size:12.5px;color:var(--ok);font-weight:700}
+.opt .tagrec{display:inline-block;font-size:11px;font-weight:700;color:#fff;background:var(--ok);border-radius:4px;padding:0 5px;margin-left:6px;vertical-align:1px}
+.part .cat .isrec{color:var(--ok);font-weight:700}
+.allrec{display:grid;gap:6px}
+.allrec .cta{background:var(--ok)}
+/* coach */
+.coach-fab{position:fixed;right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:20;font:inherit;font-weight:700;font-size:15px;border:0;border-radius:999px;padding:12px 18px 12px 14px;background:var(--ink);color:var(--surface);cursor:pointer;display:flex;align-items:center;gap:8px;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.coach-fab .av,.drawer .av{width:28px;height:28px;border-radius:50%;background:var(--gold);color:#2A1E00;display:grid;place-items:center;font-family:var(--f-display);font-size:14px;font-weight:700;flex:none}
+.scrim{position:fixed;inset:0;background:rgba(10,14,20,.45);z-index:29}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(460px,100%);background:var(--surface);border-left:1px solid var(--line);z-index:30;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);padding-right:env(safe-area-inset-right,0px);box-shadow:-10px 0 30px rgba(0,0,0,.2)}
+.drawer .dh{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.drawer .dh h2{font-size:18px;margin-right:auto}
+.drawer .x{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--sunk);color:var(--ink);border-radius:8px;padding:6px 12px;cursor:pointer}
+.drawer .scroll{flex:1;overflow-y:auto;padding:14px 16px 20px;display:grid;gap:16px;align-content:start}
+.drawer h3{font-size:15px;margin-bottom:6px}
+.adv{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.adv li{font-size:14px;padding:8px 10px 8px 12px;border-radius:8px;background:var(--sunk);border-left:4px solid var(--accent)}
+.adv li.ok{border-color:var(--ok)}.adv li.warn{border-color:var(--warn);background:var(--warn-soft)}.adv li.bad{border-color:var(--bad);background:var(--bad-soft)}
+.lessons{display:grid;gap:6px}
+.lessons details{border:1px solid var(--line);border-radius:8px}
+.lessons details[open]{border-color:var(--accent)}
+.lessons summary{cursor:pointer;padding:9px 12px;font-weight:600;font-size:14px;list-style:none;display:flex;justify-content:space-between;gap:8px}
+.lessons summary::-webkit-details-marker{display:none}
+.lessons summary::after{content:"＋";color:var(--muted)}
+.lessons details[open] summary::after{content:"－"}
+.lessons .lb{padding:0 12px 12px;font-size:14px}
+.lessons .lb p{margin:0 0 8px}
+.lessons .lb ul{margin:0 0 8px;padding-left:18px;display:grid;gap:4px}
+.lessons .lb b{color:var(--accent)}
+.chat{display:grid;gap:8px}
+.bubble{font-size:14px;padding:9px 12px;border-radius:12px;white-space:pre-wrap;max-width:92%;line-height:1.65}
+.bubble.me{background:var(--accent);color:var(--accent-ink);justify-self:end;border-bottom-right-radius:4px}
+.bubble.ai{background:var(--sunk);border:1px solid var(--line);justify-self:start;border-bottom-left-radius:4px}
+.bubble.ai b{color:var(--accent)}
+.bubble.err{background:var(--warn-soft);border-color:var(--warn)}
+.qchips{display:flex;flex-wrap:wrap;gap:6px}
+.ask{border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px)*0);display:flex;gap:8px;align-items:flex-end;background:var(--surface)}
+.ask textarea{flex:1;min-width:0;font:inherit;font-size:15px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;resize:none;background:var(--sunk);color:var(--ink);max-height:120px}
+.ask textarea:focus{outline:none;border-color:var(--accent)}
+.ask button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:9px 14px;background:var(--accent);color:var(--accent-ink);cursor:pointer}
+.ask button.stop{background:var(--bad);color:#fff}
+.coachlink{font:inherit;font-size:13px;border:0;background:none;color:var(--accent);padding:0;cursor:pointer;justify-self:start;text-align:left}
+.coachlink:hover{text-decoration:underline}
+.ctip{display:grid;grid-template-columns:28px minmax(0,1fr);gap:4px 10px;align-items:start}
+.ctip .av{width:28px;height:28px;border-radius:50%;background:var(--gold);color:#2A1E00;display:grid;place-items:center;font-family:var(--f-display);font-size:14px;font-weight:700}
+.ctip p{margin:0;font-size:14px}
+.ctip .coachlink{grid-column:2}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<header class="top"><div class="wrap">
+  <div class="brand"><i></i>自組電腦工作台</div>
+  <nav class="steps" role="tablist">
+    <button role="tab" data-step="1" aria-selected="true"><b>1</b>預算選件</button>
+    <button role="tab" data-step="2" aria-selected="false"><b>2</b>自己接線</button>
+    <button role="tab" data-step="3" aria-selected="false"><b>3</b>開機測試</button>
+  </nav>
+</div></header>
+
+<main class="wrap">
+  <section id="s1">
+    <div class="intro">
+      <span class="eyebrow">Step 1 · 預算與選件</span>
+      <h1>先打預算，再一件一件挑零件</h1>
+      <p>右邊會告訴你這個預算大概能組到什麼等級，也會畫出整台電腦裝起來的樣子。每一類零件點開都有「怎麼選」和效能比較。圖是示意圖，點「看實品照片」可以看真的長怎樣。</p>
+      <p class="pricebadge">價格來源：原價屋線上估價（2026/10/22 更新）。價格每天會變，下單前以店家為準。最近記憶體和 SSD 漲很多，所以總價比去年高。</p>
+    </div>
+    <div class="build">
+      <div class="b-top">
+        <div class="card sim">
+          <h3>整機模擬圖</h3>
+          <p class="note" style="margin-bottom:8px">從機殼玻璃側板看進去。零件裝不下會用紅色標出來。</p>
+          <div id="sim"></div>
+          <div class="legend" id="simLegend"></div>
+        </div>
+        <div class="card budget">
+          <label for="budgetNum" class="eyebrow">我的預算（直接打數字或拉桿子）</label>
+          <div class="bin"><span>NT$</span><input type="number" id="budgetNum" inputmode="numeric" min="10000" max="300000" step="1000"></div>
+          <input type="range" id="budget" min="10000" max="160000" step="1000" aria-label="拉動調整預算">
+          <dl class="kv">
+            <dt>目前總價</dt><dd class="mono" id="total"></dd>
+            <dt>剩下</dt><dd class="mono" id="left"></dd>
+            <dt>預估整機耗電</dt><dd class="mono" id="watt"></dd>
+          </dl>
+          <div class="meter"><span id="meter"></span></div>
+        </div>
+        <div class="card allrec">
+          <h3>不知道怎麼選？</h3>
+          <p class="note">依你的預算，每一類都換成「夠用裡最便宜」的建議款，顯卡用剩下的錢買最強的。之後還能自己改。</p>
+          <button class="cta" data-recall="1">全部換成建議款</button>
+        </div>
+        <div class="card ctip" id="coachTip"></div>
+        <div class="card">
+          <h3>這個預算能組什麼？</h3>
+          <p class="note" style="margin-top:2px">你的預算落在哪一級會自動標出來。按「套用」會幫你挑好那一級的零件，之後還能自己換。</p>
+          <ol class="tiers" id="tiers"></ol>
+        </div>
+      </div>
+      <div class="b-parts"><div class="parts" id="parts"></div></div>
+      <div class="b-bot">
+        <div class="card">
+          <h3>相容性檢查</h3>
+          <ul class="checks" id="checks"></ul>
+        </div>
+        <div class="card">
+          <h3>我的估價單</h3>
+          <p class="note" style="margin-top:2px">每一項旁邊都能直接去蝦皮買，也可以複製或下載，拿去原價屋或任何電腦店照著買。</p>
+          <div class="quote" id="quote"></div>
+          <div class="qbtns"><button class="chip" id="copyQuote">複製估價單</button><button class="chip" id="dlQuote" hidden>下載 CSV</button><span class="note" id="quoteMsg" aria-live="polite"></span></div>
+          <textarea id="quoteText" class="qtext" readonly hidden></textarea>
+          <p class="aff" id="affNote" hidden>本站部分購物連結為分潤連結：你透過連結購買不會多付錢，但站長會拿到一點回饋，用來維持網站。</p>
+        </div>
+        <button class="cta" data-go="2">零件選好了，開始接線 →</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="s2" hidden>
+    <div class="intro">
+      <span class="eyebrow">Step 2 · 自己接線</span>
+      <h1>把零件裝上主機板、把線插對位置</h1>
+      <p>先在零件托盤點一個零件或線材，再點主機板上你覺得對的位置。插錯會告訴你為什麼。不知道某個位置是什麼？什麼都不選、直接點它就會解釋。</p>
+    </div>
+    <div class="bench">
+      <div class="card boardbox">
+        <div class="boardtools">
+          <label class="toggle"><input type="checkbox" id="hint">提示正確位置</label>
+          <button class="chip" id="resetWire">全部拆掉重來</button>
+        </div>
+        <div id="board"></div>
+        <div class="msg" id="msg" aria-live="polite">實際組裝前：關電源、拔插頭，先摸一下金屬機殼放掉身上的靜電。</div>
+      </div>
+      <div class="tray">
+        <div class="card">
+          <h3>零件托盤 <span class="mono" id="progTxt" style="font-size:13px;color:var(--muted)"></span></h3>
+          <div class="prog"><span id="prog"></span></div>
+        </div>
+        <div class="card"><div class="eyebrow" style="margin-bottom:6px">零件</div><div class="items" id="itemsParts"></div></div>
+        <div class="card"><div class="eyebrow" style="margin-bottom:6px">電源線與訊號線</div><div class="items" id="itemsCables"></div></div>
+        <button class="cta" data-go="3">接好了，去開機 →</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="s3" hidden>
+    <div class="intro">
+      <span class="eyebrow">Step 3 · 開機測試</span>
+      <h1>按下電源鍵，看看會不會亮</h1>
+      <p>主機板上有四顆除錯燈：CPU、DRAM、VGA、BOOT。開機卡在哪一關，那顆燈就會亮著不滅，修電腦的人就是靠它找問題。</p>
+    </div>
+    <div class="post">
+      <div class="card" style="text-align:center">
+        <div class="eyebrow">主機板除錯燈</div>
+        <div class="leds" id="leds"></div>
+        <button class="pwr" id="pwr" aria-label="按電源鍵"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v8"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></svg></button>
+        <div class="note">按電源鍵</div>
+      </div>
+      <div class="card result" id="result">
+        <h2>還沒開機</h2>
+        <p class="lead">按左邊的電源鍵。接線少了什麼、零件哪裡不合，這裡都會說明實際會發生什麼事。</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<button class="coach-fab" id="coachFab" aria-haspopup="dialog"><span class="av">教</span>問教練</button>
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="coachTitle" hidden>
+  <div class="dh"><span class="av">教</span><h2 id="coachTitle">裝機教練</h2><button class="x" id="coachClose">關閉</button></div>
+  <div class="scroll" id="coachScroll">
+    <section><h3>看你目前的配置</h3><ul class="adv" id="adv"></ul></section>
+    <section><h3>新手必懂</h3><div class="lessons" id="lessons"></div></section>
+    <section id="chatSec" hidden>
+      <h3>有問題直接問我</h3>
+      <p class="note" style="margin-bottom:8px">我看得到你現在選的零件，可以針對你的配置回答。第一次問的時候，Claude 會先問你允不允許這個網頁使用你的額度。</p>
+      <div class="chat" id="chat"></div>
+      <div class="qchips" id="qchips" style="margin-top:8px"></div>
+    </section>
+  </div>
+  <form class="ask" id="askForm" hidden>
+    <textarea id="askInput" rows="1" placeholder="例如：我只打遊戲，需要 i9 嗎？"></textarea>
+    <button type="submit" id="askBtn">送出</button>
+  </form>
+</aside>
+
+<script>
+const C={
+ cpu:{name:'CPU 處理器',why:'電腦的<b>大腦</b>，負責運算。要最先決定，因為主機板的「腳位」要跟它一樣才插得上。型號結尾有 <b>F</b> 的沒有內建顯示功能，一定要買顯卡才有畫面。<b>X3D</b> 是 AMD 打遊戲特別強的版本。',
+  tips:['只打遊戲：看「遊戲」那條。7500F 最划算，9800X3D 最強。','剪片、3D 算圖、跑模擬：看「多工」那條，核心越多越好。','不買顯卡：一定要選「有內顯」的，8600G 內顯最強。','i7 / Ultra 7 / Ryzen 9 很熱，記得配雙塔或水冷。','Intel 14 代 i9 原價屋目前沒在賣，Intel 最高階改成 Core Ultra 9 285K。'],
+  opts:[
+  {id:'i5-12400f',name:'Intel Core i5-12400F',short:'12400F',spec:'6核12緒 · LGA1700 · 無內顯',price:5100,socket:'LGA1700',tdp:90,igpu:false,game:62,work:30},
+  {id:'i3-14100',name:'Intel Core i3-14100',short:'i3-14100',spec:'4核8緒 · LGA1700 · 有內顯',price:4300,socket:'LGA1700',tdp:70,igpu:true,game:52,work:22},
+  {id:'i5-14400f',name:'Intel Core i5-14400F',short:'14400F',spec:'10核16緒 · LGA1700 · 無內顯',price:5950,socket:'LGA1700',tdp:110,igpu:false,game:68,work:42},
+  {id:'i5-14400',name:'Intel Core i5-14400',short:'i5-14400',spec:'10核16緒 · LGA1700 · 有內顯',price:7250,socket:'LGA1700',tdp:110,igpu:true,game:68,work:42},
+  {id:'i7-14700',name:'Intel Core i7-14700',short:'i7-14700',spec:'20核28緒 · LGA1700 · 有內顯 · 很熱',price:11800,socket:'LGA1700',tdp:200,igpu:true,game:80,work:70},
+  {id:'u5-225f',name:'Intel Core Ultra 5 225F',short:'U5 225F',spec:'10核 · LGA1851 · 無內顯',price:4880,socket:'LGA1851',tdp:100,igpu:false,game:66,work:42},
+  {id:'u5-250kp',name:'Intel Core Ultra 5 250K Plus',short:'U5 250K+',spec:'18核 · LGA1851 · 有內顯 · 不附風扇',price:8250,socket:'LGA1851',tdp:150,igpu:true,game:76,work:58},
+  {id:'u7-265kf',name:'Intel Core Ultra 7 265KF',short:'U7 265KF',spec:'20核 · LGA1851 · 無內顯 · 不附風扇',price:9380,socket:'LGA1851',tdp:180,igpu:false,game:82,work:75},
+  {id:'u7-265k',name:'Intel Core Ultra 7 265K',short:'U7 265K',spec:'20核 · LGA1851 · 有內顯 · 不附風扇',price:10300,socket:'LGA1851',tdp:180,igpu:true,game:82,work:75},
+  {id:'u7-270kp',name:'Intel Core Ultra 7 270K Plus',short:'U7 270K+',spec:'24核 · LGA1851 · 有內顯 · 不附風扇',price:12200,socket:'LGA1851',tdp:190,igpu:true,game:84,work:82},
+  {id:'u9-285k',name:'Intel Core Ultra 9 285K',short:'U9 285K',spec:'24核 · LGA1851 · 有內顯 · Intel 最高階',price:21500,socket:'LGA1851',tdp:200,igpu:true,game:86,work:88},
+  {id:'r5-5600x',name:'AMD Ryzen 5 5600X',short:'5600X',spec:'6核12緒 · AM4 · 無內顯 · 舊平台',price:4890,socket:'AM4',tdp:76,igpu:false,game:58,work:28},
+  {id:'r7-5800x3d',name:'AMD Ryzen 7 5800X3D',short:'5800X3D',spec:'8核16緒 · AM4 · 無內顯 · 舊平台遊戲王',price:11790,socket:'AM4',tdp:105,igpu:false,game:74,work:34},
+  {id:'r5-7500f',name:'AMD Ryzen 5 7500F',short:'7500F',spec:'6核12緒 · AM5 · 無內顯 · 性價比王',price:4890,socket:'AM5',tdp:80,igpu:false,game:72,work:36},
+  {id:'r5-8400f',name:'AMD Ryzen 5 8400F',short:'8400F',spec:'6核12緒 · AM5 · 無內顯',price:4950,socket:'AM5',tdp:65,igpu:false,game:60,work:32},
+  {id:'r5-8600g',name:'AMD Ryzen 5 8600G',short:'8600G',spec:'6核12緒 · AM5 · 內顯很強 · 不買顯卡首選',price:6550,socket:'AM5',tdp:80,igpu:true,game:64,work:34},
+  {id:'r7-7700',name:'AMD Ryzen 7 7700',short:'R7 7700',spec:'8核16緒 · AM5 · 有內顯 · 附風扇',price:7290,socket:'AM5',tdp:88,igpu:true,game:76,work:47},
+  {id:'r5-9600x',name:'AMD Ryzen 5 9600X',short:'9600X',spec:'6核12緒 · AM5 · 有內顯',price:8150,socket:'AM5',tdp:88,igpu:true,game:78,work:40},
+  {id:'r7-7800x3d',name:'AMD Ryzen 7 7800X3D',short:'7800X3D',spec:'8核16緒 · AM5 · 有內顯 · 遊戲很強',price:10290,socket:'AM5',tdp:120,igpu:true,game:90,work:45},
+  {id:'r7-9700x',name:'AMD Ryzen 7 9700X',short:'9700X',spec:'8核16緒 · AM5 · 有內顯',price:11550,socket:'AM5',tdp:88,igpu:true,game:80,work:52},
+  {id:'r9-9900x',name:'AMD Ryzen 9 9900X',short:'9900X',spec:'12核24緒 · AM5 · 有內顯 · 剪片算圖',price:14450,socket:'AM5',tdp:160,igpu:true,game:81,work:75},
+  {id:'r7-9800x3d',name:'AMD Ryzen 7 9800X3D',short:'9800X3D',spec:'8核16緒 · AM5 · 有內顯 · 遊戲最強之一',price:16150,socket:'AM5',tdp:120,igpu:true,game:100,work:54},
+  {id:'r7-9850x3d',name:'AMD Ryzen 7 9850X3D',short:'9850X3D',spec:'8核16緒 · AM5 · 有內顯 · 9800X3D 加速版',price:17050,socket:'AM5',tdp:120,igpu:true,game:102,work:55},
+  {id:'r9-9950x',name:'AMD Ryzen 9 9950X',short:'9950X',spec:'16核32緒 · AM5 · 有內顯 · 多工最強',price:20350,socket:'AM5',tdp:200,igpu:true,game:83,work:100},
+  {id:'r9-9900x3d',name:'AMD Ryzen 9 9900X3D',short:'9900X3D',spec:'12核24緒 · AM5 · 有內顯',price:20450,socket:'AM5',tdp:160,igpu:true,game:95,work:73},
+  {id:'r9-9950x3d',name:'AMD Ryzen 9 9950X3D',short:'9950X3D',spec:'16核32緒 · AM5 · 有內顯 · 遊戲＋工作都頂',price:23950,socket:'AM5',tdp:200,igpu:true,game:100,work:98}]},
+ mb:{name:'主機板',why:'所有零件都插在它上面。挑的時候看三件事：<b>腳位</b>要跟 CPU 一樣、<b>記憶體代數</b>（DDR4 或 DDR5）、<b>尺寸</b>（E-ATX 加大 / ATX 大板 / mATX 小板，要放得進機殼）。',
+  tips:['先看腳位：AM5 給新的 AMD，LGA1851 給 Core Ultra，LGA1700 給 12～14 代 Intel，AM4 是舊 AMD。','型號字母：A / H 入門，B 主流（一般人選這個），X / Z 高階。','mATX 跟 ATX 效能一樣，差在大小和插槽數量。','名字有 WIFI 的才有無線網路，沒有的要插網路線。'],
+  opts:[
+  {id:'b550m',name:'技嘉 B550M K',spec:'AM4 · mATX · DDR4',price:2690,socket:'AM4',ff:'mATX',mem:'DDR4'},
+  {id:'b550m-tuf',name:'華碩 TUF GAMING B550M-PLUS',spec:'AM4 · mATX · DDR4 · 2.5G 網路',price:3390,socket:'AM4',ff:'mATX',mem:'DDR4'},
+  {id:'h610m',name:'微星 PRO H610M-E DDR4',spec:'LGA1700 · mATX · DDR4 · 最入門',price:2290,socket:'LGA1700',ff:'mATX',mem:'DDR4'},
+  {id:'b760m-d4',name:'華碩 PRIME B760M-F D4',spec:'LGA1700 · mATX · DDR4',price:2790,socket:'LGA1700',ff:'mATX',mem:'DDR4'},
+  {id:'b760m-d5',name:'微星 PRO B760M-E',spec:'LGA1700 · mATX · DDR5',price:2690,socket:'LGA1700',ff:'mATX',mem:'DDR5'},
+  {id:'b760-d5',name:'微星 B760 GAMING PLUS WIFI',spec:'LGA1700 · ATX · DDR5 · WiFi',price:4590,socket:'LGA1700',ff:'ATX',mem:'DDR5'},
+  {id:'b860m',name:'華碩 B860M-E',spec:'LGA1851 · mATX · DDR5',price:3390,socket:'LGA1851',ff:'mATX',mem:'DDR5'},
+  {id:'b860m-wifi',name:'技嘉 B860M GAMING WIFI6',spec:'LGA1851 · mATX · DDR5 · WiFi',price:4690,socket:'LGA1851',ff:'mATX',mem:'DDR5'},
+  {id:'b860',name:'技嘉 B860 EAGLE WIFI6E',spec:'LGA1851 · ATX · DDR5 · WiFi',price:5990,socket:'LGA1851',ff:'ATX',mem:'DDR5'},
+  {id:'a620m',name:'華擎 A620AM-HVS',spec:'AM5 · mATX · DDR5 · 最入門',price:2590,socket:'AM5',ff:'mATX',mem:'DDR5'},
+  {id:'b650m',name:'微星 PRO B650M-B',spec:'AM5 · mATX · DDR5',price:2690,socket:'AM5',ff:'mATX',mem:'DDR5'},
+  {id:'b650m-f',name:'華碩 PRIME B650M-F',spec:'AM5 · mATX · DDR5',price:2790,socket:'AM5',ff:'mATX',mem:'DDR5'},
+  {id:'b650m-tuf',name:'華碩 TUF GAMING B650M-PLUS',spec:'AM5 · mATX · DDR5 · 用料好',price:4390,socket:'AM5',ff:'mATX',mem:'DDR5'},
+  {id:'b650',name:'華碩 TUF GAMING B650-PLUS WIFI',spec:'AM5 · ATX · DDR5 · WiFi',price:4990,socket:'AM5',ff:'ATX',mem:'DDR5'},
+  {id:'b850m',name:'微星 PRO B850M-G',spec:'AM5 · mATX · DDR5 · 新一代',price:3790,socket:'AM5',ff:'mATX',mem:'DDR5'},
+  {id:'b850',name:'技嘉 B850 EAGLE WIFI6E',spec:'AM5 · ATX · DDR5 · WiFi',price:6390,socket:'AM5',ff:'ATX',mem:'DDR5'},
+  {id:'b850-elite',name:'技嘉 B850 AORUS ELITE WIFI7',spec:'AM5 · ATX · DDR5 · WiFi 7',price:7490,socket:'AM5',ff:'ATX',mem:'DDR5'},
+  {id:'x870e',name:'華擎 X870E Taichi Lite',spec:'AM5 · E-ATX 加大 · DDR5 · 高階',price:12990,socket:'AM5',ff:'EATX',mem:'DDR5'}]},
+ ram:{name:'記憶體 RAM',why:'電腦的<b>工作桌</b>，桌子越大，同時開越多程式越順。買<b>兩條一組</b>才有「雙通道」，速度快很多。DDR4 和 DDR5 的缺口位置不同，不能互插。<b>最近記憶體價格大漲</b>，32GB 比一年前貴了好幾倍。',
+  tips:['16GB：文書、輕度遊戲。32GB：玩遊戲首選。64GB：剪片、跑模擬。','速度選 DDR5-6000 就好，5600 跟 6400 實際用起來差不多。','現在記憶體很貴，預算緊可以先買 16GB，之後再加。','RGB 只是會發光，不會比較快。'],
+  opts:[
+  {id:'d4-16',name:'UMAX 16GB（8G×2）DDR4-3200',spec:'DDR4 · 舊平台文書',price:4450,mem:'DDR4'},
+  {id:'d4-32',name:'UMAX 32GB（16G×2）DDR4-3200',spec:'DDR4 · 舊平台遊戲',price:8600,mem:'DDR4'},
+  {id:'d5-16',name:'UMAX 16GB（8G×2）DDR5-5600',spec:'DDR5 · 入門',price:8200,mem:'DDR5'},
+  {id:'d5-32-56',name:'UMAX 32GB（16G×2）DDR5-5600',spec:'DDR5 · 遊戲',price:14500,mem:'DDR5'},
+  {id:'d5-32',name:'美光 Crucial PRO 32GB（16G×2）DDR5-6000',spec:'DDR5 · 遊戲推薦',price:14888,mem:'DDR5'},
+  {id:'d5-32-rgb',name:'海盜船 VENGEANCE RGB 32GB（16G×2）DDR5-6400',spec:'DDR5 · 會發光',price:16990,mem:'DDR5',rgb:true},
+  {id:'d5-48',name:'佰維 Black Opal 48GB（24G×2）DDR5-6000',spec:'DDR5 · 遊戲＋直播',price:21490,mem:'DDR5'},
+  {id:'d5-64',name:'美光 Crucial PRO 64GB（32G×2）DDR5-6000',spec:'DDR5 · 剪片、跑模擬',price:29199,mem:'DDR5'}]},
+ gpu:{name:'顯示卡',why:'負責<b>畫面</b>，玩遊戲時最重要也最貴的零件。很耗電，要注意<b>電源夠不夠</b>、<b>機殼放不放得下</b>（看長度 mm）。CPU 有內顯的話可以先不買。',
+  tips:['看螢幕選：1080p → 5060 / 9060 XT；2K → 5070 / 9070；4K → 5080。','數字越大越強：5050 < 5060 < 5060 Ti < 5070 < 5070 Ti < 5080。','GB 是顯卡自己的記憶體，新遊戲用 8GB 開始吃緊，有預算選 12～16GB。','RTX（NVIDIA）光追、DLSS、剪片和 AI 支援比較好；RX（AMD）同價錢 GB 比較大。','5070 Ti、5080 原價屋標「限搭機」，要跟其他零件一起買才賣。'],
+  opts:[
+  {id:'none',name:'不裝顯卡（用內顯）',spec:'只適合文書、看影片',price:0,tdp:0,len:0,conn:null,rec:0,perf:0},
+  {id:'3050',name:'ZOTAC RTX3050 6GB Solo',spec:'輕度遊戲 · 長 150mm · 不用接電源線',price:9790,tdp:70,len:150,conn:null,rec:300,perf:18},
+  {id:'7650gre',name:'藍寶石 PURE RX7650GRE 8GB',spec:'1080p 入門 · 長 240mm · 8-pin',price:10390,tdp:150,len:240,conn:'8pin',rec:500,perf:36},
+  {id:'5050',name:'INNO3D RTX5050 8GB TWIN X2',spec:'1080p 入門 · 長 225mm · 8-pin',price:12888,tdp:130,len:225,conn:'8pin',rec:500,perf:33},
+  {id:'9060xt8',name:'技嘉 RX9060XT GAMING OC 8G',spec:'1080p · 長 280mm · 8-pin',price:14890,tdp:150,len:280,conn:'8pin',rec:500,perf:46},
+  {id:'5060',name:'技嘉 RTX5060 WINDFORCE 8G',spec:'1080p 遊戲 · 長 200mm · 8-pin',price:15490,tdp:145,len:200,conn:'8pin',rec:550,perf:42},
+  {id:'5060ti8',name:'INNO3D RTX5060Ti 8GB TWIN X2',spec:'1080p 高畫質 · 長 250mm · 8-pin',price:18488,tdp:180,len:250,conn:'8pin',rec:600,perf:50},
+  {id:'9060xt16',name:'華擎 RX9060XT Challenger 16GB',spec:'1080p 全開 · 長 250mm · 8-pin',price:19490,tdp:160,len:250,conn:'8pin',rec:550,perf:48},
+  {id:'9070gre',name:'華碩 ATS-RX9070GRE 12G',spec:'2K 入門 · 長 310mm · 2×8-pin',price:22000,tdp:220,len:310,conn:'8pinx2',rec:650,perf:62},
+  {id:'5060ti16',name:'INNO3D RTX5060Ti 16GB TWIN X2',spec:'1080p 全開 · 長 250mm · 8-pin',price:24488,tdp:180,len:250,conn:'8pin',rec:600,perf:52},
+  {id:'9070',name:'華擎 RX9070 Challenger 16GB',spec:'2K 遊戲 · 長 290mm · 2×8-pin',price:24590,tdp:220,len:290,conn:'8pinx2',rec:650,perf:72},
+  {id:'5070',name:'INNO3D RTX5070 TWIN X2',spec:'2K 遊戲 · 12GB · 長 250mm · 12V-2x6',price:28888,tdp:250,len:250,conn:'12v',rec:650,perf:70},
+  {id:'9070xt',name:'華擎 RX9070XT Challenger 16GB',spec:'2K 高畫質 · 長 290mm · 2×8-pin',price:29890,tdp:304,len:290,conn:'8pinx2',rec:750,perf:80},
+  {id:'5070ti',name:'技嘉 RTX5070Ti WINDFORCE OC SFF 16G',spec:'2K 高刷新 · 長 310mm · 12V-2x6 · 限搭機',price:44990,tdp:300,len:310,conn:'12v',rec:750,perf:84},
+  {id:'5080',name:'技嘉 RTX5080 WINDFORCE OC SFF 16G',spec:'4K 遊戲 · 長 310mm · 12V-2x6 · 限搭機',price:53990,tdp:360,len:310,conn:'12v',rec:850,perf:100}]},
+ ssd:{name:'硬碟 SSD',why:'放系統、遊戲、檔案的<b>倉庫</b>。現在都用 <b>M.2 NVMe</b>，像一片口香糖直接插在主機板上，不用接線。現在一款遊戲常常 100GB 起跳。',
+  tips:['至少買 1TB。','Gen4 跟 Gen5 平常用感覺不出差別，Gen5 比較熱，不用特地多花錢。','TLC 顆粒比 QLC 耐用、大量寫入不會掉速，剪片的人選 TLC。'],
+  opts:[
+  {id:'500',name:'致態 小翼e7 500GB',spec:'Gen4 · QLC · 只裝系統',price:2799,q:'致態 小翼e7 500GB'},
+  {id:'1t',name:'金士頓 NV3 1TB',spec:'Gen4 · 一般人夠用',price:5100},
+  {id:'1t-tlc',name:'金士頓 KC3000 1TB',spec:'Gen4 · TLC · 比較耐用',price:6488},
+  {id:'1t-g5',name:'佰維 X570 1TB',spec:'Gen5 · TLC · 讀取超快',price:5999},
+  {id:'2t',name:'威剛 LEGEND 860 2TB',spec:'Gen4 · 遊戲裝很多',price:9299},
+  {id:'2t-g5',name:'致態 TiPlus 9100 2TB',spec:'Gen5 · TLC · 讀取超快',price:9699,hs:true},
+  {id:'4t',name:'致態 TiPlus7100s 4TB',spec:'Gen4 · TLC · 遊戲全裝、剪片素材',price:17999,hs:true}]},
+ cool:{name:'CPU 散熱器',why:'CPU 運作時非常燙，<b>一定要裝散熱器</b>，不然幾秒就過熱關機。看「解熱瓦數」要大於 CPU 的發熱。水冷要看機殼有沒有位置裝水冷排（240 / 360 是水冷排長度 mm）。',
+  tips:['65W 左右的 CPU（7500F、9600X）用單塔就夠。','i7、Ultra 7 / 9、Ryzen 9 用雙塔或 360 水冷。','水冷不一定比雙塔涼，多半是為了好看。','廠商標的解熱瓦數常常灌水，這裡用比較保守的數字。'],
+  opts:[
+  {id:'low',name:'ID-COOLING IS-40X 下吹式',spec:'解熱約 100W · 很矮',price:790,tdp:100,rad:0,type:'low'},
+  {id:'tower1',name:'ID-COOLING FROZN A410 DK',spec:'單塔 4 導管 · 解熱約 170W · 最多人用',price:790,tdp:170,rad:0,type:'tower'},
+  {id:'tower1b',name:'銀欣 Argon V140 ARGB',spec:'單塔 14cm 風扇 · 解熱約 180W',price:890,tdp:180,rad:0,type:'tower'},
+  {id:'tower2',name:'ID-COOLING FROZN A620 PRO SE',spec:'雙塔 6 導管 · 解熱約 230W',price:1090,tdp:230,rad:0,type:'dual'},
+  {id:'tower2p',name:'九州風神 ASSASSIN VC ELITE',spec:'雙塔 7 導管 · 解熱約 260W · 很安靜',price:3890,tdp:260,rad:0,type:'dual'},
+  {id:'aio240',name:'微星 MAG CoreLiquid A13 240',spec:'240 水冷 · 解熱約 230W',price:2490,tdp:230,rad:240,type:'aio'},
+  {id:'aio360',name:'DEEPCOOL LE360 V2',spec:'360 水冷 · 解熱約 280W',price:1990,tdp:280,rad:360,type:'aio'},
+  {id:'aio360lcd',name:'華碩 Prime LC II 360 LCD',spec:'360 水冷 · 水冷頭有螢幕 · 解熱約 290W',price:3890,tdp:290,rad:360,type:'aio',lcd:true}]},
+ psu:{name:'電源供應器',why:'把插座的電轉成零件能用的電。瓦數要比整台耗電<b>多留三成以上</b>。新顯卡用 <b>12V-2x6</b> 接頭，要有支援 PCIe 5.1 的電源才有原生這條線。銅牌／金牌／白金是轉換效率。這個最不能省。',
+  tips:['瓦數 ≥ 預估耗電 × 1.3。','至少買金牌，保固越長通常用料越好。','RTX 5070 以上選有原生 12V-2x6 線的。','「全模組」是線可以拔掉，比較好整線。'],
+  opts:[
+  {id:'450b',name:'酷碼 MWE BRONZE V2 450W',spec:'銅牌 · 只適合沒顯卡的',price:1490,w:450,n12:false,rate:'銅牌'},
+  {id:'550g',name:'酷碼 MWE GOLD V3 550W',spec:'金牌 · 直出線 · 沒有 12V-2x6',price:1690,w:550,n12:false,rate:'金牌'},
+  {id:'650g',name:'酷碼 MWE GOLD V3 650W',spec:'金牌 · 直出線 · 沒有 12V-2x6',price:1990,w:650,n12:false,rate:'金牌'},
+  {id:'750g',name:'酷碼 MWE GOLD V3 750W',spec:'金牌 · ATX3.1 · 原生 12V-2x6',price:2290,w:750,n12:true,rate:'金牌'},
+  {id:'850g',name:'Montech CENTURY II 850W',spec:'金牌 · 全模組 · 原生 12V-2x6 · 10 年保',price:2990,w:850,n12:true,rate:'金牌'},
+  {id:'850tuf',name:'華碩 TUF GAMING 850W Gold',spec:'金牌 · 全模組 · 原生 12V-2x6 · 8 年保',price:3490,w:850,n12:true,rate:'金牌'},
+  {id:'1000g',name:'華碩 TUF GAMING 1000W Gold',spec:'金牌 · 全模組 · 原生 12V-2x6',price:4390,w:1000,n12:true,rate:'金牌'},
+  {id:'1200p',name:'Montech TITAN PLA 1200W',spec:'白金 · 全模組 · 原生 12V-2x6',price:7490,w:1200,n12:true,rate:'白金'}]},
+ case:{name:'機殼',why:'把所有東西裝起來的外殼。看兩個數字：<b>能放的主機板尺寸</b>、<b>能放的顯卡長度</b>。想裝水冷再看水冷排位置。「海景房」是指兩面都是玻璃、能看到裡面的機殼。',
+  tips:['先確認主機板尺寸和顯卡長度放得進去，其他照喜歡的外觀挑。','水冷排位置以各機殼官網為準，這裡是大略值。','「背插」機殼要配背插主機板，新手先避開。'],
+  opts:[
+  {id:'matx',name:'Montech Air 100 LITE',spec:'mATX · 顯卡 ≤ 330mm · 240 水冷',price:1190,ff:['mATX'],glen:330,rad:240,size:'s'},
+  {id:'matx2',name:'Phanteks XT M3',spec:'mATX · 顯卡 ≤ 430mm · 240 水冷',price:1490,ff:['mATX'],glen:430,rad:240,size:'s',view:true},
+  {id:'mid',name:'COUGAR Airface Pure Pro',spec:'ATX / mATX · 顯卡 ≤ 320mm · 360 水冷',price:1590,ff:['ATX','mATX'],glen:320,rad:360,size:'m'},
+  {id:'tg3',name:'Montech TG3 全景',spec:'ATX / mATX · 顯卡 ≤ 430mm · 360 水冷 · 海景房',price:1750,ff:['ATX','mATX'],glen:430,rad:360,size:'m',view:true},
+  {id:'quiet',name:'Phanteks XT Pro SILENT',spec:'ATX / mATX · 顯卡 ≤ 415mm · 360 水冷 · 隔音棉',price:2390,ff:['ATX','mATX'],glen:415,rad:360,size:'m',quiet:true},
+  {id:'view',name:'曜越 View 290 TG ARGB',spec:'ATX / mATX · 顯卡 ≤ 450mm · 360 水冷 · 全景曲面玻璃',price:2390,ff:['ATX','mATX'],glen:450,rad:360,size:'m',view:true},
+  {id:'eatx',name:'Montech Air 903 BASE',spec:'E-ATX / ATX / mATX · 顯卡 ≤ 400mm · 360 水冷',price:1590,ff:['EATX','ATX','mATX'],glen:400,rad:360,size:'l'},
+  {id:'full',name:'幾何未來 Model 5 Vent 鐵扇',spec:'E-ATX / ATX / mATX · 顯卡 ≤ 460mm · 420 水冷 · 附 5 風扇',price:3690,ff:['EATX','ATX','mATX'],glen:460,rad:420,size:'l',view:true}]}
+};
+const ORDER=['cpu','mb','ram','gpu','ssd','cool','psu','case'];
+const TIERS=[
+ {min:0,max:28000,name:'文書上網機',spec:'8600G 內顯、不買顯卡、16GB、500GB',can:'上網、Office、看 YouTube／Netflix、寫報告、英雄聯盟低畫質',sel:{cpu:'r5-8600g',mb:'a620m',ram:'d5-16',gpu:'none',ssd:'500',cool:'low',psu:'450b',case:'matx'}},
+ {min:28000,max:45000,name:'入門電競',spec:'7500F＋RTX 5060、16GB、1TB',can:'1080p 中高畫質，英雄聯盟、特戰英豪 200 幀以上，大型 3A 遊戲中畫質',sel:{cpu:'r5-7500f',mb:'b650m',ram:'d5-16',gpu:'5060',ssd:'1t',cool:'tower1',psu:'650g',case:'matx'}},
+ {min:45000,max:60000,name:'1080p 高畫質',spec:'7500F＋RX 9060 XT 16GB、32GB、1TB',can:'1080p 幾乎全開高畫質，可以邊玩邊開 Discord、直播',sel:{cpu:'r5-7500f',mb:'b650m-f',ram:'d5-32',gpu:'9060xt16',ssd:'1t',cool:'tower1',psu:'750g',case:'mid'}},
+ {min:60000,max:80000,name:'2K 高畫質',spec:'7800X3D＋RTX 5070、32GB、2TB',can:'2K 螢幕高畫質 60–120 幀，剪 4K 影片也順',sel:{cpu:'r7-7800x3d',mb:'b650',ram:'d5-32',gpu:'5070',ssd:'2t',cool:'tower2',psu:'750g',case:'tg3'}},
+ {min:80000,max:110000,name:'2K 高刷新',spec:'9800X3D＋RTX 5070 Ti、32GB RGB、2TB、850W',can:'2K 高刷新螢幕全開 144 幀，射擊遊戲很順，4K 也能玩',sel:{cpu:'r7-9800x3d',mb:'b850',ram:'d5-32-rgb',gpu:'5070ti',ssd:'2t',cool:'tower2',psu:'850tuf',case:'view'}},
+ {min:110000,max:Infinity,name:'4K 頂規工作站',spec:'9950X3D＋RTX 5080、64GB、Gen5 SSD、360 水冷',can:'4K 高畫質遊戲、3D 建模、跑大型模擬、本機跑 AI 都不會卡',sel:{cpu:'r9-9950x3d',mb:'x870e',ram:'d5-64',gpu:'5080',ssd:'2t-g5',cool:'aio360lcd',psu:'1000g',case:'full'}}
+];
+const fmt=n=>'NT$'+Math.round(n).toLocaleString('zh-TW');
+const tierOf=b=>TIERS.findIndex(t=>b>=t.min&&b<t.max);
+let S={step:1,budget:55000,sel:{...TIERS[2].sel},open:null,sort:{}};
+let W={at:{},sel:null,wrong:0,right:0,hint:false};
+try{const s=JSON.parse(localStorage.getItem('pcb-state2')||'null');if(s&&s.sel){S.budget=s.budget||S.budget;S.sel={...S.sel,...s.sel}}}catch(e){}
+function save(){try{localStorage.setItem('pcb-state2',JSON.stringify({budget:S.budget,sel:S.sel}))}catch(e){}}
+const P=k=>C[k].opts.find(o=>o.id===S.sel[k])||C[k].opts[0];
+
+/* ---------- 零件示意圖 ---------- */
+let UID=0;
+const isIntel=o=>/Intel/.test(o.name);
+function art(k,o){
+ const u='g'+(UID++);
+ switch(k){
+ case 'cpu':{const sh=o.short||o.name;
+  return `<rect x="24" y="8" width="72" height="64" rx="3" fill="#2F6B47"/><rect x="29" y="12" width="62" height="56" rx="5" fill="#C9C2AE" stroke="#8E8670"/><rect x="29" y="12" width="62" height="8" rx="4" fill="${isIntel(o)?'#3A6FC4':'#D2672A'}" opacity=".85"/><text x="60" y="40" text-anchor="middle" font-size="7.5" font-family="var(--f-mono)" fill="#5B5440">${isIntel(o)?'INTEL':'AMD'} ${o.socket}</text><text x="60" y="54" text-anchor="middle" font-size="10" font-weight="700" font-family="var(--f-mono)" fill="#3C3626">${sh}</text><polygon points="26,70 32,70 26,64" fill="#E2B13C"/>`}
+ case 'mb':{const atx=o.ff!=='mATX',w=o.ff==='EATX'?62:56,h=atx?70:56,x=32,y=(80-h)/2,d5=o.mem==='DDR5';
+  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2" fill="${/X870|Z[89]|Taichi/.test(o.name)?'#1A1D22':'#2B3440'}" stroke="#56616F"/><rect x="${x}" y="${y+4}" width="6" height="24" fill="#6A7684"/><rect x="${x+12}" y="${y+7}" width="16" height="16" fill="#11171E" stroke="#B8A574" stroke-width=".8"/>${[0,1,2,3].map(i=>`<rect x="${x+33+i*4}" y="${y+5}" width="2.4" height="22" fill="${d5?'#3B5BD9':'#11171E'}"/>`).join('')}<rect x="${x+w-6}" y="${y+6}" width="3.5" height="18" fill="#11171E"/><rect x="${x+12}" y="${y+28}" width="22" height="4" fill="#1F5B3E"/><rect x="${x+8}" y="${y+36}" width="${w-14}" height="3.5" fill="#11171E" stroke="#8D98A6" stroke-width=".4"/>${atx?`<rect x="${x+8}" y="${y+50}" width="${w-24}" height="3" fill="#11171E"/><rect x="${x+8}" y="${y+58}" width="${w-30}" height="3" fill="#11171E"/>`:`<rect x="${x+8}" y="${y+46}" width="${w-24}" height="3" fill="#11171E"/>`}<text x="${x+w+3}" y="${y+h-2}" font-size="7" fill="#7E8A99" font-family="var(--f-mono)">${o.ff==='EATX'?'E-ATX':o.ff}</text>`}
+ case 'ram':{const notch=o.mem==='DDR5'?58:66;
+  return `<defs><linearGradient id="${u}" x1="0" x2="1"><stop offset="0" stop-color="#FF4D8D"/><stop offset=".35" stop-color="#7A5CFF"/><stop offset=".7" stop-color="#36C6FF"/><stop offset="1" stop-color="#4DFFB0"/></linearGradient></defs>${o.rgb?`<rect x="8" y="20" width="104" height="8" rx="3" fill="url(#${u})"/>`:''}<rect x="8" y="${o.rgb?27:24}" width="104" height="${o.rgb?27:30}" rx="2" fill="${o.rgb?'#E8EBEF':'#2C3440'}" stroke="#56616F"/><text x="60" y="44" text-anchor="middle" font-size="8" font-weight="700" font-family="var(--f-mono)" fill="${o.rgb?'#2C3440':'#C9D3DE'}">${o.mem}</text><rect x="10" y="54" width="100" height="7" fill="#D4A73A"/><rect x="${notch}" y="54" width="3" height="7" fill="var(--thumb)"/>`}
+ case 'gpu':{if(!o.len)return `<rect x="30" y="12" width="60" height="40" rx="3" fill="#2C3440" stroke="#56616F"/><rect x="34" y="16" width="52" height="32" fill="#6C8BD8" opacity=".55"/><rect x="54" y="52" width="12" height="8" fill="#56616F"/><rect x="44" y="60" width="32" height="4" rx="2" fill="#56616F"/><text x="60" y="36" text-anchor="middle" font-size="8" font-family="var(--f-mono)" fill="#fff">內顯</text>`;
+  const w=Math.max(40,Math.round(46+(o.len-180)/170*58)),n=o.len<=180?1:o.len<=280?2:3,r=n===1?14:Math.min(15,(w-8)/(2*n)),dark=/Arc|RX/.test(o.name);
+  let fans='';for(let i=0;i<n;i++){const cx=12+(w/n)*(i+.5);fans+=`<circle cx="${cx}" cy="42" r="${r}" fill="#2E353F" stroke="#4A5562"/>${[0,72,144,216,288].map(a=>`<ellipse cx="${cx}" cy="${42-r*.5}" rx="${r*.28}" ry="${r*.48}" fill="#56616F" transform="rotate(${a} ${cx} 42)"/>`).join('')}<circle cx="${cx}" cy="42" r="${r*.3}" fill="#1A1F26"/>`}
+  return `<rect x="8" y="20" width="4" height="46" fill="#A9B3BF"/><rect x="12" y="22" width="${w}" height="40" rx="4" fill="${dark?'#2A2E35':'#1E2329'}" stroke="#56616F"/><rect x="12" y="22" width="${w}" height="3" rx="1.5" fill="${/RX/.test(o.name)?'#C9383D':/Arc/.test(o.name)?'#3A6FC4':'#6BB343'}"/>${fans}<rect x="22" y="62" width="34" height="4" fill="#D4A73A"/>${o.conn?`<rect x="${w-2}" y="17" width="${o.conn==='8pinx2'?14:10}" height="5" fill="#E2B13C"/>`:''}`}
+ case 'ssd':return o.hs?`<rect x="8" y="34" width="104" height="14" rx="1" fill="#1F5B3E"/><rect x="14" y="24" width="94" height="26" rx="3" fill="#252B33" stroke="#56616F"/>${[0,1,2,3,4,5,6,7].map(i=>`<rect x="${20+i*11}" y="27" width="5" height="20" fill="#3A424D"/>`).join('')}<rect x="8" y="35" width="6" height="12" fill="#D4A73A"/><text x="60" y="64" text-anchor="middle" font-size="7" font-family="var(--f-mono)" fill="#7E8A99">${o.name.match(/\d+[GT]B/)[0]}</text>`
+   :`<rect x="8" y="32" width="104" height="18" rx="1" fill="#1F5B3E"/><rect x="8" y="34" width="6" height="14" fill="#D4A73A"/><rect x="22" y="35" width="22" height="12" fill="#0E1A14"/><rect x="50" y="35" width="22" height="12" fill="#0E1A14"/><rect x="78" y="36" width="12" height="10" fill="#0E1A14"/><circle cx="108" cy="41" r="3" fill="var(--thumb)"/><text x="60" y="64" text-anchor="middle" font-size="7" font-family="var(--f-mono)" fill="#7E8A99">${o.name.match(/\d+[GT]B/)[0]}</text>`;
+ case 'cool':{
+  const fins=(x,y,w,h)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#C7CED6" stroke="#8C96A2" stroke-width=".6"/>${Array.from({length:Math.floor(h/4)},(_,i)=>`<line x1="${x}" x2="${x+w}" y1="${y+2+i*4}" y2="${y+2+i*4}" stroke="#9AA4B0" stroke-width=".5"/>`).join('')}`;
+  const fan=(x,y,w,h)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2" fill="#2A3038"/>`;
+  if(o.type==='low')return `${fan(26,22,68,10)}${fins(22,32,76,24)}<rect x="44" y="56" width="32" height="6" fill="#B87333"/>`;
+  if(o.type==='tower')return `${fins(46,8,30,54)}${fan(36,10,10,50)}${o.price>1000?fan(76,10,10,50):''}<path d="M52 62 V68 M58 62 V68 M64 62 V68 M70 62 V68" stroke="#B87333" stroke-width="2"/><rect x="48" y="68" width="26" height="5" fill="#9AA4B0"/>`;
+  if(o.type==='dual')return `${fins(22,8,28,54)}${fins(70,8,28,54)}${fan(52,10,16,50)}${fan(100,10,8,50)}<rect x="40" y="68" width="40" height="5" fill="#9AA4B0"/><path d="M36 62 V68 M84 62 V68" stroke="#B87333" stroke-width="2"/>`;
+  const n=o.rad/120,wr=n*30+8,x0=(120-wr)/2;let f='';for(let i=0;i<n;i++){const cx=x0+4+15+i*30;f+=`<circle cx="${cx}" cy="26" r="12" fill="#2E353F" stroke="#4A5562"/><circle cx="${cx}" cy="26" r="4" fill="#1A1F26"/>`}
+  return `<rect x="${x0}" y="12" width="${wr}" height="28" rx="2" fill="#20252C"/>${f}<path d="M50 40 Q48 54 54 62 M70 40 Q72 54 66 62" stroke="#1A1F26" stroke-width="3" fill="none"/><circle cx="60" cy="64" r="10" fill="#2A3038" stroke="#56616F"/>${o.lcd?`<circle cx="60" cy="64" r="7" fill="#36C6FF"/><text x="60" y="66.5" text-anchor="middle" font-size="6" font-family="var(--f-mono)" fill="#0A1A2A">45°</text>`:`<circle cx="60" cy="64" r="4" fill="#7FA0FF"/>`}`}
+ case 'psu':{const col={'白牌':'#8A8F96','銅牌':'#B87333','金牌':'#D4A73A','白金':'#D9DEE5'}[o.rate];
+  return `<rect x="14" y="14" width="92" height="52" rx="3" fill="#1E232A" stroke="#56616F"/><circle cx="46" cy="40" r="20" fill="#14181D" stroke="#56616F"/>${[0,1,2,3,4].map(i=>`<circle cx="46" cy="40" r="${4+i*3.5}" fill="none" stroke="#3A424D" stroke-width=".8"/>`).join('')}<text x="86" y="38" text-anchor="middle" font-size="11" font-weight="700" font-family="var(--f-mono)" fill="#E5EAF0">${o.w}W</text><rect x="72" y="44" width="28" height="9" rx="2" fill="${col}"/><text x="86" y="51" text-anchor="middle" font-size="6" fill="#1A1F26">${o.rate}</text>`}
+ case 'case':{const W_={s:44,m:50,l:56}[o.size],H_={s:54,m:64,l:72}[o.size],x=(120-W_)/2,y=(80-H_)/2;
+  return `<rect x="${x}" y="${y}" width="${W_}" height="${H_}" rx="3" fill="#1E232A" stroke="#56616F"/><rect x="${x+4}" y="${y+4}" width="${W_-8}" height="${H_-8}" rx="2" fill="${o.view?'#6C8BD8':'#2A3038'}" opacity="${o.view?.35:1}"/>${o.view?[0,1,2].map(i=>`<circle cx="${x+W_-10}" cy="${y+14+i*((H_-24)/2)}" r="5" fill="none" stroke="${['#FF4D8D','#7A5CFF','#36C6FF'][i]}" stroke-width="1.5"/>`).join(''):`${o.quiet?'':`<circle cx="${x+W_-10}" cy="${y+16}" r="5" fill="none" stroke="#56616F"/>`}`}<rect x="${x+4}" y="${y+H_-14}" width="${W_-8}" height="10" fill="#14181D"/><circle cx="${x+W_/2}" cy="${y+2.5}" r="1.5" fill="#7FA0FF"/>`}
+ }
+}
+const thumb=(k,o)=>`<svg class="th" viewBox="0 0 120 80" aria-hidden="true">${art(k,o)}</svg>`;
+
+/* ---------- 整機模擬圖 ---------- */
+function buildSVG(){
+ const cpu=P('cpu'),mb=P('mb'),ram=P('ram'),gpu=P('gpu'),ssd=P('ssd'),cool=P('cool'),psu=P('psu'),cs=P('case');
+ const k=.62,X0=26,T=18;
+ const front=X0+cs.glen*k+8, Wc=front+40, Hc={s:250,m:290,l:320}[cs.size], shY=T+Hc-70;
+ const mbW=(mb.ff==='EATX'?277:244)*k, mbH=(mb.ff==='mATX'?244:305)*k, mbY=T+16, mbOk=cs.ff.includes(mb.ff);
+ const sock={x:X0+mbW*.28,y:mbY+mbH*(mb.ff!=='mATX'?.2:.24),s:28};
+ const ramX=X0+mbW*.6, gY=mbY+(mb.ff!=='mATX'?mbH*.48:mbH*.6), gLen=gpu.len*k, gOk=gpu.len<=cs.glen, rOk=cool.rad<=cs.rad;
+ let s=`<svg viewBox="0 0 ${Wc+16} ${Hc+36}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="整機側面示意圖">
+ <defs><linearGradient id="sg" x1="0" x2="1"><stop offset="0" stop-color="#FF4D8D"/><stop offset=".5" stop-color="#7A5CFF"/><stop offset="1" stop-color="#36C6FF"/></linearGradient></defs>
+ <rect x="4" y="4" width="${Wc+8}" height="${Hc+28}" rx="10" fill="#14181E"/>
+ <rect x="8" y="${T-6}" width="${Wc}" height="${Hc+12}" rx="7" fill="#1E242C" stroke="#46505D" stroke-width="2"/>
+ <rect x="${front}" y="${T}" width="2" height="${Hc}" fill="#46505D"/>`;
+ // front fans
+ const nf=cs.size==='s'?2:3;
+ for(let i=0;i<nf;i++){const cy=T+40+i*((shY-T-30)/nf);s+=`<circle cx="${front+20}" cy="${cy}" r="15" fill="#20262E" stroke="${cs.view?['#FF4D8D','#7A5CFF','#36C6FF'][i]:'#3E4753'}" stroke-width="${cs.view?2.5:1.5}"/><circle cx="${front+20}" cy="${cy}" r="4" fill="#14181E"/>`}
+ // rear fan
+ s+=`<rect x="10" y="${T+8}" width="12" height="40" rx="2" fill="#2A3038"/><rect x="10" y="${mbY+4}" width="10" height="${Math.min(mbH*.5,70)}" fill="#3A4552" opacity=".0"/>`;
+ // motherboard
+ s+=`<rect x="${X0}" y="${mbY}" width="${mbW}" height="${mbH}" rx="2" fill="#2B3440" stroke="${mbOk?'#4A5562':'#F06C66'}" stroke-width="${mbOk?1:3}"/>`;
+ s+=`<rect x="${sock.x}" y="${sock.y}" width="${sock.s}" height="${sock.s}" fill="#B8A574"/>`;
+ s+=`<rect x="${X0+mbW*.3}" y="${gY-14}" width="${44}" height="7" fill="${ssd.hs?'#252B33':'#1F5B3E'}"/>`;
+ // RAM
+ for(let i=0;i<4;i++){const filled=i===1||i===3;s+=`<rect x="${ramX+i*7}" y="${mbY+8}" width="4.5" height="72" fill="${filled?(ram.rgb?'#E8EBEF':'#2C3440'):'#11171E'}" stroke="${filled?'#56616F':'none'}" stroke-width=".6"/>${filled&&ram.rgb?`<rect x="${ramX+i*7}" y="${mbY+6}" width="4.5" height="5" fill="url(#sg)"/>`:''}`}
+ // cooler
+ const cx=sock.x+sock.s/2,cy=sock.y+sock.s/2;
+ if(cool.type==='low')s+=`<rect x="${cx-26}" y="${cy-26}" width="52" height="52" rx="4" fill="#9AA4B0" opacity=".9"/><circle cx="${cx}" cy="${cy}" r="22" fill="#2A3038"/><circle cx="${cx}" cy="${cy}" r="6" fill="#14181E"/>`;
+ else if(cool.type==='tower'||cool.type==='dual'){const ww=cool.type==='dual'?64:40;s+=`<rect x="${cx-ww/2}" y="${cy-38}" width="${ww}" height="76" rx="3" fill="#C7CED6"/>${Array.from({length:18},(_,i)=>`<line x1="${cx-ww/2}" x2="${cx+ww/2}" y1="${cy-36+i*4.2}" y2="${cy-36+i*4.2}" stroke="#9AA4B0" stroke-width=".7"/>`).join('')}<rect x="${cx-ww/2-7}" y="${cy-36}" width="8" height="72" rx="2" fill="#2A3038"/>${cool.type==='dual'?`<rect x="${cx-4}" y="${cy-36}" width="8" height="72" rx="2" fill="#2A3038"/>`:''}`}
+ else{s+=`<circle cx="${cx}" cy="${cy}" r="17" fill="#2A3038" stroke="#56616F"/><circle cx="${cx}" cy="${cy}" r="11" fill="${cool.lcd?'#36C6FF':'#7FA0FF'}" opacity=".85"/>`;
+  const rw=cool.rad*k*.9,rx=X0+10;s+=`<path d="M${cx-6} ${cy-16} Q${cx-10} ${T+30} ${rx+30} ${T+14} M${cx+6} ${cy-16} Q${cx+4} ${T+34} ${rx+60} ${T+14}" stroke="#14181E" stroke-width="4" fill="none"/><rect x="${rx}" y="${T}" width="${rw}" height="13" rx="2" fill="#20252C" stroke="${rOk?'#46505D':'#F06C66'}" stroke-width="${rOk?1:3}"/>${Array.from({length:cool.rad/120},(_,i)=>`<circle cx="${rx+(i+.5)*(rw/(cool.rad/120))}" cy="${T+6.5}" r="5.5" fill="#2E353F"/>`).join('')}`}
+ // GPU
+ if(gpu.len){const gx=X0-4;s+=`<rect x="${gx}" y="${gY}" width="${gLen}" height="38" rx="4" fill="#1E2329" stroke="${gOk?'#56616F':'#F06C66'}" stroke-width="${gOk?1:3}"/><rect x="${gx}" y="${gY}" width="${gLen}" height="3" fill="${/RX/.test(gpu.name)?'#C9383D':/Arc/.test(gpu.name)?'#3A6FC4':'#6BB343'}"/><text x="${gx+gLen-6}" y="${gY+24}" text-anchor="end" font-family="var(--f-display)" font-size="10" fill="#9AA6B5">${gpu.name.replace(/ \d+GB/,'')}</text>`;
+  if(gpu.conn)s+=`<path d="M${gx+gLen*.72} ${gY} Q${gx+gLen*.72} ${gY-18} ${front-6} ${gY-10} L${front-6} ${shY}" stroke="#E2B13C" stroke-width="3" fill="none" opacity=".75"/>`}
+ // 24pin cable
+ s+=`<path d="M${X0+mbW-4} ${mbY+mbH*.3} H${X0+mbW+12} V${shY}" stroke="#E2B13C" stroke-width="5" fill="none" opacity=".75"/>`;
+ // shroud + PSU
+ s+=`<rect x="10" y="${shY}" width="${front-10}" height="${Hc-shY+T}" fill="#262D36" stroke="#46505D"/><rect x="16" y="${shY+12}" width="${Math.min(110,front*.45)}" height="${Hc-shY+T-22}" rx="3" fill="#14181D" stroke="#56616F"/><text x="${16+Math.min(110,front*.45)/2}" y="${shY+(Hc-shY+T)/2+4}" text-anchor="middle" font-family="var(--f-mono)" font-size="10" fill="#C9D3DE">${psu.w}W</text>`;
+ if(cs.view)s+=`<rect x="10" y="${T-4}" width="${Wc-4}" height="${Hc+8}" rx="6" fill="#7FA0FF" opacity=".06"/>`;
+ // warnings
+ const warn=(x,y,t)=>`<rect x="${x-4}" y="${y-11}" width="${t.length*10+8}" height="16" rx="3" fill="#C2332F"/><text x="${x}" y="${y+1}" font-size="10" fill="#fff" font-family="var(--f-body)">${t}</text>`;
+ if(gpu.len&&!gOk)s+=warn(front-110,gY+54,'顯卡太長撞到了');
+ if(!mbOk)s+=warn(X0+6,mbY+mbH-8,'主機板塞不下');
+ if(!rOk)s+=warn(X0+20,T+34,'水冷排裝不下');
+ return s+'</svg>';
+}
+
+function estWatt(){return Math.round(P('cpu').tdp+P('gpu').tdp+80)}
+function total(){return ORDER.reduce((a,k)=>a+P(k).price,0)}
+function checks(){
+ const cpu=P('cpu'),mb=P('mb'),ram=P('ram'),gpu=P('gpu'),cool=P('cool'),psu=P('psu'),cs=P('case');
+ const r=[],w=estWatt(),t=total();
+ r.push(cpu.socket===mb.socket
+  ?{lv:'ok',k:['cpu','mb'],t:'CPU 腳位對得上',d:`兩個都是 ${cpu.socket}。`}
+  :{lv:'bad',k:['cpu','mb'],t:'CPU 插不進這塊主機板',d:`CPU 是 ${cpu.socket}，主機板是 ${mb.socket}，針腳形狀完全不同。換一塊 ${cpu.socket} 的主機板。`});
+ r.push(ram.mem===mb.mem
+  ?{lv:'ok',k:['ram','mb'],t:'記憶體代數相同',d:`主機板和記憶體都是 ${mb.mem}。`}
+  :{lv:'bad',k:['ram','mb'],t:'記憶體插不上',d:`主機板只吃 ${mb.mem}，你選的是 ${ram.mem}。兩種缺口位置不同，物理上就插不進去。`});
+ r.push(cs.ff.includes(mb.ff)
+  ?{lv:'ok',k:['mb','case'],t:'主機板放得進機殼',d:`${mb.ff==='EATX'?'E-ATX':mb.ff} 主機板，機殼支援 ${cs.ff.join(' / ').replace('EATX','E-ATX')}。`}
+  :{lv:'bad',k:['mb','case'],t:'主機板太大，機殼裝不下',d:`你的主機板是 ${mb.ff==='EATX'?'E-ATX（加大版）':mb.ff}，這個機殼只放得下 ${cs.ff.join(' / ')}。主機板越大越長，螺絲孔也對不上。換大一點的機殼，或換小一點的主機板。`});
+ if(gpu.id==='none'){
+  r.push(cpu.igpu
+   ?{lv:'ok',k:['gpu','cpu'],t:'用內顯出畫面',d:'螢幕線要插在主機板後面的 HDMI / DP 孔。玩大型遊戲會很吃力。'}
+   :{lv:'bad',k:['gpu','cpu'],t:'這台開機不會有畫面',d:`${cpu.name} 沒有內建顯示，又沒裝顯卡，螢幕不會亮。加一張顯卡，或換有內顯的 CPU。`});
+ }else{
+  r.push(gpu.len<=cs.glen
+   ?{lv:'ok',k:['gpu','case'],t:'顯卡放得進機殼',d:`顯卡 ${gpu.len}mm，機殼最長 ${cs.glen}mm。`}
+   :{lv:'bad',k:['gpu','case'],t:'顯卡太長，機殼塞不下',d:`顯卡 ${gpu.len}mm，機殼只能放 ${cs.glen}mm，會撞到前面的風扇。換大一點的機殼。`});
+ }
+ if(psu.w<w) r.push({lv:'bad',k:['psu'],t:'電源瓦數不夠',d:`整台尖峰約 ${w}W，電源只有 ${psu.w}W，玩遊戲時會直接斷電關機。`});
+ else if(psu.w<w*1.3||(gpu.rec&&psu.w<gpu.rec)) r.push({lv:'warn',k:['psu'],t:'電源有點緊',d:`整台約 ${w}W${gpu.rec?`，顯卡原廠建議至少 ${gpu.rec}W`:''}。能用，但建議再大一級，電源長時間滿載容易老化。`});
+ else r.push({lv:'ok',k:['psu'],t:'電源瓦數充足',d:`整台約 ${w}W，${psu.w}W 有足夠餘裕。`});
+ if(psu.cheap) r.push({lv:'warn',k:['psu'],t:'白牌電源有風險',d:'沒有效率認證，標示的瓦數常常灌水，保護電路也偷工。省 500 元可能賠上整台，建議至少買銅牌。'});
+ if(gpu.conn==='12v'&&!psu.n12) r.push({lv:'warn',k:['psu','gpu'],t:'顯卡接頭要用轉接線',d:'這張顯卡用 12V-2x6 接頭，你的電源沒有原生這條線，要用顯卡附的轉接線（好幾條 8-pin 合成一條）。可以用但線又粗又亂，建議換 ATX 3.1 電源。'});
+ if(cool.rad>cs.rad) r.push({lv:'bad',k:['cool','case'],t:'水冷排裝不進機殼',d:`${cool.rad} 水冷排大約 ${Math.round(cool.rad/10+3)}cm 長，這個機殼最多只能裝 ${cs.rad} 水冷。換大機殼或改用風冷。`});
+ r.push(cool.tdp>=cpu.tdp*1.15
+  ?{lv:'ok',k:['cool','cpu'],t:'散熱壓得住 CPU',d:`散熱器約 ${cool.tdp}W，CPU 發熱約 ${cpu.tdp}W。`}
+  :{lv:'warn',k:['cool','cpu'],t:'散熱有點吃力',d:`CPU 約 ${cpu.tdp}W，散熱器只有 ${cool.tdp}W，全速跑會很燙、自動降速。換大一級的散熱器。`});
+ r.push(t<=S.budget
+  ?{lv:'ok',k:[],t:'在預算內',d:`還剩 ${fmt(S.budget-t)}，可以把錢加在顯卡或電源上。`}
+  :{lv:'warn',k:[],t:'超出預算',d:`超過 ${fmt(t-S.budget)}。顯卡通常是最貴的，先從那裡降一級看看。`});
+ return r;
+}
+
+function renderSim(){
+ document.getElementById('sim').innerHTML=buildSVG();
+ const g=P('gpu'),cs=P('case');
+ document.getElementById('simLegend').innerHTML=`<span>機殼：${cs.name}</span><span>顯卡長 ${g.len||'—'} / 最長 ${cs.glen} mm</span><span>黃線是電源線</span>`;
+}
+function renderTiers(){
+ const i=tierOf(S.budget);
+ document.getElementById('tiers').innerHTML=TIERS.map((t,j)=>{
+  const sum=ORDER.reduce((a,k)=>a+(C[k].opts.find(o=>o.id===t.sel[k])||{price:0}).price,0);
+  return `<li class="${j===i?'here':''}"><span class="rg">${t.max===Infinity?fmt(t.min)+' 以上':`${fmt(t.min)} – ${fmt(t.max)}`}</span><span class="tn">${t.name}</span><button class="chip ap" data-tier="${j}">套用</button>
+  <div class="ex"><p><b>大概規格</b>　${t.spec}</p><p><b>能做什麼</b>　${t.can}</p><p class="note">範例配置總價 ${fmt(sum)}</p></div></li>`}).join('');
+}
+const SORTS={cpu:[['price','價格低→高'],['game','遊戲效能'],['work','多工效能']],gpu:[['price','價格低→高'],['perf','效能'],['value','划算度']],mb:[['price','價格低→高'],['socket','依腳位']],ram:[['price','價格低→高']],ssd:[['price','價格低→高']],cool:[['price','價格低→高'],['tdp','解熱能力']],psu:[['price','價格低→高']],case:[['price','價格低→高'],['glen','顯卡空間']]};
+function sorted(k){const m=S.sort[k]||'price',a=[...C[k].opts];
+ const f={price:o=>o.price,game:o=>-o.game,work:o=>-o.work,perf:o=>-(o.perf||0),value:o=>o.perf?-(o.perf/o.price):1,socket:o=>o.socket+String(o.price).padStart(6,'0'),tdp:o=>-o.tdp,glen:o=>-o.glen}[m];
+ return a.sort((x,y)=>{const A=f(x),B=f(y);return A<B?-1:A>B?1:x.price-y.price})}
+function bars(k,o){const b=(l,v,c)=>`<span class="bar ${c||''}"><span>${l}</span><i><span style="width:${Math.min(100,v)}%"></span></i><em>${v}</em></span>`;
+ if(k==='cpu')return `<span class="bars">${b('遊戲',o.game)}${b('多工',o.work,'w')}</span>`;
+ if(k==='gpu'&&o.perf)return `<span class="bars">${b('效能',o.perf)}${b('每萬元',Math.round(o.perf/o.price*10000*10)/10,'w')}</span>`;
+ return ''}
+/* ---------- 建議 ---------- */
+let R={};
+const capGB=o=>{const m=o.name.match(/(\d+)GB/);return m?+m[1]:0};
+const capTB=o=>{const m=o.name.match(/(\d+)(TB|GB)/);return m?(m[2]==='TB'?+m[1]:+m[1]/1000):0};
+const cheapest=(k,ok)=>[...C[k].opts].filter(ok).sort((a,b)=>a.price-b.price)[0];
+function rec(k,sel){
+ const G=x=>C[x].opts.find(o=>o.id===sel[x])||C[x].opts[0];
+ const cpu=G('cpu'),mb=G('mb'),ram=G('ram'),gpu=G('gpu'),cool=G('cool'),cs=G('case');
+ const hasG=gpu.id!=='none',watt=cpu.tdp+gpu.tdp+80;
+ let o,why;
+ if(k==='psu'){
+  const need=Math.max(Math.ceil(watt*1.3),gpu.rec||0);
+  o=cheapest('psu',p=>p.w>=need&&(!hasG||p.rate!=='銅牌')&&(gpu.conn!=='12v'||p.n12));
+  why=`你這台大約用 ${watt}W，電源要有 ${need}W 以上${hasG?'，有顯卡就至少買金牌':''}${gpu.conn==='12v'?'，而且顯卡要 12V-2x6 線':''}。這顆是符合條件裡最便宜的。酷碼 MWE、Montech、華碩 TUF 都是原價屋常見、保固 5 年以上的牌子，可以放心。`;
+ }else if(k==='cool'){
+  const need=Math.ceil(cpu.tdp*1.15);
+  o=cheapest('cool',c=>c.tdp>=need&&c.rad<=cs.rad);
+  why=`${cpu.short||cpu.name} 發熱約 ${cpu.tdp}W，散熱器要壓得住 ${need}W 以上。這是夠用裡面最便宜的${o&&o.type==='aio'?'。':'，風冷不會漏水、也比較不會壞。'}`;
+ }else if(k==='case'){
+  o=cheapest('case',c=>c.ff.includes(mb.ff)&&(!hasG||gpu.len<=c.glen)&&cool.rad<=c.rad);
+  why=`放得下你的 ${mb.ff==='EATX'?'E-ATX':mb.ff} 主機板${hasG?`、${gpu.len}mm 的顯卡`:''}${cool.rad?`和 ${cool.rad} 水冷`:''}，裡面最便宜的一個。想要海景房或比較安靜再自己換。`;
+ }else if(k==='mb'){
+  o=cheapest('mb',m=>m.socket===cpu.socket&&m.mem===ram.mem)||cheapest('mb',m=>m.socket===cpu.socket);
+  why=`配 ${cpu.socket} 腳位的 CPU${o&&o.mem===ram.mem?`、${ram.mem} 記憶體`:''}，這塊最便宜。入門板一般使用完全夠，想要 WiFi 或以後超頻才需要換貴的。`;
+ }else if(k==='ram'){
+  const want=hasG&&gpu.price>=20000?32:16;
+  o=cheapest('ram',r=>r.mem===mb.mem&&capGB(r)>=want);
+  why=want===32?'顯卡等級夠高，記憶體用 32GB 才不會拖累。這組是 32GB 裡最便宜的；速度差一點實際玩起來幾乎感覺不出來。':'現在記憶體很貴，你這個等級先用 16GB 就夠，之後要加再買。這組是最便宜的雙通道。';
+ }else if(k==='ssd'){
+  const want=hasG&&(gpu.perf||0)>=70?2:1;
+  o=cheapest('ssd',d=>capTB(d)>=want);
+  why=want===2?'等級高的電腦通常會裝很多大型遊戲，建議 2TB。這是 2TB 裡最便宜的。':'1TB 一般人夠用，這顆是 1TB 裡最便宜的。Gen5 平常感覺不出差別，不用多花錢。';
+ }else if(k==='cpu'){
+  const id=!hasG?'r5-8600g':(gpu.perf||0)>=84?'r7-9800x3d':(gpu.perf||0)>=65?'r7-7800x3d':'r5-7500f';
+  o=C.cpu.opts.find(c=>c.id===id);
+  why=!hasG?'不買顯卡就要內顯夠強，8600G 是最適合的。':id==='r5-7500f'?'只打遊戲的話，7500F 是同價位遊戲效能最好的，省下的錢放顯卡更有感。要剪片、跑模擬再看「多工」那條往上選。':`配你這張顯卡，CPU 太弱會拖住顯卡。${o.short} 打遊戲很強，價格又不會像 Ryzen 9 那麼高。要剪片、跑模擬再看「多工」那條。`;
+ }else if(k==='gpu'){
+  const others=ORDER.filter(x=>x!=='gpu').reduce((a,x)=>a+G(x).price,0),left=S.budget-others;
+  const fit=C.gpu.opts.filter(g=>g.perf&&g.price<=left).sort((a,b)=>b.perf-a.perf||a.price-b.price);
+  if(fit.length){o=fit[0];why=`扣掉其他零件，你還有 ${fmt(left)} 可以買顯卡。這張是買得起的裡面效能最好的。`}
+  else{o=C.gpu.opts[0];why=`扣掉其他零件只剩 ${fmt(Math.max(0,left))}，買不起顯卡，建議先用 CPU 內顯${cpu.igpu?'':'（CPU 要換成有內顯的，例如 8600G）'}，之後存到錢再加顯卡。`}
+ }
+ return o?{o,why}:null;
+}
+function recAll(){const r={};ORDER.forEach(k=>{r[k]=rec(k,S.sel)});return r}
+function applyAllRec(){
+ for(let i=0;i<2;i++)['gpu','cpu','mb','ram','ssd','cool','gpu','case','psu'].forEach(k=>{const r=rec(k,S.sel);if(r)S.sel[k]=r.o.id});
+}
+function recBox(k,p){const r=R[k];if(!r)return '';const same=r.o.id===p.id;
+ return `<div class="rec"><span class="rl">建議選這個${k==='cpu'||k==='gpu'?'':'（夠用裡最便宜）'}</span><span class="rb">${same?'<span>✓ 你選的就是</span>':`<button data-rec="${k}">換成這個</button>`}</span><span class="rn">${r.o.name}　<span class="mono" style="font-weight:400">${fmt(r.o.price)}</span></span><span class="rw">${r.why}</span></div>`}
+function renderParts(){
+ R=recAll();
+ const ch=checks();
+ const lvFor=k=>{const l=ch.filter(c=>c.k.includes(k)).map(c=>c.lv);return l.includes('bad')?'bad':l.includes('warn')?'warn':'ok'};
+ document.getElementById('parts').innerHTML=ORDER.map(k=>{
+  const c=C[k],p=P(k);
+  return `<details class="part" data-k="${k}" ${S.open===k?'open':''}>
+   <summary>${thumb(k,p)}<span class="cat"><span class="dot ${lvFor(k)}"></span>${c.name} · ${c.opts.length} 款可選${R[k]&&R[k].o.id===p.id?' · <span class="isrec">✓ 推薦款</span>':''}</span><span class="pr mono">${fmt(p.price)}</span><span class="cur">${p.name}</span></summary>
+   <div class="body"><p class="why">${c.why}</p>
+   ${recBox(k,p)}
+   ${COACH_LINK[k]?`<button class="coachlink" data-lesson="${COACH_LINK[k][0]}">${COACH_LINK[k][1]}</button>`:''}
+   ${p.id!=='none'?`<div class="buy"><a class="sp" href="${buyUrl('shopee',p)}" target="_blank" rel="noopener">去蝦皮買 ↗</a><a href="${buyUrl('pchome',p)}" target="_blank" rel="noopener">PChome 比價 ↗</a></div>`:''}
+   ${p.id!=='none'?`<a class="photo" href="https://www.google.com/search?tbm=isch&q=${encodeURIComponent(p.q||p.name)}" target="_blank" rel="noopener">看「${p.name}」的實品照片 ↗</a>`:''}
+   ${c.tips?`<div class="guide"><b class="gt">怎麼選</b><ul>${c.tips.map(t=>`<li>${t}</li>`).join('')}</ul></div>`:''}
+   <div class="sortbar">排序：${(SORTS[k]||[]).map(([v,l])=>`<button class="chip" data-sort="${k}:${v}" aria-pressed="${(S.sort[k]||'price')===v}">${l}</button>`).join('')}${k==='cpu'||k==='gpu'?'<span>效能條是依評測整理的大略相對值，只能拿來比較。</span>':''}</div>
+   <div class="opts">${sorted(k).map(o=>`<button class="opt" data-k="${k}" data-id="${o.id}" aria-pressed="${o.id===p.id}">${thumb(k,o)}<span class="n">${o.name}${R[k]&&R[k].o.id===o.id?'<span class="tagrec">推薦</span>':''}</span><span class="s">${o.spec}</span><span class="p mono">${fmt(o.price)}</span>${bars(k,o)}</button>`).join('')}</div></div>
+  </details>`}).join('');
+ const t=total();
+ const bn=document.getElementById('budgetNum');if(document.activeElement!==bn)bn.value=S.budget;
+ document.getElementById('budget').value=Math.min(S.budget,160000);
+ document.getElementById('total').textContent=fmt(t);
+ const left=document.getElementById('left');left.textContent=(t>S.budget?'超過 ':'')+fmt(Math.abs(S.budget-t));left.style.color=t>S.budget?'var(--bad)':'';
+ document.getElementById('watt').textContent='約 '+estWatt()+' W';
+ const m=document.getElementById('meter');m.style.width=Math.min(100,t/S.budget*100)+'%';m.className=t>S.budget?'over':'';
+ const order={bad:0,warn:1,ok:2};
+ document.getElementById('checks').innerHTML=ch.sort((a,b)=>order[a.lv]-order[b.lv]).map(c=>`<li class="${c.lv}"><span class="tag">${c.lv==='ok'?'OK':c.lv==='warn'?'注意':'不行'}</span><span>${c.t}</span><span class="d">${c.d}</span></li>`).join('');
+ renderSim();renderTiers();renderCoachTip();renderQuote();
+ if(!document.getElementById('drawer').hidden)renderAdvice();
+}
+document.addEventListener('click',e=>{
+ const tr=e.target.closest('[data-tier]');if(tr){const t=TIERS[+tr.dataset.tier];S.sel={...t.sel};if(tierOf(S.budget)!==+tr.dataset.tier)S.budget=Math.min(t.max===Infinity?160000:t.max,Math.max(t.min,Math.ceil(ORDER.reduce((a,k)=>a+P(k).price,0)/5000)*5000));resetWire(true);save();renderParts();return}
+ const o=e.target.closest('.opt');if(o){S.sel[o.dataset.k]=o.dataset.id;S.open=o.dataset.k;if(['gpu','cpu','ram','ssd'].includes(o.dataset.k))resetWire(true);save();renderParts();return}
+ const ra=e.target.closest('[data-recall]');if(ra){applyAllRec();resetWire(true);save();renderParts();return}
+ const rc=e.target.closest('[data-rec]');if(rc){S.sel[rc.dataset.rec]=R[rc.dataset.rec].o.id;S.open=rc.dataset.rec;resetWire(true);save();renderParts();return}
+ const so=e.target.closest('[data-sort]');if(so){const [k,v]=so.dataset.sort.split(':');S.sort[k]=v;S.open=k;renderParts();return}
+ const g=e.target.closest('[data-go]');if(g){go(+g.dataset.go);return}
+ const st=e.target.closest('.steps button');if(st){go(+st.dataset.step)}
+});
+document.getElementById('parts').addEventListener('toggle',e=>{if(e.target.open)S.open=e.target.dataset.k;else if(S.open===e.target.dataset.k)S.open=null},true);
+document.getElementById('budget').addEventListener('input',e=>{S.budget=+e.target.value;save();renderParts()});
+const bn=document.getElementById('budgetNum');
+bn.addEventListener('input',()=>{const v=parseInt(bn.value,10);if(v>=1000){S.budget=v;save();renderParts()}});
+bn.addEventListener('change',()=>{let v=parseInt(bn.value,10);if(!(v>0))v=35000;v=Math.max(10000,Math.min(300000,v));S.budget=v;bn.value=v;save();renderParts()});
+function go(n){S.step=n;[1,2,3].forEach(i=>{document.getElementById('s'+i).hidden=i!==n;document.querySelector(`.steps [data-step="${i}"]`).setAttribute('aria-selected',i===n)});if(n===2)renderWire();if(n===3)renderPost(null);window.scrollTo({top:0})}
+
+/* ---------- 接線 ---------- */
+const ZN={socket:'CPU 插槽',A1:'記憶體插槽 DIMM_A1',A2:'記憶體插槽 DIMM_A2',B1:'記憶體插槽 DIMM_B1',B2:'記憶體插槽 DIMM_B2',m2:'M.2 插槽',pcie:'PCIe x16 顯卡插槽',atx24:'24-pin 主電源插座',eps:'CPU 8-pin 供電插座（CPU_PWR）',cpufan:'CPU_FAN 風扇插座',fp:'F_PANEL 前面板針腳',gpwr:'顯示卡的電源插座'};
+const ZI={socket:'CPU 放這裡。對準角落的金色三角形記號，輕輕放下，再壓下旁邊的拉桿。完全不用出力，會卡就是方向錯了。',
+ A1:'記憶體插槽。兩條記憶體時，說明書幾乎都建議插 A2 和 B2（離 CPU 第 2、第 4 條）。',A2:'記憶體插槽。兩條記憶體時建議插這條和 B2。',B1:'記憶體插槽。兩條時建議插 A2、B2。',B2:'記憶體插槽。兩條記憶體時建議插這條和 A2。',
+ m2:'M.2 插槽，插 SSD。斜斜插進去，再壓平用小螺絲或卡扣固定。',
+ pcie:'最上面這條最長的插槽給顯示卡，速度最快。插到底，尾端卡榫會「喀」一聲扣上。',
+ atx24:'主機板的主電源，在右側邊緣。要插到卡榫扣住，很多「開不了機」都是這條沒插緊。',
+ eps:'CPU 的電從這裡來，在主機板左上角靠近 CPU。沒插的話風扇會轉，但 CPU 不會動。',
+ cpufan:'散熱器的風扇線插這裡（4-pin）。插別的風扇座，開機會跳 CPU Fan Error。',
+ fp:'機殼的電源鍵、重開鍵、電源燈都接在這排小針腳上。針很小，照說明書的圖一根一根插。',
+ gpwr:'顯卡很耗電，主機板插槽只能給 75W，其他要從電源另外拉線過來。'};
+function items(){
+ const g=P('gpu'),has=g.id!=='none';
+ const L=[
+  {id:'cpu',ic:'CPU',name:'CPU',sub:P('cpu').name,ok:['socket']},
+  {id:'cool',ic:'FAN',name:'散熱器',sub:P('cool').name+'（先塗散熱膏）',ok:['socket'],need:'cpu',needMsg:'要先把 CPU 裝進插槽，散熱器才有東西可以壓。'},
+  {id:'ram1',ic:'RAM',name:'記憶體 #1',sub:P('ram').name.replace(/（.*/,''),ok:['A1','A2','B1','B2']},
+  {id:'ram2',ic:'RAM',name:'記憶體 #2',sub:'同一組的另一條',ok:['A1','A2','B1','B2']},
+  {id:'ssd',ic:'M.2',name:'M.2 SSD',sub:P('ssd').name,ok:['m2']}];
+ if(has)L.push({id:'gpu',ic:'GPU',name:'顯示卡',sub:g.name,ok:['pcie']});
+ const K=[
+  {id:'atx24',ic:'24P',name:'24-pin 主機板電源線',sub:'最粗的那條，從電源拉出來',ok:['atx24'],cable:1},
+  {id:'eps',ic:'8P',name:'8-pin CPU 電源線',sub:'線頭上通常印「CPU」',ok:['eps'],cable:1}];
+ if(has&&g.conn){const nm={'8pin':'8-pin 顯卡電源線','8pinx2':'兩條 8-pin 顯卡電源線','12v':'12V-2x6 顯卡電源線'}[g.conn];
+  K.push({id:'gpwr',ic:g.conn==='12v'?'12V':'8P',name:nm,sub:g.conn==='12v'?'16 針扁平接頭，要插到底':'線頭上通常印「PCIe」或「VGA」',ok:['gpwr'],need:'gpu',needMsg:'要先把顯示卡插上主機板，才看得到它的電源插座。',cable:1})}
+ K.push({id:'fan',ic:'4P',name:'散熱器風扇線',sub:P('cool').type==='aio'?'水冷排風扇＋水冷頭的線':'從散熱器風扇垂下來的小線',ok:['cpufan'],need:'cool',needMsg:'散熱器還沒裝，哪來的風扇線？先裝散熱器。',cable:1},
+  {id:'fp',ic:'SW',name:'前面板線（電源鍵）',sub:'機殼前面拉過來的一束小線',ok:['fp'],cable:1});
+ return L.concat(K);
+}
+const itemById=id=>items().find(i=>i.id===id);
+const occupant=z=>Object.keys(W.at).find(k=>W.at[k]===z&&k!=='cool');
+function validZones(it){if(it.need&&!W.at[it.need])return[];if(it.id==='cool')return W.at.cpu?['socket']:[];return it.ok.filter(z=>!occupant(z))}
+function resetWire(silent){W={at:{},sel:null,wrong:0,right:0,hint:W.hint};if(!silent&&S.step===2){renderWire();say('','全部拆下來了，從頭開始。')}}
+function say(lv,html){const m=document.getElementById('msg');m.className='msg '+lv;m.innerHTML=html}
+function removeItem(id){const dep={cpu:['cool','fan'],cool:['fan'],gpu:['gpwr']};delete W.at[id];(dep[id]||[]).forEach(d=>{if(W.at[d])removeItem(d)})}
+function ramNote(){
+ if(!W.at.ram1||!W.at.ram2)return null;
+ const s=[W.at.ram1,W.at.ram2].sort().join('+');
+ if(s==='A2+B2')return{lv:'ok',t:'記憶體在 A2 + B2，完美的雙通道位置。'};
+ if(s==='A1+B1')return{lv:'warn',t:'A1 + B1 也是雙通道，能用，但大多數主機板說明書建議 A2 + B2，比較穩。'};
+ return{lv:'warn',t:`記憶體插在 ${s}，兩條在同一個通道，變成「單通道」，效能會掉一截。改插 A2 + B2。`};
+}
+function zoneClick(z){
+ const it=W.sel&&itemById(W.sel);
+ if(!it){say('',`<b>${ZN[z]}</b>：${ZI[z]}`);return}
+ if(it.need&&!W.at[it.need]){say('warn',it.needMsg);return}
+ if(it.ok.includes(z)){
+  if(it.id!=='cool'&&occupant(z)){say('warn',`${ZN[z]}已經插了東西，換一個位置。`);return}
+  W.at[it.id]=z;W.right++;W.sel=null;
+  const tips={cpu:'CPU 裝好了。對齊三角形、輕放、壓拉桿，完全不用出力。',cool:'散熱器裝好了。記得先撕掉底部的保護膜，這是新手最常忘的事。',ssd:'SSD 插好了，壓平後鎖上小螺絲。',gpu:'顯卡插好了。記得把機殼後面的擋板拆掉，再鎖上螺絲固定。',atx24:'24-pin 插好了，有聽到「喀」一聲才算插緊。',eps:'CPU 8-pin 插好了。',gpwr:'顯卡電源插好了。一定要插到底沒縫隙，沒插緊可能燒熔接頭。',fan:'風扇線插在 CPU_FAN，主機板會依溫度控制轉速。',fp:'前面板線接好了。這排針很小，真實組裝時要照說明書的圖對正負極。'};
+  if(it.id.startsWith('ram')){const n=ramNote();say(n?n.lv:'ok',n?n.t:'記憶體插好了。兩邊卡榫要自己彈起來扣住。')}else say('ok',tips[it.id]||'裝好了！');
+  renderWire();return}
+ W.wrong++;
+ const zf=document.querySelector(`.zone[data-z="${z}"]`);if(zf){zf.classList.add('flash');setTimeout(()=>zf.classList.remove('flash'),350)}
+ const tgt=it.id.startsWith('ram')?'CPU 右邊那四條直的記憶體插槽':ZN[it.ok[0]];
+ let m=`<b>插不上。</b>這裡是${ZN[z]}。「${it.name}」要裝在${tgt}。`;
+ const g8=/8pin/.test(P('gpu').conn||'');
+ if(g8&&((it.id==='eps'&&z==='gpwr')||(it.id==='gpwr'&&z==='eps')))m='<b>小心！</b>CPU 8-pin 和顯卡 8-pin 長得很像，但針腳定義跟缺口都不同，不能互插。硬塞可能燒壞零件。CPU 的插主機板左上角，顯卡的插在顯卡上。';
+ else if(it.id.startsWith('ram')&&z==='pcie')m='<b>插不上。</b>記憶體和顯卡插槽都是長條形，但長度、缺口都不一樣。記憶體要插 CPU 右邊那四條直的插槽。';
+ else if(it.id==='atx24'&&z==='eps')m='<b>插不上。</b>這條是 24 針的主電源，CPU 供電只有 8 針。24-pin 插座在主機板右側邊緣。';
+ else if(it.id==='fan'&&z==='fp')m='<b>插不上。</b>前面板針腳是機殼按鈕用的。風扇線要插在 CPU 上方、寫著 CPU_FAN 的小插座。';
+ say('bad',m);
+}
+function boardSVG(){
+ const at=W.at,sel=W.sel&&itemById(W.sel),valid=new Set(sel&&W.hint?validZones(sel):[]);
+ const z=(id,x,y,w,h,label,lx,ly,rot)=>`<g class="zone${valid.has(id)?' valid':''}" data-z="${id}" tabindex="0" role="button" aria-label="${ZN[id]}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="1.5"/></g>${label?`<text class="silk" x="${lx}" y="${ly}"${rot?` transform="rotate(${rot} ${lx} ${ly})"`:''}>${label}</text>`:''}`;
+ const ramX={A1:196,A2:212,B1:228,B2:244},on=document.getElementById('board').dataset.on;
+ let s=`<svg viewBox="0 0 320 362" xmlns="http://www.w3.org/2000/svg" class="${on?'on':''}">
+ <rect x="8" y="10" width="304" height="342" rx="6" fill="var(--pcb)" stroke="var(--pcb-edge)" stroke-width="3"/>
+ <g opacity=".35" stroke="var(--silk)" stroke-width=".5" fill="none"><path d="M160 98 H186 M160 110 H186 M160 86 H186 M108 150 V176 M120 150 V176 M260 160 V210 H290"/></g>
+ <rect x="12" y="34" width="22" height="120" rx="2" fill="#3A4552"/><text class="silk" x="23" y="100" transform="rotate(-90 23 100)" text-anchor="middle">REAR I/O</text>
+ <rect x="226" y="282" width="40" height="28" rx="3" fill="#36414E"/><text class="silk" x="246" y="299" text-anchor="middle">晶片組</text>
+ <rect x="30" y="296" width="150" height="9" rx="1.5" fill="var(--slot)" opacity=".7"/><text class="silk" x="30" y="316">PCIe x4</text>
+ <polygon points="62,52 70,52 62,60" fill="var(--metal)"/>
+ ${z('eps',42,18,34,14,'CPU_PWR 8P',42,42)}
+ ${z('cpufan',150,18,26,10,'CPU_FAN',150,38)}
+ ${z('socket',60,50,96,96,'',0,0)}<text class="silk" x="108" y="160" text-anchor="middle">CPU SOCKET ${P('mb').socket}</text>
+ ${Object.entries(ramX).map(([k,x])=>z(k,x,44,9,130,k,x-1,184)).join('')}
+ ${z('atx24',282,58,18,100,'ATX 24P',276,108,-90)}
+ ${z('m2',60,194,140,16,'M.2 SSD',60,218)}
+ ${z('pcie',30,236,250,14,'PCIe x16 (顯卡)',30,262)}
+ ${z('fp',240,322,52,16,'F_PANEL',240,348)}`;
+ let o='';
+ if(at.cpu)o+=`<rect x="74" y="64" width="68" height="68" rx="3" fill="var(--metal)" stroke="#8D7C4F"/><text x="108" y="102" text-anchor="middle" font-family="var(--f-mono)" font-size="9" fill="#3B321A">${P('cpu').name.split(' ').slice(-1)[0]}</text>`;
+ if(at.cool){const ct=P('cool').type;
+  if(ct==='aio')o+=`<circle cx="108" cy="98" r="32" fill="#2A3038" stroke="#56616F" stroke-width="2"/><circle cx="108" cy="98" r="20" fill="${P('cool').lcd?'#36C6FF':'#7FA0FF'}" opacity=".85"/><path d="M96 68 Q90 30 60 4 M120 68 Q126 30 150 4" stroke="#111" stroke-width="6" fill="none"/>`;
+  else o+=`<circle cx="108" cy="98" r="${ct==='low'?44:50}" fill="var(--metal-dark)" stroke="#2B333C" stroke-width="2"/><g class="fan-spin">${[0,72,144,216,288].map(a=>`<ellipse cx="108" cy="78" rx="8" ry="18" fill="#6C7886" transform="rotate(${a} 108 98)"/>`).join('')}</g><circle cx="108" cy="98" r="9" fill="#2B333C"/>`}
+ ['ram1','ram2'].forEach(r=>{if(at[r]){const x=ramX[at[r]];o+=`<rect x="${x-1}" y="40" width="11" height="138" rx="1.5" fill="${P('ram').rgb?'#E8EBEF':'var(--ramc)'}"/>${[0,1,2,3].map(i=>`<rect x="${x+1}" y="${52+i*30}" width="7" height="18" fill="${P('ram').rgb?'#B7BEC7':'#1E2F78'}"/>`).join('')}`}});
+ if(at.ssd)o+=P('ssd').hs?`<rect x="62" y="195" width="128" height="14" rx="2" fill="#252B33"/>${[0,1,2,3,4,5,6,7,8,9].map(i=>`<rect x="${68+i*12}" y="197" width="6" height="10" fill="#3A424D"/>`).join('')}`:`<rect x="62" y="196" width="128" height="12" rx="1" fill="#1F5B3E"/><rect x="74" y="198" width="30" height="8" fill="#0E1A14"/><rect x="110" y="198" width="30" height="8" fill="#0E1A14"/>`;
+ if(at.atx24)o+=`<path d="M291 108 H318" stroke="var(--cable)" stroke-width="16"/><rect x="282" y="58" width="18" height="100" rx="1.5" fill="var(--cable)" opacity=".9"/>`;
+ if(at.eps)o+=`<path d="M59 18 V0" stroke="var(--cable)" stroke-width="10"/><rect x="42" y="18" width="34" height="14" rx="1.5" fill="var(--cable)"/>`;
+ if(at.fp)o+=`<path d="M266 338 V362" stroke="#C04848" stroke-width="5"/><path d="M256 338 V362" stroke="#4A7BD0" stroke-width="3"/><rect x="240" y="322" width="52" height="16" rx="1.5" fill="#8A93A0"/>`;
+ if(at.fan)o+=`<path d="M140 62 Q150 40 163 28" stroke="#111" stroke-width="2.5" fill="none"/><rect x="150" y="18" width="26" height="10" rx="1.5" fill="#E7E7E7"/>`;
+ if(at.gpu){const g=P('gpu'),n=g.len<=200?1:g.len<=280?2:3,gw=Math.max(100,Math.round(120+(g.len-180)/170*156));
+  o+=`<rect x="22" y="222" width="${gw}" height="66" rx="5" fill="var(--gpuc)" stroke="#3E4753" stroke-width="1.5"/>${Array.from({length:n},(_,i)=>{const cx=22+(gw/n)*(i+.5);return `<circle cx="${cx}" cy="256" r="26" fill="#2D343E"/><g class="fan-spin">${[0,60,120,180,240,300].map(a=>`<ellipse cx="${cx}" cy="241" rx="5" ry="13" fill="#4C5663" transform="rotate(${a} ${cx} 256)"/>`).join('')}</g><circle cx="${cx}" cy="256" r="6" fill="#1A1F26"/>`}).join('')}`}
+ s+=`<g class="ov">${o}</g>`;
+ if(at.gpu&&P('gpu').conn){const g=P('gpu'),gw=Math.max(100,Math.round(120+(g.len-180)/170*156)),px=Math.min(232,22+gw-56);
+  s+=z('gpwr',px,226,48,12,'',0,0)+`<text class="silk" x="${px+24}" y="250" text-anchor="middle">${{'8pin':'PCIe 8P','8pinx2':'8P × 2','12v':'12V-2x6'}[g.conn]}</text>`;
+  if(at.gpwr)s+=`<g class="ov"><rect x="${px}" y="226" width="48" height="12" rx="1.5" fill="var(--cable)"/><path d="M${px+24} 226 V206" stroke="var(--cable)" stroke-width="12"/></g>`}
+ return s+'</svg>';
+}
+function renderWire(){
+ document.getElementById('board').innerHTML=boardSVG();
+ const L=items(),done=L.filter(i=>W.at[i.id]).length;
+ document.getElementById('progTxt').textContent=`${done} / ${L.length}`;
+ document.getElementById('prog').style.width=(done/L.length*100)+'%';
+ const row=i=>{const d=!!W.at[i.id],lk=i.need&&!W.at[i.need]&&!d;
+  return `<button class="item${i.cable?' cable':''}${d?' done':''}${lk?' locked':''}" data-item="${i.id}" aria-pressed="${W.sel===i.id}"><span class="ic">${i.ic}</span><span class="nm">${i.name}</span><span class="sb">${i.sub}</span><span class="st">${d?'✓ 已裝':lk?'先裝前一步':W.sel===i.id?'選取中':''}</span></button>`};
+ document.getElementById('itemsParts').innerHTML=L.filter(i=>!i.cable).map(row).join('');
+ document.getElementById('itemsCables').innerHTML=L.filter(i=>i.cable).map(row).join('');
+ document.getElementById('hint').checked=W.hint;
+}
+document.querySelector('.tray').addEventListener('click',e=>{
+ const b=e.target.closest('[data-item]');if(!b)return;const id=b.dataset.item,it=itemById(id);
+ if(W.at[id]){removeItem(id);W.sel=null;say('','已經把「'+it.name+'」拆下來了。');renderWire();return}
+ W.sel=W.sel===id?null:id;
+ if(W.sel){if(it.need&&!W.at[it.need])say('warn',it.needMsg);else say('',`拿起「<b>${it.name}</b>」。現在點主機板上你覺得對的位置。${W.hint?'':'不確定的話可以打開「提示正確位置」。'}`)}
+ renderWire();
+});
+document.getElementById('board').addEventListener('click',e=>{const z=e.target.closest('.zone');if(z)zoneClick(z.dataset.z)});
+document.getElementById('board').addEventListener('keydown',e=>{const z=e.target.closest('.zone');if(z&&(e.key==='Enter'||e.key===' ')){e.preventDefault();zoneClick(z.dataset.z)}});
+document.getElementById('hint').addEventListener('change',e=>{W.hint=e.target.checked;renderWire()});
+document.getElementById('resetWire').addEventListener('click',()=>resetWire(false));
+
+/* ---------- 開機 ---------- */
+function postRun(){
+ const at=W.at,cpu=P('cpu'),gpu=P('gpu'),list=[];let led=null;
+ const bad=checks().filter(c=>c.lv==='bad');
+ if(bad.length)return{stage:'parts',list:bad.map(c=>({lv:'bad',t:c.t,d:c.d}))};
+ if(!at.atx24)return{stage:'dead',list:[{lv:'bad',t:'完全沒反應，風扇不轉、燈也不亮',d:'24-pin 主電源沒插，主機板根本沒電。'}]};
+ if(!at.fp)return{stage:'dead',list:[{lv:'bad',t:'按電源鍵沒反應',d:'前面板線沒接，你按的按鈕訊號傳不到主機板。（修電腦的人會用螺絲起子短接 PWR 兩根針來測試）'}]};
+ const L=(name,t,d)=>{if(!led)led=name;list.push({lv:'bad',t,d})};
+ if(!at.cpu)L('CPU','CPU 燈亮：找不到 CPU','插槽是空的。');
+ else if(!at.eps)L('CPU','CPU 燈亮：風扇轉了但沒動靜','CPU 8-pin 供電沒插，CPU 沒電可用。');
+ if(at.cpu&&!at.cool)L('CPU','開機幾秒就自己關機','沒裝散熱器，CPU 瞬間衝到 100°C 以上觸發過熱保護。真實世界千萬不要這樣試。');
+ const rams=[at.ram1,at.ram2].filter(Boolean).length;
+ if(rams===0)L('DRAM','DRAM 燈亮，可能還會嗶嗶叫','一條記憶體都沒插，電腦無法開始工作。');
+ if(gpu.id!=='none'){
+  if(!at.gpu){if(cpu.igpu)list.push({lv:'warn',t:'顯卡沒裝，改用內顯',d:'螢幕線要插主機板的 HDMI，不是插顯卡位置。'});else L('VGA','VGA 燈亮：沒有畫面','CPU 沒內顯、顯卡又沒裝。')}
+  else if(gpu.conn&&!at.gpwr)L('VGA','VGA 燈亮：螢幕黑的','顯卡沒接電源線。有些顯卡會亮紅燈提醒你。');
+ }
+ if(!at.ssd)L('BOOT','BOOT 燈亮：進得了 BIOS，但沒有系統可開','沒裝硬碟，畫面會出現「找不到開機裝置」。');
+ if(rams===1)list.push({lv:'warn',t:'只插了一條記憶體',d:'能開機，但是單通道，容量也只有一半。'});
+ const rn=ramNote();if(rn&&rn.lv==='warn')list.push({lv:'warn',t:'記憶體位置',d:rn.t});
+ if(at.cool&&!at.fan)list.push({lv:'warn',t:'畫面跳出 CPU Fan Error!',d:'散熱器風扇線沒插 CPU_FAN，風扇不會轉。要按 F1 才能繼續，而且 CPU 會越來越燙。'});
+ checks().filter(c=>c.lv==='warn').forEach(c=>list.push({lv:'warn',t:c.t,d:c.d}));
+ return{stage:led?'led':'ok',led,list};
+}
+function chan(){const s=[W.at.ram1,W.at.ram2].sort().join('+');return s==='A1+A2'||s==='B1+B2'?'Single Channel':'Dual Channel'}
+function renderPost(r){
+ document.getElementById('leds').innerHTML=['CPU','DRAM','VGA','BOOT'].map(n=>`<div class="led${r&&r.led===n?' on':''}"><i></i>${n}</div>`).join('');
+ document.getElementById('pwr').classList.toggle('lit',!!r&&r.stage==='ok');
+ if(!r)return;
+ const box=document.getElementById('result');
+ const li=r.list.map(x=>`<li class="${x.lv}"><b>${x.t}</b><span>${x.d}</span></li>`).join('');
+ const L=items(),acc=W.right+W.wrong?Math.round(W.right/(W.right+W.wrong)*100):0;
+ const score=`<div class="score"><div><b>${L.filter(i=>W.at[i.id]).length}/${L.length}</b><span>零件與線材</span></div><div><b>${W.wrong}</b><span>插錯次數</span></div><div><b>${acc}%</b><span>一次插對率</span></div><div><b>${fmt(total())}</b><span>整機價格</span></div></div>`;
+ const back=n=>`<button class="cta ghost" data-go="${n}" style="margin-top:14px">${n===1?'← 回去改零件':'← 回去接線'}</button>`;
+ if(r.stage==='parts')box.innerHTML=`<h2>這組零件組不起來</h2><p class="lead">還沒到接線就卡住了，下面這些要先解決：</p><ul class="issues">${li}</ul>${back(1)}`;
+ else if(r.stage==='dead')box.innerHTML=`<h2>沒反應</h2><p class="lead">除錯燈一顆都沒亮，因為主機板根本沒開始工作。</p><ul class="issues">${li}</ul>${back(2)}`;
+ else if(r.stage==='led')box.innerHTML=`<h2>卡在 ${r.led} 這關</h2><p class="lead">主機板會照 CPU → DRAM → VGA → BOOT 的順序檢查，卡在哪就亮哪顆。把下面的問題全修好再試一次：</p><ul class="issues">${li}</ul>${score}${back(2)}`;
+ else{
+  const cpu=P('cpu'),gpu=P('gpu');
+  box.innerHTML=`<h2>開機成功！螢幕亮了</h2><p class="lead">四顆除錯燈全部通過，風扇開始轉，進入 BIOS 畫面。下一步就是用 USB 隨身碟安裝 Windows。</p>
+  <div class="screen">BIOS  ${P('mb').name}
+CPU      : ${cpu.name}
+Memory   : ${P('ram').name.replace(/（.*/,'')}  ${!W.at.ram1||!W.at.ram2?'Single':chan()}
+Graphics : ${gpu.id==='none'||!W.at.gpu?'內建顯示':gpu.name}
+Storage  : ${P('ssd').name}
+CPU Fan  : ${W.at.fan?'1350 RPM':'0 RPM  ← 警告'}
+Status   : <span style="color:#7CE0A0">POST OK</span></div>
+  ${r.list.length?`<p class="lead" style="margin-top:12px">能開機，但還有可以更好的地方：</p><ul class="issues">${li}</ul>`:'<p class="lead" style="margin-top:12px">零件、接線都沒有問題，這是一台合格的電腦。</p>'}${score}`;
+  document.getElementById('board').dataset.on='1';
+ }
+}
+document.getElementById('pwr').addEventListener('click',()=>{delete document.getElementById('board').dataset.on;renderPost(postRun())});
+
+/* ---------- 教練 ---------- */
+const COACH_LINK={cpu:['brand','不懂 AMD 跟 Intel 差在哪、要不要內顯？問教練 →'],gpu:['igpu','要買顯卡還是用內顯就好？問教練 →'],mb:['platform','腳位、升級空間怎麼看？問教練 →']};
+const LESSONS=[
+ {id:'brand',t:'AMD 跟 Intel 差在哪？',b:`<p>兩家都能組出很好的電腦，沒有誰一定比較好，要看你拿來做什麼、預算多少。</p>
+ <ul><li><b>AMD（Ryzen）</b>：現在的 AM5 平台以後還能直接換新 CPU，升級方便。同樣效能比較省電、比較不熱。X3D 系列（像 9800X3D）是目前打遊戲最強的 CPU 之一。</li>
+ <li><b>Intel（Core / Core Ultra）</b>：i5-14400F 這種中階款很便宜、性價比高。核心數多，剪片、多工不錯。有內顯的型號剪片轉檔有硬體加速。缺點是 i7 / i9 很耗電、很熱，要配好的散熱。</li></ul>
+ <p><b>簡單結論</b>：主要打遊戲 → AMD（7500F 省錢、X3D 最強）；預算有限又想要多核心 → Intel i5；剪片、3D 算圖 → 兩家的高階款都可以。</p>
+ <p>補充：Intel 13、14 代曾經有不穩定的問題，Intel 已經用 BIOS 更新修正，買了記得先更新 BIOS。</p>`},
+ {id:'tier',t:'i5、i7、i9 差在哪？要買多高階？',b:`<p>數字越大越高階：核心越多、越貴、也越熱。兩家可以直接對照：i5 ≈ Ryzen 5、i7 ≈ Ryzen 7、i9 ≈ Ryzen 9。Intel 新一代改叫 Core Ultra 5 / 7 / 9，意思一樣。</p>
+ <ul><li><b>i5 / Ryzen 5</b>：打遊戲最划算，大部分人這級就夠。</li><li><b>i7 / Ryzen 7</b>：遊戲＋直播、剪一般影片。</li><li><b>i9 / Ryzen 9</b>：剪 4K、3D 算圖、跑模擬這種會把所有核心吃滿的工作。</li></ul>
+ <p><b>只打遊戲的話，i9 比 i5 多花的錢大多換不到幀數</b>，因為遊戲幀數主要看顯卡。這筆錢拿去升級顯卡會有感很多。</p>`},
+ {id:'suffix',t:'型號後面的 F、K、X、X3D、G 是什麼？',b:`<ul><li><b>Intel F</b>：沒有內顯，一定要買顯卡，但比較便宜。例：i5-14400F</li><li><b>Intel K</b>：可以超頻、時脈比較高。例：Ultra 5 245K</li><li><b>Intel KF</b>：可以超頻＋沒有內顯。例：i7-14700KF</li><li><b>AMD X</b>：時脈較高的版本，9000 系列都有基本內顯。例：9600X</li><li><b>AMD X3D</b>：多疊了一大塊快取記憶體，打遊戲特別強。例：9800X3D</li><li><b>AMD G</b>：內顯很強，不買顯卡也能玩輕度遊戲。例：8600G</li><li><b>AMD F</b>：沒有內顯。例：7500F</li></ul>
+ <p>注意：舊的 AM4 平台（5600、5700X3D）大多沒有內顯，只有 G 結尾的才有。</p>`},
+ {id:'igpu',t:'我需要內顯嗎？',b:`<p><b>內顯</b>是 CPU 裡面內建的小顯示卡，可以讓螢幕有畫面，但效能比真正的顯卡弱很多。</p>
+ <ul><li><b>不買顯卡 → 一定要有內顯</b>，不然開機螢幕是黑的。想玩一點遊戲就選 G 結尾（8600G）。</li><li><b>有買顯卡 → 內顯不是必須</b>，畫面都從顯卡出來，內顯幾乎用不到。</li><li><b>有內顯的好處</b>：顯卡壞掉或還沒買到時電腦照樣能用；可以幫你判斷是不是顯卡出問題；Intel 內顯剪片轉檔有加速。</li><li><b>預算緊又要玩遊戲</b>：選沒內顯的 F 版，省下的錢放顯卡比較划算。</li></ul>
+ <p>新手常犯錯：有顯卡時，螢幕線要插在<b>顯卡</b>的輸出孔（機殼後面下方、橫的那一排），插到主機板上的孔會以為電腦沒畫面。</p>`},
+ {id:'balance',t:'預算要怎麼分配？什麼是瓶頸？',b:`<p>打遊戲的電腦，最影響幀數的是<b>顯卡</b>。粗略分配：</p>
+ <ul><li>顯卡：約 35–45%</li><li>CPU：約 15–20%</li><li>主機板＋記憶體：約 15–20%</li><li>SSD、電源、散熱、機殼：剩下的</li></ul>
+ <p><b>瓶頸</b>是指一邊太強、一邊太弱，強的那個發揮不出來。例：i9 配 RTX 3050，CPU 再強，畫面也只有 3050 的水準；反過來 i3 配 RTX 5080，CPU 跟不上，顯卡也跑不滿。</p>
+ <p>電源和散熱不要省：它們不會讓你變快，但便宜的會讓電腦不穩、很吵，甚至壞掉。</p>`},
+ {id:'platform',t:'腳位跟升級空間',b:`<ul><li><b>AM5（AMD 7000 / 9000 系列）</b>：AMD 表示會支援好幾年，之後換新 CPU 通常只要更新 BIOS，不用換主機板。</li><li><b>LGA1851（Intel Core Ultra）</b>：Intel 目前最新的腳位，但下一代可能又會換腳位。</li><li><b>LGA1700（Intel 12–14 代）</b>：這個腳位最後一代了，以後升級要連主機板一起換。好處是現在價格便宜。</li><li><b>AM4（Ryzen 5000）</b>：舊平台、只能用 DDR4，適合預算很緊，或手上已經有舊零件的人。</li></ul>`}
+];
+function advice(){
+ const cpu=P('cpu'),gpu=P('gpu'),cool=P('cool'),t=total(),hasG=gpu.id!=='none',a=[];
+ if(!hasG&&!cpu.igpu)a.push({lv:'bad',t:`${cpu.name} 沒有內顯，你又沒選顯卡，開機會沒畫面。要嘛加一張顯卡，要嘛換有內顯的 CPU（例如 8600G）。`});
+ else if(!hasG)a.push({lv:'ok',t:cpu.id==='r5-8600g'?'8600G 的內顯很強，不買顯卡也能玩英雄聯盟這類輕度遊戲，文書非常夠用。':`你用 ${cpu.name} 的內顯出畫面，文書沒問題，但它的內顯比較陽春，想玩遊戲建議換 8600G 或加顯卡。`});
+ else if(cpu.igpu)a.push({lv:'info',t:'你的 CPU 有內顯、也有顯卡：畫面會從顯卡出來，內顯當備用（顯卡壞了還能開機檢查）。只打遊戲的話，同級的 F 版通常能省一點錢。'});
+ else a.push({lv:'ok',t:`${cpu.name} 沒有內顯，但你有買顯卡，沒問題。記得螢幕線要插在顯卡上。`});
+ const big=/i9|Ryzen 9|Ultra 9/.test(cpu.name);
+ if(hasG){
+  if(big&&gpu.price<25000)a.push({lv:'warn',t:`只打遊戲的話，${cpu.name} 多出來的核心用不太到。除非要剪片、算圖，不然換 i5 / Ryzen 5，把錢加到顯卡會更有感。`});
+  else if(gpu.price>=cpu.price*7&&cpu.price<6000)a.push({lv:'warn',t:`顯卡（${gpu.name}）很強但 CPU 偏弱，有些遊戲會被 CPU 拖住。建議 CPU 升一級，例如 9600X 或 9800X3D。`});
+  else if(cpu.price>=gpu.price*.9)a.push({lv:'warn',t:`CPU（${fmt(cpu.price)}）花的錢快跟顯卡（${fmt(gpu.price)}）一樣多。打遊戲的話把 CPU 降一級、錢移到顯卡，幀數會高很多。`});
+  else a.push({lv:'ok',t:`顯卡佔總價 ${Math.round(gpu.price/t*100)}%，以遊戲電腦來說算平衡（建議 35–45%）。`});
+ }
+ if(cpu.tdp>=150)a.push({lv:cool.tdp<220?'warn':'ok',t:`${cpu.name} 發熱很高，${cool.tdp<220?'現在選的散熱器不太夠，建議雙塔風冷或 360 水冷。':'你選的散熱器壓得住。'}`});
+ if(cpu.socket==='LGA1700')a.push({lv:'info',t:'LGA1700 是這個腳位最後一代，以後想升級 CPU 要連主機板一起換。買 13、14 代記得把 BIOS 更新到最新版。'});
+ if(cpu.socket==='AM4')a.push({lv:'info',t:'AM4 是舊平台、只能用 DDR4，便宜但幾乎沒有升級空間。'});
+ if(cpu.socket==='AM5')a.push({lv:'info',t:'AM5 平台之後還能直接換新的 AMD CPU，升級方便。'});
+ return a;
+}
+function renderCoachTip(){
+ const a=advice(),top=a.find(x=>x.lv==='bad')||a.find(x=>x.lv==='warn')||a[0];
+ document.getElementById('coachTip').innerHTML=`<span class="av">教</span><p><b>教練說：</b>${top.t}</p><button class="coachlink" data-coach="1">打開教練，看完整建議或問問題 →</button>`;
+}
+function renderAdvice(){document.getElementById('adv').innerHTML=advice().map(x=>`<li class="${x.lv}">${x.t}</li>`).join('')}
+document.getElementById('lessons').innerHTML=LESSONS.map(l=>`<details data-l="${l.id}"><summary>${l.t}</summary><div class="lb">${l.b}</div></details>`).join('');
+let lastFocus=null;
+function openCoach(lesson){
+ lastFocus=document.activeElement;renderAdvice();
+ document.getElementById('drawer').hidden=false;document.getElementById('scrim').hidden=false;
+ if(lesson){const d=document.querySelector(`#lessons [data-l="${lesson}"]`);if(d){d.open=true;setTimeout(()=>d.scrollIntoView({block:'start'}),30)}}
+ else document.getElementById('coachScroll').scrollTop=0;
+ document.getElementById('coachClose').focus();
+}
+function closeCoach(){document.getElementById('drawer').hidden=true;document.getElementById('scrim').hidden=true;if(lastFocus)lastFocus.focus()}
+document.getElementById('coachFab').addEventListener('click',()=>openCoach());
+document.getElementById('coachClose').addEventListener('click',closeCoach);
+document.getElementById('scrim').addEventListener('click',closeCoach);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!document.getElementById('drawer').hidden)closeCoach()});
+document.addEventListener('click',e=>{const l=e.target.closest('[data-lesson]');if(l){openCoach(l.dataset.lesson);return}if(e.target.closest('[data-coach]'))openCoach()});
+
+/* AI 問答 */
+let sampleFn=null,turns=[],ctl=null,busy=false;
+const QUICK=['AMD 跟 Intel 我該選哪個？','我這台需要內顯嗎？','i9 跟 i5 打遊戲差多少？','我的配置哪裡可以省錢？'];
+function esc(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function fmtAns(s){return esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/^#{1,4}\s*/gm,'')}
+function buildCtx(){
+ const lines=ORDER.map(k=>`- ${C[k].name}：${P(k).name}（${P(k).spec}，${fmt(P(k).price)}）`);
+ const issues=checks().filter(c=>c.lv!=='ok').map(c=>`- ${c.t}：${c.d}`);
+ return `預算 ${fmt(S.budget)}，目前總價 ${fmt(total())}，預估耗電約 ${estWatt()}W。\n${lines.join('\n')}\n相容性提醒：\n${issues.length?issues.join('\n'):'- 無'}`;
+}
+const RULES=()=>`你是「自組電腦工作台」網頁裡的裝機教練，對象是第一次自己組電腦的台灣學生。請遵守：
+1. 用繁體中文、台灣用語，口氣親切但不囉嗦，不用 emoji。
+2. 用白話解釋，專有名詞第一次出現時順便說是什麼意思。
+3. 回答精簡：大約 3 到 6 句，或最多 5 點條列。不要用表格、不要用標題。
+4. 能針對下面「目前配置」給具體建議就具體講，例如該換哪一個零件。
+5. 價格都是參考價，會變動；不確定的規格或消息要直接說不確定，不要編造。
+6. 只回答組電腦、電腦零件相關的問題，其他問題簡短帶回主題。
+
+目前配置：
+${buildCtx()}`;
+function addBubble(cls,html){const b=document.createElement('div');b.className='bubble '+cls;b.innerHTML=html;document.getElementById('chat').append(b);b.scrollIntoView({block:'end'});return b}
+const ERR={not_granted:'你沒有允許這個網頁使用 Claude，所以我沒辦法回答自由提問。上面的建議和課程還是可以看。',sampling_disabled:'這個帳號目前不能使用這個功能。',rate_limited:'問得太快或額度暫時用完了，等一下再問。',session_expired:'登入過期了，重新登入 Claude 後再試一次。',refused:'這個問題我沒辦法回答，換個問法試試。',empty_completion:'這次沒有產生回答，換個問法再問一次。',prompt_too_large:'對話太長了，我先清掉前面的對話，請再問一次。'};
+async function ask(q){
+ if(!sampleFn||busy||!q.trim())return;
+ busy=true;addBubble('me',esc(q));turns.push({role:'user',content:q});
+ const out=addBubble('ai','思考中…');const btn=document.getElementById('askBtn');btn.textContent='停止';btn.classList.add('stop');
+ ctl=new AbortController();
+ try{
+  const keep=turns.slice(-8);if(keep[0].role!=='user')keep.shift();
+  const {text,truncated}=await sampleFn([{role:'user',content:RULES()},...keep],{cache:false,signal:ctl.signal,onText:({text})=>{out.innerHTML=fmtAns(text);out.scrollIntoView({block:'end'})}});
+  out.innerHTML=fmtAns(text)+(truncated?'\n\n（回答被截斷了，可以請我說短一點。）':'');turns.push({role:'assistant',content:text});
+ }catch(e){
+  turns.pop();
+  if(e.code==='cancelled'){out.innerHTML=e.text?fmtAns(e.text)+'\n\n（已停止）':'（已停止）'}
+  else{out.classList.add('err');out.innerHTML=(e.text&&e.code!=='refused'?fmtAns(e.text)+'\n\n':'')+(ERR[e.code]||'連線出了點問題，再按一次送出試試。');
+   if(e.code==='prompt_too_large')turns=[];
+   if(['not_granted','sampling_disabled','not_declared','capability_disabled','capability_removed'].includes(e.code)){document.getElementById('askForm').hidden=true;document.getElementById('qchips').hidden=true}}
+ }finally{busy=false;btn.textContent='送出';btn.classList.remove('stop')}
+}
+document.getElementById('qchips').innerHTML=QUICK.map(q=>`<button class="chip" type="button" data-q="${q}">${q}</button>`).join('');
+document.getElementById('qchips').addEventListener('click',e=>{const b=e.target.closest('[data-q]');if(b)ask(b.dataset.q)});
+const ai=document.getElementById('askInput');
+document.getElementById('askForm').addEventListener('submit',e=>{e.preventDefault();if(busy){ctl&&ctl.abort();return}const q=ai.value;ai.value='';ai.style.height='';ask(q)});
+ai.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();document.getElementById('askForm').requestSubmit()}});
+ai.addEventListener('input',()=>{ai.style.height='auto';ai.style.height=Math.min(120,ai.scrollHeight)+'px'});
+if(window.claude&&window.claude.use){window.claude.use('sample').then(s=>{if(!s)return;sampleFn=s;document.getElementById('chatSec').hidden=false;document.getElementById('askForm').hidden=false;
+ addBubble('ai',fmtAns('嗨！我是裝機教練。不懂的地方都可以問我，例如 **AMD 跟 Intel 怎麼選**、**我這台需要內顯嗎**。我看得到你現在選的零件，會針對你的配置回答。'))}).catch(()=>{})}
+
+/* ---------- 估價單 ---------- */
+const DATE='2026/10/22';
+/* ---------- 購買連結 ----------
+   AFF_LINKS：每個零件的蝦皮分潤短連結（key 是零件 id），點了會到該零件的蝦皮搜尋結果。
+   新增零件時要到蝦皮分潤後台「自訂連結」產生一條加進來，沒填的會連到一般搜尋。 */
+const AFF_LINKS={'i5-12400f':'https://s.shopee.tw/6Am47RhLcP','i3-14100':'https://s.shopee.tw/gR7ZOiFKY','i5-14400f':'https://s.shopee.tw/qkXlhhbzb','i5-14400':'https://s.shopee.tw/1gJelEeRIm','i7-14700':'https://s.shopee.tw/1qd4xXdnxp','u5-225f':'https://s.shopee.tw/1LgoMcfhyk','u5-250kp':'https://s.shopee.tw/7puI6aypbi','u7-265kf':'https://s.shopee.tw/7faruHzSwh','u7-265k':'https://s.shopee.tw/8AX8VCxYvo','u7-270kp':'https://s.shopee.tw/80DiItyCGn','u9-285k':'https://s.shopee.tw/8V9ytowIFu','r5-5600x':'https://s.shopee.tw/6L5UJqHbUB','r7-5800x3d':'https://s.shopee.tw/5VWNKJKmB2','r5-7500f':'https://s.shopee.tw/5LCx80LPW1','r5-8400f':'https://s.shopee.tw/5q9DivJVV8','r5-8600g':'https://s.shopee.tw/5fpnWcK8q7','r7-7700':'https://s.shopee.tw/6fiKiv8oUd','r5-9600x':'https://s.shopee.tw/7puI744N7s','r7-7800x3d':'https://s.shopee.tw/7farul50Sr','r7-9700x':'https://s.shopee.tw/7VHRiS5dnq','r9-9900x':'https://s.shopee.tw/7Ky1W96H8p','r7-9800x3d':'https://s.shopee.tw/9APfhWGglc','r7-9850x3d':'https://s.shopee.tw/906FVDHK6b','r9-9950x':'https://s.shopee.tw/8pmpIuHxRa','r9-9900x3d':'https://s.shopee.tw/8fTP6bIamZ','r9-9950x3d':'https://s.shopee.tw/8V9yuIJE7Y','b550m':'https://s.shopee.tw/1LgoN86Zq3','b550m-tuf':'https://s.shopee.tw/1BNOAp7DB2','h610m':'https://s.shopee.tw/113xyW7qW1','b760m-d4':'https://s.shopee.tw/qkXmD8Tr0','b760m-d5':'https://s.shopee.tw/gR7Zu97Bz','b760-d5':'https://s.shopee.tw/AAICtOBf5E','b860m':'https://s.shopee.tw/9zymh5CIQD','b860m-wifi':'https://s.shopee.tw/AUv3I0AOPK','b860':'https://s.shopee.tw/AKbd5hB1kJ','a620m':'https://s.shopee.tw/9V2W6AECRA','b850':'https://s.shopee.tw/2LZLZ02RYE','b850-elite':'https://s.shopee.tw/2VsllJ1oDH','x870e':'https://s.shopee.tw/1BQmiBKHo','d4-16':'https://s.shopee.tw/BUqz1Agwr','d4-32':'https://s.shopee.tw/LoHBKA3bu','b650m':'https://s.shopee.tw/5AtWvrwI3U','b650m-f':'https://s.shopee.tw/50a6jYwvOT','b650m-tuf':'https://s.shopee.tw/4qGgXFxYjS','b650':'https://s.shopee.tw/4fxGKwyC4R','b850m':'https://s.shopee.tw/4Vdq8dypPQ','d5-64':'https://s.shopee.tw/1gJelRYV5J','3050':'https://s.shopee.tw/1W0EZ8Z8QI','7650gre':'https://s.shopee.tw/1LgoMpZllH','5050':'https://s.shopee.tw/1BNOAWaP6G','9060xt8':'https://s.shopee.tw/113xyDb2RF','d5-16':'https://s.shopee.tw/3B8SYEydVf','d5-32-56':'https://s.shopee.tw/4fxGKzsvSy','d5-32':'https://s.shopee.tw/4qGgXIsI81','d5-32-rgb':'https://s.shopee.tw/50a6jbren4','d5-48':'https://s.shopee.tw/5AtWvur1S7','5060':'https://s.shopee.tw/3LRskYIYZl','5060ti8':'https://s.shopee.tw/3qO9LTGeYs','9060xt16':'https://s.shopee.tw/3g4j9AHHtr','9070gre':'https://s.shopee.tw/2qVc9dKSai','5060ti16':'https://s.shopee.tw/2gCBxKL5vh','9070':'https://s.shopee.tw/3LRskYaQmd','5070':'https://s.shopee.tw/1qd4xng8pM','9070xt':'https://s.shopee.tw/1gJelUgmAL','5070ti':'https://s.shopee.tw/1W0EZBhPVK','5080':'https://s.shopee.tw/1LgoMsi2qJ','500':'https://s.shopee.tw/4qGgXLq33w','1t':'https://s.shopee.tw/4fxGL2qgOv','1t-tlc':'https://s.shopee.tw/5AtWvxomO2','1t-g5':'https://s.shopee.tw/50a6jepPj1','2t':'https://s.shopee.tw/4B0zk7saPs','2t-g5':'https://s.shopee.tw/6Am47o6pk5','4t':'https://s.shopee.tw/6L5UK76CP8','low':'https://s.shopee.tw/6VOuWQ5Z4B','tower1':'https://s.shopee.tw/6fiKij4vjE','tower1b':'https://s.shopee.tw/6q1kv24IOH','tower2':'https://s.shopee.tw/1W0EZEh5ki','tower2p':'https://s.shopee.tw/1LgoMvhj5h','aio240':'https://s.shopee.tw/1qd4xqfp4o','aio360':'https://s.shopee.tw/1gJelXgSPn','aio360lcd':'https://s.shopee.tw/3VlIwuZThA','450b':'https://s.shopee.tw/1W0EZGxsnC','550g':'https://s.shopee.tw/1LgoMxyW8B','650g':'https://s.shopee.tw/2Vsll6u4lQ','750g':'https://s.shopee.tw/2LZLYnui6P','850g':'https://s.shopee.tw/2BFvMUvLRO','850tuf':'https://s.shopee.tw/5LCx8K43Cp','1000g':'https://s.shopee.tw/7puI6uuX8K','1200p':'https://s.shopee.tw/7farubvATJ','matx':'https://s.shopee.tw/7VHRiIvnoI','matx2':'https://s.shopee.tw/7Ky1VzwR9H','mid':'https://s.shopee.tw/7puI6vI2oX','tg3':'https://s.shopee.tw/7Ky1W0JwpS','quiet':'https://s.shopee.tw/7VHRiJJJUV','view':'https://s.shopee.tw/5fpnWwQIDA','eatx':'https://s.shopee.tw/5q9DjFPesD','full':'https://s.shopee.tw/W7hNSiSSx'};
+function buyUrl(shop,p){const q=encodeURIComponent((p.q||p.name).replace(/[()（）]/g,' '));
+ if(shop==='shopee')return AFF_LINKS[p.id]||`https://shopee.tw/search?keyword=${q}`;
+ return `https://24h.pchome.com.tw/search/?q=${q}`}
+const HAS_AFF=()=>Object.keys(AFF_LINKS).length>0;
+function quoteRows(){return ORDER.filter(k=>P(k).id!=='none').map(k=>[C[k].name.replace(/ .*/,''),P(k).name,P(k).price])}
+function quoteText(){const r=quoteRows();return `自組電腦估價單（原價屋 ${DATE} 報價）\n`+r.map(([c,n,p])=>`${c}｜${n}｜${fmt(p)}`).join('\n')+`\n合計：${fmt(total())}\n預估耗電：約 ${estWatt()}W\n※ 價格會變動，下單前以店家為準`}
+function renderQuote(){const r=quoteRows();document.getElementById('quote').innerHTML=`<table><tbody>${ORDER.filter(k=>P(k).id!=='none').map(k=>{const o=P(k);return `<tr><td>${C[k].name.replace(/ .*/,'')}</td><td>${o.name}<a class="qbuy" href="${buyUrl('shopee',o)}" target="_blank" rel="noopener">蝦皮買 ↗</a></td><td>${fmt(o.price)}</td></tr>`}).join('')}<tr class="tot"><td>合計</td><td></td><td>${fmt(total())}</td></tr></tbody></table>`;
+ const ta=document.getElementById('quoteText');if(!ta.hidden)ta.value=quoteText();
+ const an=document.getElementById('affNote');if(an)an.hidden=!HAS_AFF()}
+document.getElementById('copyQuote').addEventListener('click',()=>{const t=quoteText(),msg=document.getElementById('quoteMsg'),ta=document.getElementById('quoteText');
+ const fb=()=>{ta.hidden=false;ta.value=t;ta.focus();ta.select();msg.textContent='已選取文字，請按複製（Ctrl+C 或長按）。'};
+ try{navigator.clipboard.writeText(t).then(()=>{msg.textContent='已複製，可以貼到 LINE 或筆記。'},fb)}catch(e){fb()}});
+let dlFn=null;
+if(window.claude&&window.claude.use){window.claude.use('downloads').then(d=>{if(d){dlFn=d;document.getElementById('dlQuote').hidden=false}}).catch(()=>{})}
+document.getElementById('dlQuote').addEventListener('click',async()=>{if(!dlFn)return;const msg=document.getElementById('quoteMsg');
+ const esc=v=>'"'+String(v).replace(/"/g,'""')+'"';
+ const csv='\ufeff'+[['類別','品名','價格'],...quoteRows(),['合計','',total()]].map(r=>r.map(esc).join(',')).join('\r\n');
+ try{await dlFn.save({filename:'自組電腦估價單.csv',data:csv});msg.textContent='已下載。'}catch(e){msg.textContent=e&&e.code==='declined'?'':'這裡沒辦法下載，請改用複製。';if(e&&['unavailable','not_granted','capability_disabled','capability_removed'].includes(e.code))document.getElementById('dlQuote').hidden=true}});
+
+renderParts();renderPost(null);
+</script>
+
+</body></html>
