@@ -186,6 +186,7 @@ select.n{flex:none;width:100%}
     <button type="button" data-page="units">單元複習</button>
     <button type="button" data-page="cloze">填空題</button>
     <button type="button" data-page="meaning">英翻中</button>
+    <button type="button" data-page="zhen">中翻英</button>
     <button type="button" data-page="pos">單字詞性</button>
     <button type="button" data-page="form">詞性練習</button>
   </nav>
@@ -291,6 +292,21 @@ select.n{flex:none;width:100%}
     </aside>
     <section id="stage-meaning" class="card" aria-live="polite"></section>
   </section>
+  <!-- 中翻英 -->
+  <section id="p-zhen" class="grid" hidden>
+    <aside class="panel">
+      <div class="label">要考哪些單元</div>
+      <div id="sel-zhen" class="checks"></div>
+      <div class="row"><button class="linkbtn" type="button" data-all="zhen">全選</button><button class="linkbtn" type="button" data-none="zhen">全不選</button></div>
+      <label class="label" for="n-zhen">題數</label>
+      <label class="check hearts"><input type="checkbox" id="hearts-zhen"><span>只考有 ♥ 的單字</span></label>
+      <select id="n-zhen" class="n"><option value="10">10 題</option><option value="20">20 題</option><option value="30">30 題</option><option value="999">全部</option></select>
+      <button id="gen-zhen" class="btn primary" type="button">開始</button>
+      <p class="hint">看中文，從四個英文單字選出正確的。答完會列出四個選項各自的中文。</p>
+      <p id="st-zhen" class="status" role="status"></p>
+    </aside>
+    <section id="stage-zhen" class="card" aria-live="polite"></section>
+  </section>
   <!-- 單字詞性 -->
   <section id="p-pos" class="grid" hidden>
     <aside class="panel">
@@ -374,7 +390,7 @@ select.n{flex:none;width:100%}
     <p id="st-sync" class="status" role="status"></p>
   </details>
 
-  <p class="hint" style="text-align:center"><span id="ver">版本 10/21-1</span> · <button id="checkupd" class="linkbtn" type="button" style="font-size:inherit">檢查更新</button></p>
+  <p class="hint" style="text-align:center"><span id="ver">版本 10/28-1</span> · <button id="checkupd" class="linkbtn" type="button" style="font-size:inherit">檢查更新</button></p>
 </div>
 
 <script>
@@ -839,9 +855,9 @@ function drawChecks(kind){
   const ids=new Set(selected(kind));
   $("#sel-"+kind).innerHTML=units.map(u=>`<label class="check"><input type="checkbox" value="${u.id}" ${ids.has(u.id)?"checked":""}><span>${unitHearts.has(u.id)?'<span style="color:#E0475B">♥</span> ':""}${esc(u.name||"未命名單元")}</span><span class="count">${parseEntries(u.words).length} 字</span></label>`).join("");
 }
-["cloze","meaning","pos"].forEach(kind=>{const c=$("#hearts-"+kind); c.checked=load("vc-hearts-"+kind)==="1"; c.onchange=()=>store("vc-hearts-"+kind,c.checked?"1":"0")});
+["cloze","meaning","zhen","pos"].forEach(kind=>{const c=$("#hearts-"+kind); c.checked=load("vc-hearts-"+kind)==="1"; c.onchange=()=>store("vc-hearts-"+kind,c.checked?"1":"0")});
 function saveChecks(kind){store("vc-sel-"+kind,JSON.stringify([...document.querySelectorAll(`#sel-${kind} input:checked`)].map(i=>i.value)))}
-["cloze","meaning","pos"].forEach(kind=>{
+["cloze","meaning","zhen","pos"].forEach(kind=>{
   $("#sel-"+kind).addEventListener("change",()=>saveChecks(kind));
   document.querySelector(`[data-all="${kind}"]`).onclick=()=>{document.querySelectorAll(`#sel-${kind} input`).forEach(i=>i.checked=true);saveChecks(kind)};
   document.querySelector(`[data-none="${kind}"]`).onclick=()=>{document.querySelectorAll(`#sel-${kind} input`).forEach(i=>i.checked=false);saveChecks(kind)};
@@ -881,6 +897,10 @@ function makeRunner(kind){
       stage.innerHTML=head()+`<div class="label">空格要填哪一個？</div><p class="sentence" lang="en">${esc(parts[0])}<span class="gap" id="gap">&nbsp;</span>${esc(parts.slice(1).join("____"))}</p>
         <div class="opts">${shuffle(q.options).map((o,i)=>`<button class="btn opt" data-v="${esc(o)}" type="button"><b>${"ABCD"[i]}</b>${esc(o)}</button>`).join("")}</div>
         <div id="fb-${kind}"></div><div class="actions"></div>`;
+    }else if(kind==="zhen"){
+      stage.innerHTML=head()+`<div class="label">這個中文的英文是哪一個？</div><p class="bigword">${esc(q.zh)}</p>
+        <div class="opts">${shuffle(q.options).map((o,i)=>`<button class="btn opt" data-v="${esc(o)}" type="button" lang="en"><b>${i+1}</b>${esc(o)}</button>`).join("")}</div>
+        <div id="fb-${kind}"></div><div class="actions"></div>`;
     }else if(kind==="meaning"){
       stage.innerHTML=head()+`<div class="label">這個字是什麼意思？</div><p class="bigword" lang="en">${esc(q.word)}</p>
         <div class="opts">${shuffle(q.options).map((o,i)=>`<button class="btn opt zh" data-v="${esc(o)}" type="button"><b>${i+1}</b>${esc(o)}</button>`).join("")}</div>
@@ -908,9 +928,9 @@ function makeRunner(kind){
     const q=S.items[S.idx];
     if(kind==="cloze"&&clozeMode==="type"&&!String(val).trim()) return;
     S.answered=true;
-    const right = kind==="meaning"?q.zh:q.answer;
+    const right = kind==="meaning"?q.zh:kind==="zhen"?q.word:q.answer;
     const ok = norm(val)===norm(right);
-    S.results.push({q,ok,given:val});
+    S.results.push({q,ok,given:val,shown:[...stage.querySelectorAll(".opt")].map(b=>b.dataset.v)});
     const nextLabel=S.idx+1<S.items.length?"下一題":"看結果";
     if(kind==="cloze"&&clozeMode==="type"){
       const inp=stage.querySelector("#ans"); inp.classList.add(ok?"ok":"no"); inp.readOnly=true;
@@ -935,8 +955,12 @@ function makeRunner(kind){
         <span>空格要填<b>${POSNAME[q.need]}</b>：${esc(q.why)}</span>
         <span class="formopts">${q.options.map(o=>`<span><b>${esc(o)}</b> ${POSNAME[q.optPos[o]]||""}</span>`).join("")}</span>
         <span class="zh">${esc(q.zh)}</span></div>`;
+    }else if(kind==="zhen"){
+      fb.innerHTML=`<div class="fb ${ok?"ok":"no"}"><strong>${ok?"答對了":"答錯了"}</strong><span>「${esc(q.zh)}」的英文是 <span class="word">${esc(q.word)}</span>。</span>
+        <ul class="optzh">${[...stage.querySelectorAll(".opt")].map(b=>b.dataset.v).map((o,i)=>{const r=norm(o)===norm(q.word), p=!ok&&norm(o)===norm(val); return `<li class="${r?"right":p?"picked":""}"><b>${i+1} ${esc(o)}</b><span class="z">${esc(zhOf(o)||"")}</span>${r?" ✓":p?" ✗ 你選的":""}</li>`}).join("")}</ul></div>`;
     }else if(kind==="meaning"){
-      fb.innerHTML=`<div class="fb ${ok?"ok":"no"}"><strong>${ok?"答對了":"答錯了"}</strong><span><span class="word">${esc(q.word)}</span>：${esc(q.zh)}</span></div>`;
+      fb.innerHTML=`<div class="fb ${ok?"ok":"no"}"><strong>${ok?"答對了":"答錯了"}</strong><span><span class="word">${esc(q.word)}</span>：${esc(q.zh)}</span>
+        <ul class="optzh">${[...stage.querySelectorAll(".opt")].map(b=>b.dataset.v).map((o,i)=>{const r=norm(o)===norm(q.zh), p=!ok&&norm(o)===norm(val); const en=(q.optEn&&q.optEn[o])||""; return `<li class="${r?"right":p?"picked":""}"><b>${i+1} ${esc(o)}</b><span class="z" lang="en">${esc(en)}</span>${r?" ✓":p?" ✗ 你選的":""}</li>`}).join("")}</ul></div>`;
     }else{
       const close=!ok&&norm(val)===norm(q.word);
       fb.innerHTML=`<div class="fb ${ok?"ok":"no"}"><strong>${ok?"答對了":close?"差一點：要注意詞形變化":"答錯了"}</strong>
@@ -952,8 +976,8 @@ function makeRunner(kind){
   function next(){S.idx++; S.idx<S.items.length?render():finish()}
   function finish(){
     const right=S.results.filter(r=>r.ok).length, wrong=S.results.filter(r=>!r.ok);
-    const mean=r=>kind==="meaning"?r.q.zh:kind==="pos"?`${POSNAME[r.q.answer]} ${r.q.answer}${r.q.zh?"　"+r.q.zh:""}`:kind==="form"?`${POSNAME[r.q.need]}`:`${r.q.pos} ${r.q.meaning}`;
-    const given=r=>kind==="pos"?`${POSNAME[r.given]||""} ${r.given}`:r.given;
+    const mean=r=>kind==="meaning"||kind==="zhen"?r.q.zh:kind==="pos"?`${POSNAME[r.q.answer]} ${r.q.answer}${r.q.zh?"　"+r.q.zh:""}`:kind==="form"?`${POSNAME[r.q.need]}`:`${r.q.pos} ${r.q.meaning}`;
+    const given=r=>kind==="pos"?`${POSNAME[r.given]||""} ${r.given}`:kind==="zhen"?`${r.given}${zhOf(r.given)?"（"+zhOf(r.given)+"）":""}`:r.given;
     stage.innerHTML=`<div class="meta"><span>${S.example?"範例題目練習結果":"練習結果"}</span></div>
       <div class="bar"><i style="width:100%"></i></div>
       <div><div class="score">${right} / ${S.results.length}</div><p class="hint">答對率 ${Math.round(right/S.results.length*100)}%</p></div>
@@ -967,7 +991,11 @@ function makeRunner(kind){
       <ol class="allres">${S.results.map((r,i)=>`<li><span class="no">${i+1}</span><span class="mk ${r.ok?"ok":"no"}" aria-label="${r.ok?"答對":"答錯"}">${r.ok?"✓":"✗"}</span>
         <span class="line"><span class="word">${esc(r.q.word)}</span><span>${esc(mean(r))}</span></span>
         ${kind==="cloze"?`<span class="ex">${esc(r.q.sentence).replace("____",`<b>${esc(r.q.answer)}</b>`)}<br>${esc(r.q.zh)}</span>`:""}
-        ${kind==="form"?`<span class="ex">${esc(r.q.sentence).replace("____",`<b>${esc(r.q.answer)}</b>`)}<br>${esc(r.q.why)}</span>`:""}</li>`).join("")}</ol>`;
+        ${kind==="form"?`<span class="ex">${esc(r.q.sentence).replace("____",`<b>${esc(r.q.answer)}</b>`)}<br>${esc(r.q.why)}</span>`:""}
+        ${kind==="meaning"||kind==="zhen"?`<span class="ex">選項：${(r.shown||r.q.options).map(o=>{
+            const en=kind==="zhen"?o:((r.q.optEn&&r.q.optEn[o])||""), zh=kind==="zhen"?(zhOf(o)||""):o;
+            const right=kind==="zhen"?norm(o)===norm(r.q.word):norm(o)===norm(r.q.zh), mine=!r.ok&&norm(o)===norm(r.given);
+            return `<span style="display:inline-block;margin-right:12px${right?";color:var(--good)":mine?";color:var(--bad)":""}">${esc(en)}${en&&zh?" ":""}${esc(zh)}${right?" ✓":mine?" ✗":""}</span>`}).join("")}</span>`:""}</li>`).join("")}</ol>`;
     stage.querySelector('[data-act="again"]').onclick=()=>start(shuffle(S.items),S.example);
     if(wrong.length){
       stage.querySelector('[data-act="redo"]').onclick=()=>start(shuffle(wrong.map(r=>r.q)),S.example);
@@ -983,7 +1011,7 @@ function makeRunner(kind){
   }
   return {start,render,S,onKey};
 }
-const runners={cloze:makeRunner("cloze"),meaning:makeRunner("meaning"),pos:makeRunner("pos"),form:makeRunner("form")};
+const runners={cloze:makeRunner("cloze"),meaning:makeRunner("meaning"),zhen:makeRunner("zhen"),pos:makeRunner("pos"),form:makeRunner("form")};
 
 /* ---------- 填空題 ---------- */
 function setMode(m){
@@ -1164,11 +1192,16 @@ async function generateCloze(words,fresh){
 
 /* ---------- 英翻中 ---------- */
 const FILLER=["延後","預算","報銷","強制的","談判","存貨","發票","行程","出席","合約","供應商","部門","申請","維修","退款","折扣","會議","升職","面試","通知","延長","確認","取消","建議","安排"];
+/* 英翻中：每個中文選項都記住它是哪個英文字，答完才能一起列出來 */
 function buildMeaning(entries){
-  const pool=[...new Set(units.flatMap(u=>parseEntries(u.words).map(e=>e.zh)).filter(Boolean).concat(FILLER))];
+  const seen=new Set(), pool=[];
+  const add=(w,z)=>{const k=norm(z); if(z&&!seen.has(k)){seen.add(k);pool.push({word:w,zh:z})}};
+  for(const u of units) for(const e of parseEntries(u.words)) add(e.word,e.zh);
+  TOEIC_POS.forEach(q=>add(q.word,q.zh));
   return entries.filter(e=>e.zh).map(e=>{
-    const others=shuffle(pool.filter(z=>norm(z)!==norm(e.zh))).slice(0,3);
-    return {word:e.word,zh:e.zh,unit:e.unit,options:[e.zh,...others]};
+    const others=shuffle(pool.filter(x=>norm(x.zh)!==norm(e.zh)&&x.word.toLowerCase()!==e.word.toLowerCase())).slice(0,3);
+    const optEn={[e.zh]:e.word}; others.forEach(x=>optEn[x.zh]=x.word);
+    return {word:e.word,zh:e.zh,unit:e.unit,options:[e.zh,...others.map(x=>x.zh)],optEn};
   });
 }
 const genMeaning=$("#gen-meaning");
@@ -1192,6 +1225,52 @@ genMeaning.onclick=async()=>{
   if(!items.length){setSt("meaning",note||"沒有可以出題的單字。",true);return}
   runners.meaning.start(items,false);
   setSt("meaning",(note?note+" ":"")+`共 ${items.length} 題。${round}`,!!note);
+};
+
+/* ---------- 中翻英 ---------- */
+/* 查一個英文單字的中文：你的單元 → 多益單字表 → 題庫 */
+function zhOf(word){
+  const k=String(word||"").toLowerCase();
+  for(const u of units) for(const e of parseEntries(u.words)) if(e.word.toLowerCase()===k&&e.zh) return e.zh;
+  const t=(typeof TOEIC_POS!=="undefined")&&TOEIC_POS.find(q=>q.word===k); if(t) return t.zh;
+  const ex=EXAMPLE.find(q=>q.word===k); if(ex) return ex.meaning;
+  const b=bankGet(k)[0]; return b?b.meaning:"";
+}
+function buildZhEn(entries){
+  /* 干擾選項：先用你單元裡的字，不夠再用多益單字；盡量挑同詞性的，比較像真的考試 */
+  const mine=[], seen=new Set();
+  for(const u of units) for(const e of parseEntries(u.words)){const k=e.word.toLowerCase(); if(e.zh&&!seen.has(k)){seen.add(k);mine.push({word:e.word,zh:e.zh})}}
+  const toeic=TOEIC_POS.filter(q=>!seen.has(q.word)).map(q=>({word:q.word,zh:q.zh}));
+  return entries.filter(e=>e.zh).map(e=>{
+    const bad=x=>x.word.toLowerCase()===e.word.toLowerCase()||norm(x.zh)===norm(e.zh);
+    const p=posOf(e.word);
+    const same=x=>p&&posOf(x.word)===p;
+    const pool=[...shuffle(mine.filter(x=>!bad(x)&&same(x))),...shuffle(toeic.filter(x=>!bad(x)&&same(x))),...shuffle(mine.filter(x=>!bad(x)&&!same(x))),...shuffle(toeic.filter(x=>!bad(x)&&!same(x)))];
+    const others=[]; for(const x of pool){if(others.length>=3)break; if(!others.some(o=>o.toLowerCase()===x.word.toLowerCase())) others.push(x.word)}
+    return {word:e.word,zh:e.zh,unit:e.unit,options:[e.word,...others]};
+  });
+}
+const genZhen=$("#gen-zhen");
+genZhen.onclick=async()=>{
+  let {us,entries}=pickEntries("zhen");
+  if(!us.length){setSt("zhen","請先勾選至少一個單元。",true);return}
+  if(!entries.length){setSt("zhen",$("#hearts-zhen").checked?"勾選的單元裡還沒有做 ♥ 記號的單字。":"勾選的單元裡還沒有單字。先到「單元複習」加單字。",true);return}
+  let note="";
+  const missing=entries.filter(e=>!e.zh).length;
+  if(missing){
+    const key=keyEl.value.trim();
+    if(key){
+      genZhen.disabled=true;
+      try{await fillMeanings(us,key,"zhen"); ({entries}=pickEntries("zhen"))}
+      catch(e){note=`有 ${missing} 個單字沒有中文，這次先跳過（${errMsg(e)}）`}
+      finally{genZhen.disabled=false}
+    }else note=`有 ${missing} 個單字沒有中文，這次先跳過。設定 Gemini 金鑰後會自動補上。`;
+  }
+  const n=Number($("#n-zhen").value)||10;
+  const {picked:items,note:round}=pickFresh("zhen",buildZhEn(entries),q=>q.word.toLowerCase(),n);
+  if(!items.length){setSt("zhen",note||"沒有可以出題的單字。",true);return}
+  runners.zhen.start(items,false);
+  setSt("zhen",(note?note+" ":"")+`共 ${items.length} 題。${round}`,!!note);
 };
 
 /* ---------- 詞性共用 ---------- */
@@ -1404,7 +1483,7 @@ Reply with only a JSON array of objects: {"sentence","answer","options":[{"word"
 };
 
 /* ---------- 分頁 ---------- */
-const PAGES=["units","cloze","meaning","pos","form"];
+const PAGES=["units","cloze","meaning","zhen","pos","form"];
 let page="units";
 function show(p){
   if(!PAGES.includes(p)) p="units";
@@ -1421,8 +1500,10 @@ document.addEventListener("keydown",e=>{if(page!=="units") runners[page].onKey(e
 setMode(clozeMode);
 runners.cloze.start(shuffle(EXAMPLE),true);
 setSt("cloze","右邊是範例題目。勾選你的單元後按「出題」。");
-runners.meaning.start(shuffle(EXAMPLE).map(q=>({word:q.word,zh:q.meaning,options:[q.meaning,...shuffle(EXAMPLE.filter(x=>x!==q).map(x=>x.meaning)).slice(0,3)]})),true);
+runners.meaning.start(shuffle(EXAMPLE).map(q=>({word:q.word,zh:q.meaning,options:[q.meaning,...shuffle(EXAMPLE.filter(x=>x!==q).map(x=>x.meaning)).slice(0,3)],optEn:Object.fromEntries(EXAMPLE.map(x=>[x.meaning,x.word]))})),true);
 setSt("meaning","右邊是範例題目。勾選你的單元後按「開始」。");
+runners.zhen.start(shuffle(EXAMPLE).map(q=>({word:q.word,zh:q.meaning,options:[q.word,...shuffle(EXAMPLE.filter(x=>x!==q).map(x=>x.word)).slice(0,3)]})),true);
+setSt("zhen","右邊是範例題目。勾選你的單元後按「開始」。");
 
 /* ---------- 手機 ↔ 電腦 同步（匯出／匯入，合併不覆蓋） ---------- */
 (function(){
