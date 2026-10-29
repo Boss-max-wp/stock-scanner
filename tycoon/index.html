@@ -286,6 +286,11 @@ header h1{display:flex;align-items:center;gap:10px}
 .pick button{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:999px;border:1px solid var(--line);background:transparent;font-size:13px}
 .pick button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .pick i{width:8px;height:8px;border-radius:50%}
+
+.cbtns.wait button{animation:nudge 2.4s ease-in-out infinite;box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 60%,transparent)}
+.cbtns.wait button:nth-child(2){animation-delay:.3s}.cbtns.wait button:nth-child(3){animation-delay:.6s}
+@keyframes nudge{0%,70%,100%{transform:none}80%{transform:translateY(-3px)}90%{transform:translateY(0)}}
+@media (prefers-reduced-motion: reduce){.cbtns.wait button{animation:none}}
 </style>
 
 <div id="app">
@@ -743,7 +748,7 @@ async function startTurn(){
 }
 async function doRoll(){
   if(!G||G.phase!=='roll')return;
-  const p=cur();G.phase='moving';G.demo=false;if(!(sheetKind==='market'&&p.bot))closeSheet();
+  const p=cur();G.phase='moving';G.demo=false;if(!((sheetKind==='market'||sheetKind==='bank')&&p.bot))closeSheet();
   for(let k=0;k<6;k++){G.dice=[d6(),d6()];renderDice();await sleep(60)}
   const a=d6(),b=d6();G.dice=[a,b];say(`${p.name} 擲出 ${a+b} 點`);render();await sleep(350);
   for(let s=0;s<a+b;s++){p.pos=(p.pos+1)%N;if(p.pos===0)passStart(p);render();await sleep(130)}
@@ -757,7 +762,7 @@ function botTrade(p){
   if(p.cash>4500&&Math.random()<.55){const k=rnd(AK),q=Math.floor(p.cash*.12/G.prices[k]);if(q>0)trade(p,k,q)}
 }
 function endTurn(){
-  if(!G||G.over)return;if(!(sheetKind==='market'&&cur().bot))closeSheet();tryApplyLeaves();if(!G||G.over)return;if(G.online&&drivingNow())NET.handoff=true;tickMarket();nextTurn();
+  if(!G||G.over)return;if(!((sheetKind==='market'||sheetKind==='bank')&&cur().bot))closeSheet();tryApplyLeaves();if(!G||G.over)return;if(G.online&&drivingNow())NET.handoff=true;tickMarket();nextTurn();
 }
 function nextTurn(){
   if(G.over)return;
@@ -800,7 +805,7 @@ let sheetOnClose=null;
 $('#sheet').addEventListener('click',e=>{
   const x=e.target.closest('[data-x]');if(x){const f=sheetOnClose;closeSheet();f&&f();return}
   const b=e.target.closest('[data-a]');if(b&&!b.disabled){sheetActs[+b.dataset.a].on();return}
-  const pk=e.target.closest('[data-pick]');if(pk){NET.mktPick=+pk.dataset.pick;openMarket(true);return}
+  const pk=e.target.closest('[data-pick]');if(pk){NET.mktPick=+pk.dataset.pick;if(sheetKind==='bank'){NET.bankRefresh&&NET.bankRefresh()}else openMarket(true);return}
   const t=e.target.closest('[data-t]');if(t&&!t.disabled){const [k,q]=t.dataset.t.split(':');const tm=tradeMode();if(!tm.mode)return;const p=tm.p;
     if(tm.mode==='order'){placeOrder(k,q==='all'?'all':+q);openMarket(true);return}
     trade(p,k,q==='all'?-p.hold[k]:+q);render();openMarket(true)}
@@ -831,7 +836,7 @@ function pendingOrders(){const a=(G.applied||{})[NET.uid]||0;return NET.myOrders
 function placeOrder(k,q){
   const me=meP();if(!me)return;
   const id=(NET.myOrders.filter(o=>o.gid===G.gid).reduce((m,o)=>Math.max(m,o.id),(G.applied||{})[NET.uid]||0))+1;
-  NET.myOrders.push({gid:G.gid,id,k,q});NET.myOrders=NET.myOrders.filter(o=>o.gid===G.gid).slice(-40);
+  NET.myOrders.push(typeof k==='object'?{...k,gid:G.gid,id}:{gid:G.gid,id,k,q});NET.myOrders=NET.myOrders.filter(o=>o.gid===G.gid).slice(-40);
   try{localStorage.setItem('tw-tycoon-ord',JSON.stringify(NET.myOrders))}catch(e){}
   NET.orders[NET.uid]={orders:NET.myOrders};
   NET.db.doc(orderKey(NET.uid)).set({orders:NET.myOrders}).catch(()=>{});
@@ -845,12 +850,59 @@ function applyOrders(){
     if(q.bot)return;const d=NET.orders[q.uid];if(!d||!Array.isArray(d.orders))return;
     d.orders.filter(o=>o&&o.gid===G.gid&&o.id>(G.applied[q.uid]||0)).sort((a,b)=>a.id-b.id).forEach(o=>{
       G.applied[q.uid]=o.id;changed=true;
-      if(q.out||!ASSETS[o.k])return;
+      if(q.out)return;
+      if(o.t==='bank'){bankOp(q,o.a,o.x);return}
+      if(!ASSETS[o.k])return;
       const qty=o.q==='all'?-q.hold[o.k]:Math.round(+o.q);
       if(!qty||!trade(q,o.k,qty))log(`${q.name} 的${qty>0?'買':'賣'}單沒成交（${qty>0?'現金不夠':'沒有持股'}）`,q);
     });
   });
   if(changed){NET.handoff=true;render()}
+}
+// 網銀操作（自己手機直接做，或線上由正在操作的手機代為處理）。回傳一句結果
+function bankOp(q,a,x){
+  let r='';
+  if(a==='b'){const av=canBorrow(q),amt=x==='max'?av:Math.floor(+x);
+    if(!(amt>0))r='沒有可以借的額度';else if(amt>av)r=`最多只能再借 ${fmt(av)}`;
+    else{borrowMoney(q,amt);log(`${q.name} 用網銀借款 ${fmt(amt)}（${dueText(q)}）`,q);return `借了 ${fmt(amt)}，${dueText(q)}。`}}
+  else if(a==='r'){if(!q.loan)r='沒有貸款要還';else{
+      const want=x==='cash'?q.cash:x==='full'?q.loan:Math.floor(+x);
+      if(x==='full'&&q.cash<q.loan)r=`現金 ${fmt(q.cash)} 不夠還清 ${fmt(q.loan)}`;
+      else if(!(want>0))r='現金不夠';
+      else if(x!=='cash'&&want>q.cash)r=`現金只有 ${fmt(q.cash)}，不夠還 ${fmt(want)}`;
+      else{const paid=repayMoney(q,want);log(`${q.name} 用網銀還款 ${fmt(paid)}，還欠 ${fmt(q.loan)}`,q);return q.loan?`還了 ${fmt(paid)}，還欠 ${fmt(q.loan)}。`:`還了 ${fmt(paid)}，貸款全部還清了！`}}}
+  else if(a==='w'){if(!q.savings)r='沒有存款';else{const w=q.savings;q.cash+=w;q.savings=0;log(`${q.name} 領出存款 ${fmt(w)}`,q);return `領出 ${fmt(w)}。`}}
+  log(`${q.name} 的網銀操作沒成功：${r}`,q);return r+'。';
+}
+function bankSig(){const tm=tradeMode(),p=tm.p;return JSON.stringify([tm.mode,p&&p.id,p&&p.cash,p&&p.loan,p&&p.savings,p&&p.loanDue,G.online?pendingOrders().length:0])}
+async function offBank(){
+  let note2='';
+  while(true){
+    const tm=tradeMode();
+    if(!tm.mode){openSheet('手機網銀','<p>你已經出局了，不能再用網銀。</p>',[],true);return}
+    const p=tm.p,order=tm.mode==='order',av=canBorrow(p),canPay=Math.min(p.cash,p.loan),pend=order?pendingOrders().length:0;
+    const humans=G.online?[]:G.players.filter(x=>!x.bot&&!x.out);
+    const body=`${humans.length>1?`<div class="pick"><span>幫誰操作</span>${humans.map(h=>`<button data-pick="${h.id}" class="${h===p?'on':''}"><i style="background:${h.color}"></i>${esc(h.name)}</button>`).join('')}</div>`:''}
+    <div class="kv"><span>${esc(p.name)} 的現金</span><span class="num">${fmt(p.cash)}</span><span>存款</span><span class="num gain">${fmt(p.savings)}</span><span>已借貸款（每過起點 +8%）</span><span class="num loss">${fmt(p.loan)}</span>${p.loan>0?`<span><b>還款期限</b></span><span class="${p.loanDue<=1?'loss':''}"><b>${dueText(p)}</b></span>`:''}<span><b>還能借</b></span><span class="num"><b>${fmt(av)}</b></span></div>
+    <div class="amtrow"><label for="amt">自訂金額</label><input id="amt" type="number" inputmode="numeric" min="1" step="100" placeholder="例如 800"></div>
+    ${note2?`<p class="amtmsg">${esc(note2)}</p>`:''}
+    <p class="hint">${order?`還沒輪到你也能用網銀。操作會送到現在操作的人的手機，大約 1～2 秒完成。${pend?`<br><b>還有 ${pend} 筆在處理中…</b>`:''}`:'別人在玩的時候也能用網銀：借錢、還錢、領存款。存錢和九折還清要走到「銀行」格子。'}</p>`;
+    const acts=[
+      {label:'借 $1,000',v:'b:1000',disabled:av<1000},{label:'借 $3,000',v:'b:3000',disabled:av<3000},{label:av?`借滿 ${fmt(av)}`:'額度用完了',v:'b:max',disabled:av<100},
+      {label:'還 $500',v:'r:500',disabled:!p.loan||p.cash<Math.min(500,p.loan)},{label:'還 $1,000',v:'r:1000',disabled:!p.loan||p.cash<Math.min(1000,p.loan)},{label:canPay?`能還多少還多少 ${fmt(canPay)}`:'能還多少還多少',v:'r:cash',disabled:!canPay},
+      {label:'還清貸款',v:'r:full',disabled:!p.loan||p.cash<p.loan},{label:'全部領出存款',v:'w:0',disabled:!p.savings},
+      {label:'用自訂金額借',v:'cb',kind:'tool'},{label:'用自訂金額還',v:'cr',kind:'tool'},
+      {label:'關閉',v:0,kind:'primary'}];
+    const v=await new Promise(res=>{NET.bankRefresh=()=>res('refresh');openSheet('手機網銀',body,acts.map(a=>({...a,on:()=>res(a.v)})),true);sheetKind='bank';NET.bankSig=bankSig();sheetOnClose=()=>res(0)});
+    NET.bankRefresh=null;
+    if(!v){closeSheet();return}
+    if(v==='refresh'){if(order&&note2.startsWith('已送出')&&!pendingOrders().length)note2='完成了！';continue}
+    let a,x;
+    if(v==='cb'||v==='cr'){const raw=Math.floor(+(($('#amt')||{}).value||0));if(!(raw>0)){note2='請先在「自訂金額」輸入一個數字。';continue}a=v==='cb'?'b':'r';x=raw}
+    else [a,x]=v.split(':');
+    if(order){placeOrder({t:'bank',a,x});note2='已送出，等一下就會完成。'}
+    else{note2=bankOp(p,a,x);render()}
+  }
 }
 function openMarket(keep){
   const tm=tradeMode(),ok=!!tm.mode,p=tm.p||meP()||cur();
@@ -904,7 +956,7 @@ function showRules(){
   <li><b>股票</b>：三檔股票風險不同，<b>不用等輪到你</b>，別人在玩的時候也能隨時買賣。停在<b>證券所</b>領 6% 股利。</li>
   <li><b>企鵝幣</b>：漲跌超大的加密貨幣。停在<b>幣交易所</b>會碰到暴漲、崩盤或空投。</li>
   <li><b>創業園區</b>：投資新創，3 回合後可能倒閉、打平、翻 3 倍或翻 8 倍。</li>
-  <li><b>網銀</b>（中間按鈕）：輪到你時隨時借錢、還錢（多少都行）、領存款。貸款每過起點 +8%，而且<b>借錢後經過起點 3 次內要還清</b>，到期還沒還，銀行會強制收回：先拿現金和存款，不夠就賣股票、企鵝幣、半價賣地，還不夠就破產。能借多少看你的資產：4 個月薪水＋地產 60%＋股票 50%＋企鵝幣 20%＋存款 90%（存款要先扣掉貸款，借來的錢存進去不會增加額度）。</li><li><b>銀行格子</b>：只有走到這裡才能<b>存錢</b>（每過起點 +5% 利息），停下來再多拿一次 5% 利息，還能<b>九折還清貸款</b>（只限借超過一圈、已經算過利息的貸款）。按「結束回合」前都能再按「銀行櫃台」回去。</li>
+  <li><b>網銀</b>（中間按鈕）：<b>不用等輪到你</b>，隨時借錢、還錢（多少都行）、領存款。貸款每過起點 +8%，而且<b>借錢後經過起點 3 次內要還清</b>，到期還沒還，銀行會強制收回：先拿現金和存款，不夠就賣股票、企鵝幣、半價賣地，還不夠就破產。能借多少看你的資產：4 個月薪水＋地產 60%＋股票 50%＋企鵝幣 20%＋存款 90%（存款要先扣掉貸款，借來的錢存進去不會增加額度）。</li><li><b>銀行格子</b>：只有走到這裡才能<b>存錢</b>（每過起點 +5% 利息），停下來再多拿一次 5% 利息，還能<b>九折還清貸款</b>（只限借超過一圈、已經算過利息的貸款）。按「結束回合」前都能再按「銀行櫃台」回去。</li>
   <li><b>夜市</b>擺攤、<b>打工</b>賺現金；<b>彩券行</b>試手氣；<b>機會／命運</b>卡有好有壞。</li>
   <li>付不出錢時，會自動提存款、賣股票和幣、最後半價賣地。</li></ol>`,[],true);
 }
@@ -1223,6 +1275,7 @@ function render(){
   if(!G.over&&atCounter(p))at='回到銀行櫃台';
   ab.hidden=!at;ab.textContent=at;
   $('#newBtn').textContent=!G.over&&!G.demo?'退出':'新遊戲';
+  { const me=G.online?meP():null, waiting=!G.over&&!G.demo&&(G.online?(me&&!me.out&&cur()!==me):cur().bot&&G.players.some(x=>!x.bot&&!x.out)); document.querySelector('.cbtns').classList.toggle('wait',!!waiting); }
   $('#bankBtn').textContent=!G.over&&atCounter(p)?'銀行櫃台':'網銀';
   const mb=$('#mainBtn');
   if(G.over){mb.textContent='看排名';mb.disabled=false}
@@ -1247,6 +1300,7 @@ function render(){
     if(prev!==undefined&&prev!==q.cash){const d=q.cash-prev,el=document.createElement('span');el.className='float '+(d>0?'gain':'loss');el.textContent=(d>0?'+':'-')+fmt(Math.abs(d)).replace('-','');$('#players').children[i]?.appendChild(el)}});
   $('#log').innerHTML=G.log.slice(0,40).map(l=>`<li><i style="background:${l.c}"></i><span>${esc(l.t)}</span></li>`).join('');
   if(sheetKind==='market'&&!$('#sheetWrap').hidden&&mktSig()!==NET.mktSig)openMarket(true);
+  if(sheetKind==='bank'&&!$('#sheetWrap').hidden&&NET.bankRefresh&&bankSig()!==NET.bankSig){const f=NET.bankRefresh;NET.bankRefresh=null;f()}
   persist();
 }
 $('#mainBtn').addEventListener('click',()=>{if(!G)return;if(G.over)return showResults();if(cur().bot||!drivingNow())return;if(G.phase==='roll')doRoll();else if(G.phase==='done')endTurn()});
@@ -1260,7 +1314,7 @@ $('#actBtn').addEventListener('click',async()=>{
 $('#mktBtn').addEventListener('click',()=>G&&openMarket());
 $('#bankBtn').addEventListener('click',async()=>{
   if(!G||G.over)return;const p=cur();
-  if(p.bot||!drivingNow()||!(G.phase==='roll'||G.phase==='done')){openSheet('手機網銀','<p>輪到你的回合時才能用網銀借錢、還錢。</p>',[],true);return}
+  if(p.bot||!drivingNow()||!(G.phase==='roll'||G.phase==='done')){offBank();return}
   const ph=G.phase;await bankLoop(p,atCounter(p));G.phase=ph;render();
 });
 $('#meBtn').addEventListener('click',()=>{if(!G)return;openAssets(meP()||cur())});
