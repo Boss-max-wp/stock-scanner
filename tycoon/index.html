@@ -370,7 +370,7 @@ const loanCap=p=>credit(p).cap;
 const LOAN_LAPS=3; // 借錢後，經過起點 3 次內要還清
 function borrowMoney(p,x){ if(!(p.loan>0)) p.loanDue=LOAN_LAPS; p.cash+=x; p.loan+=x; p.loanNew=(p.loanNew||0)+x; }
 function repayMoney(p,x){ x=Math.min(x,p.cash,p.loan); if(!(x>0))return 0; p.cash-=x; p.loan-=x; p.loanNew=Math.max(0,(p.loanNew||0)-x); if(p.loan<=0){p.loan=0;p.loanNew=0;p.loanDue=0} return x; }
-const dueText=p=>p.loan>0?(p.loanDue<=1?'下次經過起點就到期！':`再經過起點 ${p.loanDue} 次到期`):'';
+const dueText=p=>{if(!(p.loan>0))return '';if(!p.loanDue)p.loanDue=LOAN_LAPS;return p.loanDue<=1?'下次經過起點就到期！':`再經過起點 ${p.loanDue} 次到期`};
 const freshLoan=p=>Math.min(p.loan,p.loanNew||0);
 const discPay=p=>Math.round((p.loan-freshLoan(p))*.9)+freshLoan(p);
 const canBorrow=p=>Math.max(0,Math.floor((loanCap(p)-p.loan)/100)*100);
