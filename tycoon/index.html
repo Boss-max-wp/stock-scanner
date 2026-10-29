@@ -281,6 +281,11 @@ header h1{display:flex;align-items:center;gap:10px}
 .amtrow label{color:var(--muted);font-size:14px;flex:none}
 .amtrow input{flex:1;min-width:0;font:inherit;font-family:var(--f-num);padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--cell);color:var(--ink)}
 .amtmsg{margin:8px 0 0;font-size:14px;font-weight:500;color:var(--accent-ink,var(--ink));background:var(--t-money);border-radius:10px;padding:6px 10px}
+
+.pick{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px;font-size:13px;color:var(--muted)}
+.pick button{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:999px;border:1px solid var(--line);background:transparent;font-size:13px}
+.pick button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.pick i{width:8px;height:8px;border-radius:50%}
 </style>
 
 <div id="app">
@@ -380,7 +385,7 @@ const VENTURES=['珍奶連鎖店','AI 外送平台','寵物鮮食','二手球鞋
 
 let G=null;
 const cur=()=>G.players[G.turn];
-const NET={left:new Set(),watch:{},lastHost:null,ok:false,db:null,uid:'local',code:null,ref:null,unsub:null,applying:false,writing:false,pend:false,handoff:false,started:null,answered:{},overShown:null,first:true,inLobby:false,room:null};
+const NET={orders:{},myOrders:[],mktPick:null,mktSig:'',left:new Set(),watch:{},lastHost:null,ok:false,db:null,uid:'local',code:null,ref:null,unsub:null,applying:false,writing:false,pend:false,handoff:false,started:null,answered:{},overShown:null,first:true,inLobby:false,room:null};
 function effHost(){
   const gone=u=>NET.left.has(u)||G.players.some(x=>!x.bot&&x.uid===u&&x.left);
   if(G.host&&!gone(G.host))return G.host;
@@ -738,7 +743,7 @@ async function startTurn(){
 }
 async function doRoll(){
   if(!G||G.phase!=='roll')return;
-  const p=cur();G.phase='moving';G.demo=false;closeSheet();
+  const p=cur();G.phase='moving';G.demo=false;if(!(sheetKind==='market'&&p.bot))closeSheet();
   for(let k=0;k<6;k++){G.dice=[d6(),d6()];renderDice();await sleep(60)}
   const a=d6(),b=d6();G.dice=[a,b];say(`${p.name} 擲出 ${a+b} 點`);render();await sleep(350);
   for(let s=0;s<a+b;s++){p.pos=(p.pos+1)%N;if(p.pos===0)passStart(p);render();await sleep(130)}
@@ -752,7 +757,7 @@ function botTrade(p){
   if(p.cash>4500&&Math.random()<.55){const k=rnd(AK),q=Math.floor(p.cash*.12/G.prices[k]);if(q>0)trade(p,k,q)}
 }
 function endTurn(){
-  if(!G||G.over)return;closeSheet();tryApplyLeaves();if(!G||G.over)return;if(G.online&&drivingNow())NET.handoff=true;tickMarket();nextTurn();
+  if(!G||G.over)return;if(!(sheetKind==='market'&&cur().bot))closeSheet();tryApplyLeaves();if(!G||G.over)return;if(G.online&&drivingNow())NET.handoff=true;tickMarket();nextTurn();
 }
 function nextTurn(){
   if(G.over)return;
@@ -765,7 +770,7 @@ function nextTurn(){
   G.seq=(G.seq||0)+1;G.phase='start';render();maybeStart();
 }
 function maybeStart(){
-  tryApplyLeaves();
+  tryApplyLeaves();applyOrders();
   if(!G||G.over||G.phase!=='start'||!isDriverOf(cur()))return;
   const k=G.gid+':'+G.seq;if(NET.started===k)return;NET.started=k;startTurn();
 }
@@ -784,17 +789,20 @@ function showResults(){
 
 /* ---------- sheets ---------- */
 let sheetActs=[],sheetDismiss=true;
+let sheetKind=null;
 function openSheet(title,body,acts,dismiss=true){
-  sheetActs=acts||[];sheetDismiss=dismiss;
+  sheetActs=acts||[];sheetDismiss=dismiss;sheetKind=null;
   $('#sheet').innerHTML=`${dismiss?'<button class="x" data-x aria-label="關閉">×</button>':''}<h2>${esc(title)}</h2><div class="body">${body}</div>${sheetActs.length?`<div class="acts">${sheetActs.map((a,i)=>`<button data-a="${i}" class="${a.kind||''}" ${a.disabled?'disabled':''}>${esc(a.label)}</button>`).join('')}</div>`:''}`;
   $('#sheetWrap').hidden=false;
 }
-function closeSheet(){$('#sheetWrap').hidden=true;sheetActs=[];sheetOnClose=null}
+function closeSheet(){$('#sheetWrap').hidden=true;sheetActs=[];sheetOnClose=null;sheetKind=null}
 let sheetOnClose=null;
 $('#sheet').addEventListener('click',e=>{
   const x=e.target.closest('[data-x]');if(x){const f=sheetOnClose;closeSheet();f&&f();return}
   const b=e.target.closest('[data-a]');if(b&&!b.disabled){sheetActs[+b.dataset.a].on();return}
-  const t=e.target.closest('[data-t]');if(t&&!t.disabled){const [k,q]=t.dataset.t.split(':');const p=cur();
+  const pk=e.target.closest('[data-pick]');if(pk){NET.mktPick=+pk.dataset.pick;openMarket(true);return}
+  const t=e.target.closest('[data-t]');if(t&&!t.disabled){const [k,q]=t.dataset.t.split(':');const tm=tradeMode();if(!tm.mode)return;const p=tm.p;
+    if(tm.mode==='order'){placeOrder(k,q==='all'?'all':+q);openMarket(true);return}
     trade(p,k,q==='all'?-p.hold[k]:+q);render();openMarket(true)}
 });
 $('#bd').addEventListener('click',()=>{if(sheetDismiss){const f=sheetOnClose;closeSheet();f&&f()}});
@@ -805,8 +813,66 @@ function spark(h,up){
   const pts=h.map((v,i)=>`${(i/(Math.max(1,h.length-1))*w).toFixed(1)},${(ht-2-(v-mn)/r*(ht-4)).toFixed(1)}`).join(' ');
   return `<svg width="${w}" height="${ht}" viewBox="0 0 ${w} ${ht}" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="var(${up?'--gain':'--loss'})" stroke-width="1.8" stroke-linejoin="round"/></svg>`;
 }
-function canTrade(){const p=cur();return G&&!G.over&&!p.bot&&drivingNow()&&(G.phase==='roll'||G.phase==='done'||G.phase==='choose')}
+function tradeMode(){
+  if(!G||G.over)return {p:null,mode:null};
+  if(G.online){
+    const me=meP();if(!me||me.out)return {p:me,mode:null};
+    return {p:me,mode:(cur()===me&&drivingNow())?'direct':'order'};
+  }
+  const humans=G.players.filter(x=>!x.bot&&!x.out);
+  let p;
+  if(sheetOnClose&&!cur().bot)p=cur();
+  else if(NET.mktPick!=null&&humans.includes(G.players[NET.mktPick]))p=G.players[NET.mktPick];
+  else p=!cur().bot&&!cur().out?cur():humans[0];
+  return {p:p||null,mode:p?'direct':null};
+}
+const canTrade=()=>!!tradeMode().mode;
+function pendingOrders(){const a=(G.applied||{})[NET.uid]||0;return NET.myOrders.filter(o=>o.gid===G.gid&&o.id>a)}
+function placeOrder(k,q){
+  const me=meP();if(!me)return;
+  const id=(NET.myOrders.filter(o=>o.gid===G.gid).reduce((m,o)=>Math.max(m,o.id),(G.applied||{})[NET.uid]||0))+1;
+  NET.myOrders.push({gid:G.gid,id,k,q});NET.myOrders=NET.myOrders.filter(o=>o.gid===G.gid).slice(-40);
+  try{localStorage.setItem('tw-tycoon-ord',JSON.stringify(NET.myOrders))}catch(e){}
+  NET.orders[NET.uid]={orders:NET.myOrders};
+  NET.db.doc(orderKey(NET.uid)).set({orders:NET.myOrders}).catch(()=>{});
+  applyOrders();
+}
+function orderKey(uid){return `games/${NET.code}/ans/ord-${G.gid}-${uid}`.replace(/[^A-Za-z0-9_\-\/.~:@+]/g,'_')}
+function applyOrders(){
+  if(!G||!G.online||G.over||NET.applying||!drivingNow())return;
+  let changed=false;G.applied=G.applied||{};
+  G.players.forEach(q=>{
+    if(q.bot)return;const d=NET.orders[q.uid];if(!d||!Array.isArray(d.orders))return;
+    d.orders.filter(o=>o&&o.gid===G.gid&&o.id>(G.applied[q.uid]||0)).sort((a,b)=>a.id-b.id).forEach(o=>{
+      G.applied[q.uid]=o.id;changed=true;
+      if(q.out||!ASSETS[o.k])return;
+      const qty=o.q==='all'?-q.hold[o.k]:Math.round(+o.q);
+      if(!qty||!trade(q,o.k,qty))log(`${q.name} 的${qty>0?'買':'賣'}單沒成交（${qty>0?'現金不夠':'沒有持股'}）`,q);
+    });
+  });
+  if(changed){NET.handoff=true;render()}
+}
 function openMarket(keep){
+  const tm=tradeMode(),ok=!!tm.mode,p=tm.p||meP()||cur();
+  const pend=G.online&&tm.mode==='order'?pendingOrders():[];
+  const humans=G.online?[]:G.players.filter(x=>!x.bot&&!x.out);
+  const head=!ok?'<p style="color:var(--muted);font-size:13px">你已經出局了，現在只能看行情。</p>'
+    :`${humans.length>1&&!sheetOnClose?`<div class="pick"><span>幫誰下單</span>${humans.map(h=>`<button data-pick="${h.id}" class="${h===p?'on':''}"><i style="background:${h.color}"></i>${esc(h.name)}</button>`).join('')}</div>`:''}
+     <p style="color:var(--muted);font-size:13px">${esc(p.name)} 的現金：<b class="num" style="color:var(--ink)">${fmt(p.cash)}</b>　價格每個人的回合結束都會變動。</p>
+     ${tm.mode==='order'?`<p class="hint">還沒輪到你也可以下單。單子會送到現在操作的人的手機，大約 1～2 秒成交，成交價是那時候的價格。${pend.length?`<br><b>還有 ${pend.length} 張單在等成交…</b>`:''}</p>`:''}
+     ${!G.online&&cur().bot?'<p class="hint">電腦在走的時候也可以買賣，價格會在每個人的回合結束時變動。</p>':''}`;
+  const body=`${head}<div class="mk">${AK.map(k=>{
+    const a=ASSETS[k],pr=G.prices[k],ch=(pr/G.prev[k]-1)*100,up=pr>=G.prev[k],h=p.hold[k],pl=h?(pr/p.cost[k]-1)*100:0;
+    return `<div class="asset"><div class="top"><span><b>${a.n}</b><span class="tag">${a.tag}</span></span>${spark(G.hist[k],G.hist[k][G.hist[k].length-1]>=G.hist[k][0])}<span class="num"><b>${fmt(pr)}</b> <span class="${up?'gain':'loss'}">${up?'+':''}${ch.toFixed(1)}%</span></span></div>
+    <div class="meta"><span>持有 <b class="num" style="color:var(--ink)">${h}</b> ${a.u}${h?`・市值 ${fmt(h*pr)}`:''}</span>${h?`<span class="${pl>=0?'gain':'loss'}">損益 ${pl>=0?'+':''}${pl.toFixed(1)}%</span>`:''}</div>
+    <div class="btns"><button class="buy" data-t="${k}:${a.lot}" ${!ok||p.cash<pr*a.lot?'disabled':''}>買 ${a.lot}</button><button class="buy" data-t="${k}:${a.lot*5}" ${!ok||p.cash<pr*a.lot*5?'disabled':''}>買 ${a.lot*5}</button><button class="sell" data-t="${k}:-${a.lot}" ${!ok||!h?'disabled':''}>賣 ${a.lot}</button><button class="sell" data-t="${k}:all" ${!ok||!h?'disabled':''}>全賣</button></div></div>`}).join('')}</div>`;
+  const prevSt=$('#sheet').scrollTop;
+  openSheet('股市・幣市',body,sheetOnClose?[{label:'賣好了，回去',kind:'primary',on:()=>{const f=sheetOnClose;closeSheet();f()}}]:[],true);
+  sheetKind='market';NET.mktSig=mktSig();
+  if(keep)$('#sheet').scrollTop=prevSt;
+}
+function mktSig(){const tm=tradeMode(),p=tm.p;return JSON.stringify([tm.mode,p&&p.id,p&&p.cash,p&&p.hold,G.prices,G.online?pendingOrders().length:0])}
+function __oldOpenMarket(keep){
   const ok=canTrade(),p=ok?cur():(meP()||cur());
   const body=`<p style="color:var(--muted);font-size:13px">${ok?`${esc(p.name)} 的現金：<b class="num" style="color:var(--ink)">${fmt(p.cash)}</b>　價格每個人的回合結束都會變動。`:'輪到你的回合才能交易，現在只能看行情。'}</p><div class="mk">${AK.map(k=>{
     const a=ASSETS[k],pr=G.prices[k],ch=(pr/G.prev[k]-1)*100,up=pr>=G.prev[k],h=p.hold[k],pl=h?(pr/p.cost[k]-1)*100:0;
@@ -835,7 +901,7 @@ function showRules(){
   <ol class="rules">
   <li><b>地產</b>：買地、蓋房子收過路費（空地約地價的 25%，蓋到大樓是 10 倍）。同色地買齊，空地過路費加倍。每次停在自己的地上只能蓋一層，買地那一次不能馬上蓋。踩到別人的地，可以出價（1.5～3 倍）跟對方買，對方可以拒絕，最多加價三次。</li>
   <li><b>薪水</b>：每經過起點領薪水。去<b>人力銀行</b>面試、去<b>大學</b>進修可以升職，薪水從 $800 一路漲到 $4,000。</li>
-  <li><b>股票</b>：三檔股票風險不同，輪到你時隨時能買賣。停在<b>證券所</b>領 6% 股利。</li>
+  <li><b>股票</b>：三檔股票風險不同，<b>不用等輪到你</b>，別人在玩的時候也能隨時買賣。停在<b>證券所</b>領 6% 股利。</li>
   <li><b>企鵝幣</b>：漲跌超大的加密貨幣。停在<b>幣交易所</b>會碰到暴漲、崩盤或空投。</li>
   <li><b>創業園區</b>：投資新創，3 回合後可能倒閉、打平、翻 3 倍或翻 8 倍。</li>
   <li><b>網銀</b>（中間按鈕）：輪到你時隨時借錢、還錢（多少都行）、領存款。貸款每過起點 +8%，而且<b>借錢後經過起點 3 次內要還清</b>，到期還沒還，銀行會強制收回：先拿現金和存款，不夠就賣股票、企鵝幣、半價賣地，還不夠就破產。能借多少看你的資產：4 個月薪水＋地產 60%＋股票 50%＋企鵝幣 20%＋存款 90%（存款要先扣掉貸款，借來的錢存進去不會增加額度）。</li><li><b>銀行格子</b>：只有走到這裡才能<b>存錢</b>（每過起點 +5% 利息），停下來再多拿一次 5% 利息，還能<b>九折還清貸款</b>（只限借超過一圈、已經算過利息的貸款）。按「結束回合」前都能再按「銀行櫃台」回去。</li>
@@ -889,6 +955,7 @@ $('#sheet').addEventListener('click',e=>{
 function persist(){
   if(!G||NET.applying)return;
   if(!G.online){try{localStorage.setItem('tw-tycoon-v1',JSON.stringify(G))}catch(e){}return}
+  setupLeaveWatch();setupOrderWatch();
   if(!NET.ref||!(drivingNow()||NET.handoff))return;
   queueWrite();
 }
@@ -920,9 +987,10 @@ function applySnapshot(d){
       [{label:`賣 ${fmt(a.price)}`,kind:'primary',on:()=>{closeSheet();NET.db.doc(`games/${NET.code}/ans/${a.id}`).set({ok:true}).catch(()=>{})}},
        {label:'不賣',on:()=>{closeSheet();NET.db.doc(`games/${NET.code}/ans/${a.id}`).set({ok:false}).catch(()=>{})}}],false);
   }
-  setupLeaveWatch();
+  setupLeaveWatch();setupOrderWatch();
   if(NET.first){NET.first=false;NET.lastHost=effHost();recoverStale()}
   tryApplyLeaves();
+  applyOrders();
   maybeStart();
 }
 function recoverStale(){
@@ -937,7 +1005,13 @@ function setupLeaveWatch(){
   G.players.forEach(q=>{if(q.bot||q.uid===NET.uid)return;const k=G.gid+':'+q.uid;if(NET.watch[k])return;
     try{NET.watch[k]=NET.db.doc(leaveKey(q.uid)).onSnapshot(sn=>{if(sn.exists){NET.left.add(q.uid);tryApplyLeaves()}},()=>{})}catch(e){}});
 }
-function clearLeaveWatch(){Object.values(NET.watch).forEach(u=>{try{u()}catch(e){}});NET.watch={};NET.left.clear();NET.lastHost=null}
+function setupOrderWatch(){
+  if(!G||!G.online||!NET.db||!NET.code)return;
+  if(NET.ordGid!==G.gid){NET.ordGid=G.gid;try{const m=JSON.parse(localStorage.getItem('tw-tycoon-ord')||'[]');NET.myOrders=Array.isArray(m)?m.filter(o=>o.gid===G.gid):[]}catch(e){NET.myOrders=[]}NET.orders[NET.uid]={orders:NET.myOrders}}
+  G.players.forEach(q=>{if(q.bot||q.uid===NET.uid)return;const k='o:'+G.gid+':'+q.uid;if(NET.watch[k])return;
+    try{NET.watch[k]=NET.db.doc(orderKey(q.uid)).onSnapshot(sn=>{if(sn.exists){NET.orders[q.uid]=sn.data();applyOrders()}},()=>{})}catch(e){}});
+}
+function clearLeaveWatch(){NET.orders={};Object.values(NET.watch).forEach(u=>{try{u()}catch(e){}});NET.watch={};NET.left.clear();NET.lastHost=null}
 function applyLeave(q){
   q.left=true;q.out=true;q.cash=0;q.savings=0;q.loan=0;q.loanNew=0;q.ventures=[];AK.forEach(k=>q.hold[k]=0);
   for(const i in G.own)if(G.own[i].p===q.id)delete G.own[i];
@@ -1172,6 +1246,7 @@ function render(){
   G.players.forEach((q,i)=>{const prev=lastCash[key+':'+i];lastCash[key+':'+i]=q.cash;
     if(prev!==undefined&&prev!==q.cash){const d=q.cash-prev,el=document.createElement('span');el.className='float '+(d>0?'gain':'loss');el.textContent=(d>0?'+':'-')+fmt(Math.abs(d)).replace('-','');$('#players').children[i]?.appendChild(el)}});
   $('#log').innerHTML=G.log.slice(0,40).map(l=>`<li><i style="background:${l.c}"></i><span>${esc(l.t)}</span></li>`).join('');
+  if(sheetKind==='market'&&!$('#sheetWrap').hidden&&mktSig()!==NET.mktSig)openMarket(true);
   persist();
 }
 $('#mainBtn').addEventListener('click',()=>{if(!G)return;if(G.over)return showResults();if(cur().bot||!drivingNow())return;if(G.phase==='roll')doRoll();else if(G.phase==='done')endTurn()});
