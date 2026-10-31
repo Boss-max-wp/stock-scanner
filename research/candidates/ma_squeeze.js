@@ -1,7 +1,7 @@
 // 候選型態：均線糾結突破（只做多）
 // 白話：5 日、10 日、20 日均線連續 5 天擠在 3% 以內（均線糾結＝大家成本差不多、方向還沒決定），
 // 而且股價在季線之上；今天紅K收盤同時站上三條均線、突破近 10 天最高收盤——台股說「均線糾結，帶量表態」。
-// 停損：近 10 天最低點下方。目標：2 倍停損距離。
+// 停損：近 10 天最低點下方。目標：1.5 倍停損距離（第二輪：原本 2 倍達標率太低）。
 module.exports = {
   key: 'ma_squeeze',
   names: ['均線糾結突破', '均線糾結跌破'],
@@ -37,7 +37,7 @@ module.exports = {
       const lo = H.minL(s - 10, s);
       const stop = lo * 0.995, risk0 = C[s] - stop;
       if (!(risk0 > 0) || risk0 / C[s] > 0.10 || risk0 / C[s] < 0.015) continue;
-      const pl = H.plan(s, stop, C[s] + 2 * risk0);
+      const pl = H.plan(s, stop, C[s] + 1.5 * risk0);
       const checks = [
         { k: '帶量', ok: volRatio >= P.volMult, pts: volRatio >= P.volMult ? Math.min(20, 10 + (volRatio - P.volMult) * 5) : 0 },
         { k: '長紅K', ok: body >= P.minBody, pts: body >= P.minBody ? 10 : 0 },
