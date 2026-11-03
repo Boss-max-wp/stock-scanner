@@ -1104,17 +1104,35 @@ S.draft={items:[],happy:'',share:'',stuck:'',improve:'',score:0};setDate(TODAY);
 </script>
 
 <div id="diagbox" style="margin:16px auto 0;max-width:560px;background:var(--paper);border-radius:22px;padding:18px;display:grid;gap:8px;box-shadow:var(--shadow)">
-  <h2 style="margin:0;font-family:var(--display);font-weight:400;font-size:19px">所有打卡紀錄（資料檢查）</h2>
-  <div class="sub">每一筆存進資料庫的打卡，和最後儲存的時間</div>
-  <div id="diaglist" style="font-size:13px;display:grid;gap:4px;font-family:var(--mono)"></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2 style="margin:0;font-family:var(--display);font-weight:400;font-size:19px">所有打卡紀錄</h2><button type="button" id="diagcopy" class="small">複製全部</button></div>
+  <div class="sub">每一筆存進資料庫的打卡和最後儲存時間。自己的紀錄存錯天，可以按「改日期」搬到正確那天。</div>
+  <div id="diaglist" style="font-size:13px;display:grid;gap:6px"></div>
+  <div class="status" id="diagmsg"></div>
 </div>
 <script>
 (async()=>{const db=await claude.use('db'),user=await claude.use('user');if(!db||!user)return;const me=await user.id();
-  document.getElementById('page-history').appendChild(document.getElementById('diagbox'));
-  db.collection('checkins').onSnapshot(s=>{const rows=s.docs.map(d=>d.data()).filter(c=>c&&c.date).sort((a,b)=>b.date.localeCompare(a.date));
-    document.getElementById('diaglist').innerHTML=rows.map(c=>{const it=(c.items||[]),dn=it.filter(i=>i.done).length,t=c.updatedAt?new Date(c.updatedAt):null;
-      return '<div>'+c.date+' · '+(c.uid===me?'我':'她')+' · 完成 '+dn+'/'+it.length+' · 存於 '+(t?(t.getMonth()+1)+'/'+t.getDate()+' '+String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0'):'?')+'</div>'}).join('')||'沒有任何紀錄'},
-    e=>{document.getElementById('diaglist').textContent='讀取失敗：'+(e.code||e.message)});
+  const $d=id=>document.getElementById(id);let rows=[],editing=null;
+  $d('page-history').appendChild($d('diagbox'));
+  const fmt=c=>{const it=(c.items||[]),dn=it.filter(i=>i.done).length,t=c.updatedAt?new Date(c.updatedAt):null;
+    return c.date+' · '+(c.uid===me?'我':'她')+' · 完成 '+dn+'/'+it.length+' · 存於 '+(t?(t.getMonth()+1)+'/'+t.getDate()+' '+String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0'):'?')};
+  function render(){$d('diaglist').innerHTML=rows.map(c=>{const mine=c.uid===me,id=c.date+'_'+c.uid;
+    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;border-radius:10px;background:var(--bg)"><span style="font-family:var(--mono);min-width:0">'+fmt(c)+'</span>'+
+      (mine?(editing===id?'<span style="display:flex;gap:4px;align-items:center"><input type="date" id="mvdate" value="'+c.date+'" style="font:inherit;font-size:13px;padding:2px 4px;border-radius:8px;border:1px solid var(--line);background:var(--paper);color:var(--ink)"><button type="button" class="small" data-mvgo="'+id+'">搬過去</button></span>':'<button type="button" class="small" data-mv="'+id+'">改日期</button>'):'')+'</div>'}).join('')||'沒有任何紀錄'}
+  db.collection('checkins').onSnapshot(s=>{rows=s.docs.map(d=>d.data()).filter(c=>c&&c.date).sort((a,b)=>b.date.localeCompare(a.date)||String(a.uid).localeCompare(String(b.uid)));render()},
+    e=>{$d('diaglist').textContent='讀取失敗：'+(e.code||e.message)});
+  $d('diaglist').addEventListener('click',async e=>{const m=e.target.closest('[data-mv]'),g=e.target.closest('[data-mvgo]');
+    if(m){editing=m.dataset.mv;render();return}
+    if(g){const src=rows.find(c=>c.date+'_'+c.uid===g.dataset.mvgo),to=$d('mvdate').value;if(!src||!to)return;
+      if(to===src.date){editing=null;render();return}
+      const dst=rows.find(c=>c.uid===me&&c.date===to);
+      if(dst&&!g.dataset.confirm){g.dataset.confirm='1';g.textContent='那天已有紀錄，確定覆蓋？';return}
+      try{await db.doc('checkins/'+to+'_'+me).set({...src,date:to});await db.doc('checkins/'+src.date+'_'+me).delete();
+        editing=null;$d('diagmsg').textContent='已經把 '+src.date+' 的打卡搬到 '+to+'，重新整理後就會看到 ✓';setTimeout(()=>location.reload(),1500)}
+      catch(err){$d('diagmsg').textContent='搬移失敗：'+(err.code||err.message)}}
+  });
+  $d('diagcopy').onclick=async()=>{const txt=rows.map(fmt).join(String.fromCharCode(10));
+    try{await navigator.clipboard.writeText(txt);$d('diagmsg').textContent='已複製 ✓'}
+    catch(e){const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');$d('diagmsg').textContent='已複製 ✓'}catch(_){$d('diagmsg').textContent='複製失敗，請長按文字自己複製'}ta.remove()}};
 })();
 </script>
 <div id="importbox" style="margin:16px auto 0;max-width:560px;background:var(--paper);border-radius:22px;padding:18px;display:grid;gap:10px;box-shadow:var(--shadow)">
@@ -1154,7 +1172,7 @@ S.draft={items:[],happy:'',share:'',stuck:'',improve:'',score:0};setDate(TODAY);
 document.getElementById('page-history').appendChild(document.getElementById('logoutbtn').parentNode);</script>
 <script>
 // Home-screen apps can keep showing a cached copy; check for a newer build whenever the app is opened.
-window.__BUILD='1793676564';
+window.__BUILD='1793676803';
 async function checkUpdate(){try{const t=await (await fetch('./?nocache='+Date.now(),{cache:'no-store'})).text();const m=t.match(/__BUILD='(\d+)'/);
   if(m&&m[1]!==window.__BUILD)location.replace('./?v='+m[1]);}catch(e){}}
 checkUpdate();document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){checkDay();checkUpdate()}});
