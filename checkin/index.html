@@ -1103,6 +1103,20 @@ S.draft={items:[],happy:'',share:'',stuck:'',improve:'',score:0};setDate(TODAY);
 })();
 </script>
 
+<div id="diagbox" style="margin:16px auto 0;max-width:560px;background:var(--paper);border-radius:22px;padding:18px;display:grid;gap:8px;box-shadow:var(--shadow)">
+  <h2 style="margin:0;font-family:var(--display);font-weight:400;font-size:19px">所有打卡紀錄（資料檢查）</h2>
+  <div class="sub">每一筆存進資料庫的打卡，和最後儲存的時間</div>
+  <div id="diaglist" style="font-size:13px;display:grid;gap:4px;font-family:var(--mono)"></div>
+</div>
+<script>
+(async()=>{const db=await claude.use('db'),user=await claude.use('user');if(!db||!user)return;const me=await user.id();
+  document.getElementById('page-history').appendChild(document.getElementById('diagbox'));
+  db.collection('checkins').onSnapshot(s=>{const rows=s.docs.map(d=>d.data()).filter(c=>c&&c.date).sort((a,b)=>b.date.localeCompare(a.date));
+    document.getElementById('diaglist').innerHTML=rows.map(c=>{const it=(c.items||[]),dn=it.filter(i=>i.done).length,t=c.updatedAt?new Date(c.updatedAt):null;
+      return '<div>'+c.date+' · '+(c.uid===me?'我':'她')+' · 完成 '+dn+'/'+it.length+' · 存於 '+(t?(t.getMonth()+1)+'/'+t.getDate()+' '+String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0'):'?')+'</div>'}).join('')||'沒有任何紀錄'},
+    e=>{document.getElementById('diaglist').textContent='讀取失敗：'+(e.code||e.message)});
+})();
+</script>
 <div id="importbox" style="margin:16px auto 0;max-width:560px;background:var(--paper);border-radius:22px;padding:18px;display:grid;gap:10px;box-shadow:var(--shadow)">
   <h2 style="margin:0;font-family:var(--display);font-weight:400;font-size:19px">匯入舊打卡本的資料</h2>
   <div class="sub">把之前在 Claude 打卡本的紀錄、留言和照片搬過來。輸入 Claude 給你的匯入碼，只要做一次。</div>
@@ -1140,7 +1154,7 @@ S.draft={items:[],happy:'',share:'',stuck:'',improve:'',score:0};setDate(TODAY);
 document.getElementById('page-history').appendChild(document.getElementById('logoutbtn').parentNode);</script>
 <script>
 // Home-screen apps can keep showing a cached copy; check for a newer build whenever the app is opened.
-window.__BUILD='1793676307';
+window.__BUILD='1793676564';
 async function checkUpdate(){try{const t=await (await fetch('./?nocache='+Date.now(),{cache:'no-store'})).text();const m=t.match(/__BUILD='(\d+)'/);
   if(m&&m[1]!==window.__BUILD)location.replace('./?v='+m[1]);}catch(e){}}
 checkUpdate();document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){checkDay();checkUpdate()}});
