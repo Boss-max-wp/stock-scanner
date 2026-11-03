@@ -1140,9 +1140,13 @@ S.draft={items:[],happy:'',share:'',stuck:'',improve:'',score:0};setDate(TODAY);
 document.getElementById('page-history').appendChild(document.getElementById('logoutbtn').parentNode);</script>
 <script>
 // Home-screen apps can keep showing a cached copy; check for a newer build whenever the app is opened.
-window.__BUILD='1793676064';
+window.__BUILD='1793676307';
 async function checkUpdate(){try{const t=await (await fetch('./?nocache='+Date.now(),{cache:'no-store'})).text();const m=t.match(/__BUILD='(\d+)'/);
   if(m&&m[1]!==window.__BUILD)location.replace('./?v='+m[1]);}catch(e){}}
-checkUpdate();document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});
+checkUpdate();document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){checkDay();checkUpdate()}});
+// If the app stayed open past midnight, reload so check-ins are saved under the right date.
+const __p=n=>String(n).padStart(2,'0'),__d=()=>{const x=new Date();return x.getFullYear()+'-'+__p(x.getMonth()+1)+'-'+__p(x.getDate())},__day=__d();
+function checkDay(){if(__d()!==__day)location.reload()}
+setInterval(checkDay,60000);
 </script>
 </body></html>
