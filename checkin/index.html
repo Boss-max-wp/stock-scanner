@@ -1118,6 +1118,11 @@ S.draft={items:[],happy:'',share:'',stuck:'',improve:'',score:0};setDate(TODAY);
   function render(){$d('diaglist').innerHTML=rows.map(c=>{const mine=c.uid===me,id=c.date+'_'+c.uid;
     return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;border-radius:10px;background:var(--bg)"><span style="font-family:var(--mono);min-width:0">'+fmt(c)+'</span>'+
       (mine?(editing===id?'<span style="display:flex;gap:4px;align-items:center"><input type="date" id="mvdate" value="'+c.date+'" style="font:inherit;font-size:13px;padding:2px 4px;border-radius:8px;border:1px solid var(--line);background:var(--paper);color:var(--ink)"><button type="button" class="small" data-mvgo="'+id+'">搬過去</button></span>':'<button type="button" class="small" data-mv="'+id+'">改日期</button>'):'')+'</div>'}).join('')||'沒有任何紀錄'}
+  // One-time fix: the 11/2 check-in that was saved under 10/30 while the app sat open in the background.
+  try{const src=await db.doc('checkins/2026-10-30_'+me).get(),dst=await db.doc('checkins/2026-11-02_'+me).get();
+    const d=src.exists&&src.data();
+    if(d&&String(d.updatedAt||'').startsWith('2026-11-02')&&!dst.exists){await db.doc('checkins/2026-11-02_'+me).set({...d,date:'2026-11-02'});await db.doc('checkins/2026-10-30_'+me).delete();
+      $d('diagmsg').textContent='已經把存錯天的 11/2 打卡搬回 11/2 ✓'}}catch(e){}
   db.collection('checkins').onSnapshot(s=>{rows=s.docs.map(d=>d.data()).filter(c=>c&&c.date).sort((a,b)=>b.date.localeCompare(a.date)||String(a.uid).localeCompare(String(b.uid)));render()},
     e=>{$d('diaglist').textContent='讀取失敗：'+(e.code||e.message)});
   $d('diaglist').addEventListener('click',async e=>{const m=e.target.closest('[data-mv]'),g=e.target.closest('[data-mvgo]');
@@ -1172,7 +1177,7 @@ S.draft={items:[],happy:'',share:'',stuck:'',improve:'',score:0};setDate(TODAY);
 document.getElementById('page-history').appendChild(document.getElementById('logoutbtn').parentNode);</script>
 <script>
 // Home-screen apps can keep showing a cached copy; check for a newer build whenever the app is opened.
-window.__BUILD='1793676803';
+window.__BUILD='1793677057';
 async function checkUpdate(){try{const t=await (await fetch('./?nocache='+Date.now(),{cache:'no-store'})).text();const m=t.match(/__BUILD='(\d+)'/);
   if(m&&m[1]!==window.__BUILD)location.replace('./?v='+m[1]);}catch(e){}}
 checkUpdate();document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){checkDay();checkUpdate()}});
