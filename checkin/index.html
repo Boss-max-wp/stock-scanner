@@ -751,7 +751,7 @@ function addItem(label){
   label=label.trim().slice(0,12);if(!label)return;
   const list=myItems();
   if(list.some(i=>i.label===label)){$('itemmsg').textContent='已經有這個項目了';return}
-  if(list.length>=10){$('itemmsg').textContent='最多 10 個項目';return}
+  if(list.length>=30){$('itemmsg').textContent='最多 30 個項目';return}
   const it={k:'i'+Date.now().toString(36),label,type:S.addMode||'daily'};if(it.type==='weekly')it.times=+$('wtimes').value||1;
   saveItems([...list,it]);
 }
@@ -1140,7 +1140,7 @@ S.draft={items:[],happy:'',share:'',stuck:'',improve:'',score:0};setDate(TODAY);
 document.getElementById('page-history').appendChild(document.getElementById('logoutbtn').parentNode);</script>
 <script>
 // Home-screen apps can keep showing a cached copy; check for a newer build whenever the app is opened.
-window.__BUILD='1792746405';
+window.__BUILD='1793676064';
 async function checkUpdate(){try{const t=await (await fetch('./?nocache='+Date.now(),{cache:'no-store'})).text();const m=t.match(/__BUILD='(\d+)'/);
   if(m&&m[1]!==window.__BUILD)location.replace('./?v='+m[1]);}catch(e){}}
 checkUpdate();document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});
