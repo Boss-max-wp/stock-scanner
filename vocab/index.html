@@ -126,6 +126,11 @@ body{margin:0;-webkit-text-size-adjust:100%}
 .unititem span:first-child{min-width:0;overflow-wrap:anywhere}
 .unitwrap{display:flex;gap:6px;align-items:stretch}
 .unitwrap .unititem{flex:1;min-width:0}
+.labelrow{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.mv{width:36px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:8px;cursor:pointer;font-size:1rem;padding:0;flex:none}
+.mv:disabled{opacity:.3;cursor:default}
+.sorting .unititem{cursor:default}
+.sorthint{font-size:.8rem;color:var(--muted);margin:0}
 .heart{border:1px solid transparent;background:transparent;color:var(--muted);width:40px;min-height:36px;border-radius:8px;display:grid;place-items:center;cursor:pointer;padding:0;flex:none}
 .heart svg{width:20px;height:20px}
 .heart:hover{border-color:var(--line)}
@@ -194,7 +199,8 @@ select.n{flex:none;width:100%}
   <!-- 單元 -->
   <section id="p-units" class="grid">
     <aside class="panel">
-      <div class="label">我的單元</div>
+      <div class="labelrow"><div class="label">我的單元</div><button id="sortbtn" class="linkbtn" type="button" aria-pressed="false">調整排序</button></div>
+      <p id="sorthint" class="sorthint" hidden>按 ↑ ↓ 移動單元，調好後按「完成」。其他頁勾選單元時也會照這個順序。</p>
       <div id="unitlist" class="unitlist"></div>
       <button id="addunit" class="btn" type="button">＋ 新單元</button>
       <details id="backupbox">
@@ -390,7 +396,7 @@ select.n{flex:none;width:100%}
     <p id="st-sync" class="status" role="status"></p>
   </details>
 
-  <p class="hint" style="text-align:center"><span id="ver">版本 10/28-1</span> · <button id="checkupd" class="linkbtn" type="button" style="font-size:inherit">檢查更新</button></p>
+  <p class="hint" style="text-align:center"><span id="ver">版本 11/3-1</span> · <button id="checkupd" class="linkbtn" type="button" style="font-size:inherit">檢查更新</button></p>
 </div>
 
 <script>
@@ -471,8 +477,11 @@ let hearts=new Set(loadJSON("vc-hearts",[])), unitHearts=new Set(loadJSON("vc-un
 let heartOnly=load("vc-heartonly")==="1";
 function saveHearts(){store("vc-hearts",JSON.stringify([...hearts]));store("vc-unit-hearts",JSON.stringify([...unitHearts]))}
 const isHeart=w=>hearts.has(w.toLowerCase());
+let sorting=false;
 function drawUnitList(){
-  $("#unitlist").innerHTML=units.map(u=>{const on=unitHearts.has(u.id); const hc=parseEntries(u.words).filter(e=>isHeart(e.word)).length;
+  $("#unitlist").classList.toggle("sorting",sorting);
+  $("#unitlist").innerHTML=units.map((u,idx)=>{
+    if(sorting) return `<div class="unitwrap"><button type="button" class="btn unititem" tabindex="-1" aria-current="${u.id===cur}"><span>${esc(u.name||"未命名單元")}</span><span class="count">${parseEntries(u.words).length} 字</span></button><button type="button" class="mv" data-mv="-1" data-id="${u.id}" ${idx===0?"disabled":""} aria-label="往上移">↑</button><button type="button" class="mv" data-mv="1" data-id="${u.id}" ${idx===units.length-1?"disabled":""} aria-label="往下移">↓</button></div>`;const on=unitHearts.has(u.id); const hc=parseEntries(u.words).filter(e=>isHeart(e.word)).length;
     return `<div class="unitwrap"><button type="button" class="btn unititem" data-id="${u.id}" aria-current="${u.id===cur}"><span>${esc(u.name||"未命名單元")}</span><span class="count">${hc?`♥${hc} · `:""}${parseEntries(u.words).length} 字</span></button><button type="button" class="heart" data-uheart="${u.id}" aria-pressed="${on}" aria-label="${on?"取消單元記號":"幫這個單元做記號"}">${HEART}</button></div>`}).join("");
 }
 /* 畫面上目前顯示的單字（念單字、愛心都用這份） */
@@ -510,7 +519,20 @@ function drawUnit(){
   delBtn.hidden=units.length<2; delBtn.classList.remove("warn"); delBtn.textContent="刪除這個單元";
 }
 $("#heartfilter").onclick=()=>{heartOnly=!heartOnly;store("vc-heartonly",heartOnly?"1":"0");drawVocab()};
+$("#sortbtn").onclick=()=>{
+  sorting=!sorting;
+  $("#sortbtn").textContent=sorting?"完成":"調整排序"; $("#sortbtn").setAttribute("aria-pressed",sorting);
+  $("#sorthint").hidden=!sorting; $("#addunit").hidden=sorting;
+  drawUnitList();
+};
 $("#unitlist").onclick=e=>{
+  const m=e.target.closest("[data-mv]");
+  if(m){const i=units.findIndex(u=>u.id===m.dataset.id), j=i+Number(m.dataset.mv);
+    if(i<0||j<0||j>=units.length) return;
+    [units[i],units[j]]=[units[j],units[i]]; saveUnits(); drawUnitList();
+    const again=document.querySelector(`[data-mv="${m.dataset.mv}"][data-id="${m.dataset.id}"]`); (again&&!again.disabled?again:document.querySelector(`[data-mv][data-id="${m.dataset.id}"]:not(:disabled)`))?.focus({preventScroll:true});
+    return}
+  if(sorting) return;
   const h=e.target.closest("[data-uheart]");
   if(h){const id=h.dataset.uheart; unitHearts.has(id)?unitHearts.delete(id):unitHearts.add(id); saveHearts(); drawUnitList(); return}
   const b=e.target.closest(".unititem"); if(!b) return; cur=b.dataset.id; saveUnits(); $("#editbox").hidden=true; setSt("units",""); drawUnit()};
