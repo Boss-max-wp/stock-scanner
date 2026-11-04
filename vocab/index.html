@@ -647,7 +647,7 @@ $("#addunit").onclick=()=>{
 };
 delBtn.onclick=()=>{
   if(!delBtn.classList.contains("warn")){delBtn.classList.add("warn");delBtn.textContent=`確定刪除「${unit().name}」？再按一次`;return}
-  const gone=unit().name; units=units.filter(u=>u.id!==cur); cur=units[0].id; saveUnits(); drawUnit(); setSt("units",`「${gone}」已刪除。`);
+  const gone=unit().name; if(String(cur).startsWith("ai-")){const rm=new Set(loadJSON("vc-ai-removed",[]));rm.add(cur);store("vc-ai-removed",JSON.stringify([...rm]))} units=units.filter(u=>u.id!==cur); cur=units[0].id; saveUnits(); drawUnit(); setSt("units",`「${gone}」已刪除。`);
 };
 
 /* ---------- Gemini ---------- */
@@ -1518,6 +1518,26 @@ function show(p){
 document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>show(b.dataset.page));
 window.addEventListener("hashchange",()=>show(location.hash.slice(1)));
 document.addEventListener("keydown",e=>{if(page!=="units") runners[page].onKey(e)});
+
+/* ---------- AI 老師每天教的單字：自動加進單元 ---------- */
+// 來源是同資料夾的 ai-units.json（老師每天上課後更新）。自己刪掉的 AI 單元不會再自動加回來。
+(async()=>{
+  let inc; try{const r=await fetch("ai-units.json?v="+Date.now(),{cache:"no-store"}); if(!r.ok) return; inc=await r.json()}catch(e){return}
+  if(!Array.isArray(inc)) return;
+  const removed=new Set(loadJSON("vc-ai-removed",[]));
+  const merge=(a,b)=>{const out=String(a||"").split("\n"),keys=new Set(out.map(l=>l.trim().toLowerCase()).filter(Boolean));for(const l of String(b||"").split("\n")){const k=l.trim().toLowerCase();if(k&&!keys.has(k)){out.push(l);keys.add(k)}}return out.join("\n").replace(/^\n+|\n+$/g,"")};
+  let added=0, changed=false;
+  for(const u of inc){
+    if(!u||!u.id||!u.name||removed.has(u.id)) continue;
+    const same=units.find(x=>x.id===u.id);
+    if(same){const m=merge(same.words,u.words); if(m!==same.words){same.words=m;changed=true} continue}
+    units.push({id:u.id,name:u.name,words:u.words}); added++; changed=true;
+  }
+  if(!changed) return;
+  if(added&&units.length>added){const ex=units.filter(u=>u.name==="範例單元"); if(ex.length&&units.length>ex.length){units=units.filter(u=>u.name!=="範例單元"); if(!units.some(u=>u.id===cur)) cur=units[0].id}}
+  saveUnits();
+  if(page==="units"){drawUnit(); if(added) setSt("units",`AI 老師的單字已加進來：新增 ${added} 個單元。`)} else if(page!=="form") drawChecks(page);
+})();
 
 setMode(clozeMode);
 runners.cloze.start(shuffle(EXAMPLE),true);
