@@ -78,6 +78,8 @@ h1{font-size:24px;font-weight:900;margin:0;letter-spacing:.02em}
 .seg.small button[aria-pressed="true"] .ml{color:var(--accent)}
 .seg.small .mt{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
 .add{align-self:flex-start;margin-left:76px}
+.alt{font-size:13px;overflow-wrap:anywhere}
+.alt .k{display:inline-block;font-size:11px;font-weight:700;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:0 5px;margin-right:6px;vertical-align:1px}
 .stay{font-size:13px;color:var(--accent);font-weight:500}
 .tbtn{font:inherit;color:inherit;background:transparent;border:0;border-bottom:1px dashed var(--line);padding:0 0 1px;cursor:pointer;white-space:nowrap}
 .tbtn:empty{min-width:30px}
@@ -151,6 +153,7 @@ textarea{min-height:56px;resize:vertical}
     <label>大眾運輸大約幾分鐘<input id="f-tr" inputmode="numeric" placeholder="例如 25"><span class="hint">走路和開車的時間會自動算</span></label>
     <label>預計搭乘（班次或怎麼走）<input id="f-ride" placeholder="例如 JR 快速 Airport，約 40 分"></label>
     <label>備註<textarea id="f-note"></textarea></label>
+    <label>備案（客滿或排太久時的替代）<input id="f-alt"></label>
     <label>提醒（會用橘色顯示）<input id="f-warn"></label>
     <div class="row">
       <button type="button" class="btn danger" id="f-del">刪除這站</button>
@@ -182,7 +185,7 @@ textarea{min-height:56px;resize:vertical}
 <script>
 const KEY='hokkaido-trip-v2';
 const T='transit',W='walking',D='driving';
-const PLAN={rev:6,days:[
+const PLAN={rev:7,days:[
  {date:'12/3',week:'四',title:'抵達函館・煙火・夜景',city:'函館',stops:[
   {name:'函館機場',q:'函館空港',time:'16:30',note:'入境＋領行李大約 30–45 分。出關後在機場買點小東西墊胃，正餐要到 18:20 才吃。計程車招呼站在入境大廳出口外。'},
   {name:'Flex Stay Inn 函館站前',q:'フレックステイイン函館駅前',time:'17:35',mode:D,ride:'計程車約 18–20 分，車資大約 3,000 日圓上下',note:'只放行李、拿保暖衣物（帽子、手套），10 分鐘內出門。請櫃台幫忙叫車，或到函館站前的計程車排班處搭。'},
@@ -203,17 +206,17 @@ const PLAN={rev:6,days:[
   {name:'五島軒本店（晚餐）',q:'五島軒本店 レストラン雪河亭',time:'18:30',stay:60,mode:T,trmin:'20',ride:'市電 五稜郭公園前 → 十字街，約 15 分，再走約 5 分',note:'【必吃】函館咖哩：五島軒是 1879 年開業的老字號洋食店，明治風格的西式咖哩是函館名物。本店餐廳晚上大約 8 點左右最後點餐，出發前確認營業時間。'},
   {name:'Hasegawa Store 灣區店（宵夜）',q:'ハセガワストア ベイエリア店',time:'19:40',stay:15,mode:W,ride:'走路約 5 分',note:'【必吃】函館在地便利商店的「烤雞串便當（やきとり弁当）」：雖然叫烤雞串，其實是豬肉串，鋪在白飯上、刷醬汁，現點現烤。吃得下就買一個當宵夜。'},
   {name:'Flex Stay Inn 函館站前',q:'フレックステイイン函館駅前',time:'20:05',mode:T,trmin:'15',ride:'市電 十字街 → 函館駅前約 5 分；或走路約 20 分'}]},
- {date:'12/5',week:'六',title:'函館 → 札幌',city:'函館・札幌',stops:[
-  {name:'Flex Stay Inn 函館站前',q:'フレックステイイン函館駅前',time:'07:30',note:'退房'},
-  {name:'函館朝市 駅二市場',q:'函館朝市 駅二市場',time:'07:35',mode:W,ride:'走路約 5 分'},
-  {name:'函館車站',q:'函館駅',time:'08:30',mode:W,ride:'走路約 3 分'},
-  {name:'札幌車站',q:'札幌駅',time:'12:52',mode:T,ride:'特急北斗（函館約 9:00 發 → 札幌約 12:52 到，約 3 小時 50 分）。建議先買指定席；下雪天容易誤點，出發前看 JR 運行狀況',warn:'確切車次號碼請用「怎麼去」或 JR 時刻表再確認一次。'},
-  {name:'湯咖哩 GARAKU 札幌本店',q:'スープカレー GARAKU',time:'13:22',mode:T,ride:'地下鐵南北線 さっぽろ → 大通，1 站約 2 分，走約 5 分；拖行李可搭計程車約 10 分'},
-  {name:'札幌電視塔',q:'さっぽろテレビ塔',time:'14:29',mode:W,ride:'走路約 7 分'},
-  {name:'MYSTAYS 札幌中島公園酒店',q:'ホテルマイステイズ札幌中島公園',time:'15:46',mode:T,ride:'地下鐵南北線 大通 → 中島公園，3 站約 5 分'},
-  {name:'狸小路商店街',q:'狸小路商店街',time:'17:22',mode:T,ride:'地下鐵南北線 中島公園 → すすきの，1 站，走約 5 分；或走路約 20 分'},
-  {name:'北海道炸豬排 恭平',q:'とんかつ 恭平 札幌',time:'18:26',mode:W,ride:'走路約 4 分'},
-  {name:'大通公園',q:'大通公園',time:'19:41',mode:W,ride:'走路約 15 分，12 月晚上有白色燈樹節'}]},
+ {date:'12/5',week:'六',title:'函館 → 札幌・燈飾',city:'函館・札幌',stops:[
+  {name:'Flex Stay Inn 函館站前',q:'フレックステイイン函館駅前',time:'07:30',stay:0,note:'退房，帶著行李出門。'},
+  {name:'函館朝市 駅二市場（早餐）',q:'函館朝市 駅二市場',time:'07:35',stay:45,mode:W,ride:'走路約 5 分',note:'前一天吃過的話可以換一家。也可以在函館站買鐵路便當「いかめし」（花枝裡塞糯米，北海道最有名的鐵路便當之一）帶上車吃。',alt:'不想吃海鮮：函館站內的便當店、咖啡廳'},
+  {name:'函館車站',q:'函館駅',time:'08:30',stay:30,mode:W,ride:'走路約 3 分',note:'12/5 是星期六，特急北斗的指定席出發前先訂好。行李放車廂前後的行李區。'},
+  {name:'札幌車站',q:'札幌駅',time:'12:52',stay:20,mode:T,ride:'特急北斗（函館約 9:00 發 → 札幌約 12:52 到，約 3 小時 50 分）。下雪天容易誤點，出發前看 JR 運行狀況',warn:'確切車次號碼請用「怎麼去」或 JR 時刻表再確認一次。'},
+  {name:'湯咖哩 GARAKU（午餐）',q:'スープカレー GARAKU',time:'13:22',stay:60,mode:T,ride:'地下鐵南北線 さっぽろ → 大通，1 站約 2 分，走約 5 分；拖行李可搭計程車約 10 分',note:'【必吃】札幌湯咖哩：清爽的咖哩湯配大塊蔬菜和雞腿，可以選辣度。GARAKU 是人氣名店，常要排隊，入口在地下室。',alt:'排太久就換附近的另一家人氣湯咖哩「Suage+（スアゲプラス）」，走路約 10 分'},
+  {name:'MYSTAYS 札幌中島公園酒店',q:'ホテルマイステイズ札幌中島公園',time:'14:40',stay:20,mode:T,trmin:'12',ride:'地下鐵南北線 大通 → 中島公園，3 站約 5 分；拖行李可搭計程車約 10 分',note:'飯店還沒定，先用這間。先放行李，還沒到入住時間也可以請櫃台寄放。'},
+  {name:'狸小路商店街',q:'狸小路商店街',time:'15:15',stay:50,mode:T,ride:'地下鐵南北線 中島公園 → すすきの，1 站，走約 5 分；或走路約 20 分',note:'有屋頂的商店街，藥妝、唐吉訶德、伴手禮、扭蛋都在這裡，下雪也不怕。'},
+  {name:'札幌電視塔（看夜景）',q:'さっぽろテレビ塔',time:'16:20',stay:45,mode:W,ride:'走路約 10 分',note:'16:00 左右天黑，這時上展望台剛好看到下面大通公園的燈飾亮起來。門票大約 1,000 日圓。'},
+  {name:'大通公園（白色燈樹節＋聖誕市集）',q:'大通公園',time:'17:15',stay:55,mode:W,ride:'電視塔就在大通公園東邊，走下來就到',note:'白色燈樹節：整條大通公園都是燈飾。2 丁目有「慕尼黑聖誕市集」，可以喝熱紅酒、吃德國香腸、買聖誕裝飾（往年開到 12/25）。'},
+  {name:'成吉思汗烤肉 だるま 本店（晚餐）',q:'ジンギスカン だるま 本店',time:'18:25',stay:75,mode:W,ride:'走路約 15 分；或地下鐵南北線 大通 → すすきの 1 站',note:'【必吃】成吉思汗烤羊肉：在中間凸起的鐵鍋上烤羊肉，旁邊烤洋蔥。だるま是薄野最有名的老店，店小、不能訂位，晚餐時間常排很久。衣服會有烤肉味，外套可以請店家給袋子裝。',alt:'排太久就去原本排的「北海道炸豬排 恭平」，在狸小路附近；或去だるま的其他分店（4・4 店、6・4 店都在附近）'}]},
  {date:'12/6',week:'日',title:'登別・地球岬',city:'札幌出發',stops:[
   {name:'MYSTAYS 札幌中島公園酒店',q:'ホテルマイステイズ札幌中島公園',time:'08:00'},
   {name:'Arinko JR Tower Apia 店',q:'アリンコ アピア店',time:'08:41',mode:T,ride:'地下鐵南北線 中島公園 → さっぽろ，4 站約 7 分'},
@@ -241,7 +244,7 @@ const PLAN={rev:6,days:[
 let data,cur=0,editing=null,allMode='plan';
 const clone=o=>JSON.parse(JSON.stringify(o));
 // 停留時間（從原本 App 抄的）
-const STAY={"12/3": [40, 10, 15, 10, 50, 45, null], "12/4": [], "12/5": [0, 45, 30, 20, 60, 60, 60, 60, 60, 60], "12/6": [20, 15, 60, 60, 60, 60], "12/7": [], "12/8": [60, null]};
+const STAY={"12/3": [40, 10, 15, 10, 50, 45, null], "12/4": [], "12/5": [], "12/6": [20, 15, 60, 60, 60, 60], "12/7": [], "12/8": [60, null]};
 PLAN.days.forEach(d=>{const a=STAY[d.date]||[];d.stops.forEach((s,i)=>{if(a[i]!=null)s.stay=a[i]})});
 try{const s=localStorage.getItem(KEY);data=s?JSON.parse(s):clone(PLAN)}catch(e){data=clone(PLAN)}
 // 一次性更新：套用新的 12/3 行程（保留其他天的修改）
@@ -252,6 +255,8 @@ if(data.rev<5){const k=data.days.findIndex(d=>d.date==='12/3');const nd=clone(PL
   data.rev=5;try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){}}
 if(data.rev<6&&data.rev>=5){['12/4','12/7'].forEach(dt=>{const k=data.days.findIndex(d=>d.date===dt),pd=PLAN.days.find(d=>d.date===dt);if(k>=0&&pd)data.days[k]=clone(pd)});
   data.rev=6;try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){}}
+if(data.rev<7){const k=data.days.findIndex(d=>d.date==='12/5'),pd=PLAN.days.find(d=>d.date==='12/5');if(k>=0&&pd)data.days[k]=clone(pd);
+  data.rev=7;try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){}}
 if(data.rev<3){data.days.forEach(d=>{const pd=PLAN.days.find(x=>x.date===d.date);if(!pd)return;
   d.stops.forEach(s=>{if(s.stay!=null)return;const ps=pd.stops.find(x=>x.q===s.q&&x.name===s.name);if(ps&&ps.stay!=null)s.stay=ps.stay})});
   data.rev=3;try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){}}
@@ -267,6 +272,7 @@ const legMode=s=>allMode!=='plan'?allMode:(s.pick||s.mode||T);
 /* ---- 每段路的時間 ---- */
 // 各地點座標（大約位置）
 const COORD={
+ 'ジンギスカン だるま 本店':[43.0533,141.3555],
  'ハセガワストア ベイエリア店':[41.7682,140.7193],'五島軒本店 レストラン雪河亭':[41.7643,140.7138],'手稲駅':[43.1225,141.2455],'若鶏時代なると 本店':[43.1972,140.9962],'堺町通り 小樽':[43.1928,141.0058],'パフェ、珈琲、酒、佐藤':[43.0560,141.3522],'すすきの駅':[43.0554,141.3530],
  '函館空港':[41.7700,140.8219],'フレックステイイン函館駅前':[41.7726,140.7290],'金森赤レンガ倉庫':[41.7669,140.7176],
  'スナッフルス 金森洋物館店':[41.7672,140.7181],'ラッキーピエロ ベイエリア本店':[41.7662,140.7158],'函館山ロープウェイ 山麓駅':[41.7605,140.7135],
@@ -286,7 +292,7 @@ const TR={
  '函館山ロープウェイ 山麓駅>フレックステイイン函館駅前':20,'スナッフルス 金森洋物館店>函館山ロープウェイ 山麓駅':15,'函館山ロープウェイ 山麓駅>ラッキーピエロ ベイエリア本店':15,'ラッキーピエロ ベイエリア本店>フレックステイイン函館駅前':15,'フレックステイイン函館駅前>函館朝市 駅二市場':null,
  '函館朝市 駅二市場>大沼公園駅':35,'大沼公園駅>沼の家 大沼':null,'函館市熱帯植物園>六花亭 函館漁火通店':15,'六花亭 函館漁火通店>五稜郭公園':25,'すすきの駅>にぎりめし 札幌':null,'白い恋人パーク>手稲駅':30,'沼の家 大沼>滋養軒 函館':40,'滋養軒 函館>函館市熱帯植物園':40,
  '函館市熱帯植物園>六花亭 函館漁火通店':15,'六花亭 函館漁火通店>五稜郭公園':30,'五稜郭公園>五島軒 函館カレーEXPRESS 五稜郭タワー店':null,
- '五島軒 函館カレーEXPRESS 五稜郭タワー店>フレックステイイン函館駅前':25,'函館朝市 駅二市場>函館駅':null,'函館駅>札幌駅':230,
+ '五島軒 函館カレーEXPRESS 五稜郭タワー店>フレックステイイン函館駅前':25,'函館朝市 駅二市場>函館駅':null,'狸小路商店街>さっぽろテレビ塔':null,'さっぽろテレビ塔>大通公園':null,'大通公園>ジンギスカン だるま 本店':8,'函館駅>札幌駅':230,
  '札幌駅>スープカレー GARAKU':15,'スープカレー GARAKU>さっぽろテレビ塔':null,'さっぽろテレビ塔>ホテルマイステイズ札幌中島公園':12,
  'ホテルマイステイズ札幌中島公園>狸小路商店街':12,'狸小路商店街>とんかつ 恭平 札幌':null,'とんかつ 恭平 札幌>大通公園':10,
  'ホテルマイステイズ札幌中島公園>アリンコ アピア店':12,'アリンコ アピア店>登別地獄谷':105,'登別地獄谷>のぼりべつクマ牧場':20,'地球岬展望台>のぼりべつクマ牧場':90,
@@ -376,6 +382,7 @@ function render(){
       <div class="body"><div class="name"><span>${esc(s.name)}</span><span class="mv"><button class="btn ghost" data-up="${i}" aria-label="往上" ${i===0?'disabled':''}>↑</button><button class="btn ghost" data-down="${i}" aria-label="往下" ${i===d.stops.length-1?'disabled':''}>↓</button><button class="btn ghost" data-edit="${i}">編輯</button></span></div>
       ${s.stay!=null&&s.stay!==''?`<div class="stay">停留 ${+s.stay?fmt(+s.stay):'不停留'}${tm(s.time)!=null&&+s.stay?` · ${hm(tm(s.time)+ +s.stay)} 離開`:''}</div>`:''}
       ${s.note?`<div class="note">${esc(s.note)}</div>`:''}
+      ${s.alt?`<div class="alt"><span class="k">備案</span>${esc(s.alt)}</div>`:''}
       ${s.warn?`<div class="warn">${esc(s.warn)}</div>`:''}
       <div class="row"><a class="btn" target="_blank" rel="noopener" href="${place(q)}">地圖</a>
       <a class="btn" target="_blank" rel="noopener" href="${dir('',q,i>0?m:T)}">從我這裡出發</a></div></div></div>`;
@@ -413,7 +420,7 @@ function open(i){
   const s=i>=0?data.days[cur].stops[i]:{};
   $('ftitle').textContent=i>=0?'編輯景點':'新增一站';
   $('f-name').value=s.name||'';$('f-q').value=s.q||'';$('f-time').value=s.time||'';
-  $('f-mode').value=s.pick||s.mode||T;$('f-ride').value=s.ride||'';$('f-tr').value=s.trmin||'';$('f-stay').value=s.stay??'';$('f-note').value=s.note||'';$('f-warn').value=s.warn||'';
+  $('f-mode').value=s.pick||s.mode||T;$('f-ride').value=s.ride||'';$('f-tr').value=s.trmin||'';$('f-stay').value=s.stay??'';$('f-note').value=s.note||'';$('f-warn').value=s.warn||'';$('f-alt').value=s.alt||'';
   $('f-day').innerHTML=data.days.map((d,k)=>`<option value="${k}">${esc(d.date)} ${esc(d.title||'')}</option>`).join('');
   $('f-day').value=cur;fillPos(cur,i);
   $('f-del').hidden=i<0;$('scrim').hidden=false;
@@ -429,7 +436,7 @@ $('f-cancel').onclick=close;
 $('scrim').addEventListener('click',e=>{if(e.target.id==='scrim')close()});
 $('form').addEventListener('submit',e=>{
   e.preventDefault();
-  const s={name:$('f-name').value.trim(),q:$('f-q').value.trim(),time:$('f-time').value.trim(),mode:$('f-mode').value,ride:$('f-ride').value.trim(),trmin:$('f-tr').value.replace(/\D/g,''),stay:$('f-stay').value.replace(/\D/g,''),note:$('f-note').value.trim(),warn:$('f-warn').value.trim()};
+  const s={name:$('f-name').value.trim(),q:$('f-q').value.trim(),time:$('f-time').value.trim(),mode:$('f-mode').value,ride:$('f-ride').value.trim(),trmin:$('f-tr').value.replace(/\D/g,''),stay:$('f-stay').value.replace(/\D/g,''),note:$('f-note').value.trim(),warn:$('f-warn').value.trim(),alt:$('f-alt').value.trim()};
   if(!s.name)return;
   if(editing>=0){const o=data.days[cur].stops[editing];if(o.pick)s.pick=o.pick;if(s.mode!==(o.pick||o.mode))delete s.pick;data.days[cur].stops.splice(editing,1)}
   const dk=+$('f-day').value,pos=+$('f-pos').value;
