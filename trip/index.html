@@ -182,15 +182,15 @@ textarea{min-height:56px;resize:vertical}
 <script>
 const KEY='hokkaido-trip-v2';
 const T='transit',W='walking',D='driving';
-const PLAN={rev:4,days:[
- {date:'12/3',week:'四',title:'抵達函館・夜景',city:'函館',stops:[
-  {name:'函館機場',q:'函館空港',time:'16:30'},
-  {name:'Flex Stay Inn 函館站前',q:'フレックステイイン函館駅前',time:'17:28',note:'放行李',mode:D,ride:'計程車約 18 分；省錢可搭函館機場巴士往「函館駅前」約 20 分'},
-  {name:'金森紅磚倉庫',q:'金森赤レンガ倉庫',time:'17:58',note:'聖誕夢幻節 12/1–12/25，每天 18:00 點燈＋放煙火',mode:W,ride:'走路約 15 分；或市電 函館駅前 → 十字街，下車走約 5 分'},
-  {name:'函館洋菓子 Snaffles 金森洋物館',q:'スナッフルス 金森洋物館店',time:'18:59',mode:W,ride:'在倉庫群裡，走路 1 分',warn:'這家大約 19:00 關門，18:59 到很可能買不到。'},
-  {name:'幸運小丑漢堡 灣區本店',q:'ラッキーピエロ ベイエリア本店',time:'19:03',mode:W,ride:'走路約 4 分'},
-  {name:'函館山纜車 山頂展望台',q:'函館山ロープウェイ 山麓駅',time:'20:26',mode:T,ride:'公車約 23 分；或走到纜車山麓站約 15 分（上坡）＋ 纜車約 3 分上山',warn:'冬季纜車大約 21:00 收，最後上山約 20:30–20:50。20:26 到、停留 1.5 小時會來不及。'},
-  {name:'Flex Stay Inn 函館站前',q:'フレックステイイン函館駅前',time:'22:25',mode:T,ride:'纜車下山 → 走到「十字街」→ 市電往函館駅前約 5 分；或計程車約 10 分'}]},
+const PLAN={rev:5,days:[
+ {date:'12/3',week:'四',title:'抵達函館・煙火・夜景',city:'函館',stops:[
+  {name:'函館機場',q:'函館空港',time:'16:30',note:'入境＋領行李大約 30–45 分。出關後在機場買點小東西墊胃，正餐要到 18:20 才吃。計程車招呼站在入境大廳出口外。'},
+  {name:'Flex Stay Inn 函館站前',q:'フレックステイイン函館駅前',time:'17:35',mode:D,ride:'計程車約 18–20 分，車資大約 3,000 日圓上下',note:'只放行李、拿保暖衣物（帽子、手套），10 分鐘內出門。請櫃台幫忙叫車，或到函館站前的計程車排班處搭。'},
+  {name:'金森紅磚倉庫',q:'金森赤レンガ倉庫',time:'17:55',mode:D,ride:'計程車約 5 分，大約 1,000 日圓上下（走路要 15–20 分，會趕不上煙火）',note:'函館聖誕夢幻節（12/1–12/25）：18:00 聖誕樹點燈＋海上放煙火，煙火只有幾分鐘，提早站好位置。之後 18:30、19:30、20:30 整棵樹會變紅，每次 15 分鐘。'},
+  {name:'函館洋菓子 Snaffles 金森洋物館',q:'スナッフルス 金森洋物館店',time:'18:10',mode:W,ride:'在倉庫群裡，走路 1 分',note:'招牌是起司蛋糕「チーズオムレット」。大約 19:00 關門，煙火一結束就先來買。蛋糕要冷藏，回飯店放冰箱。'},
+  {name:'幸運小丑漢堡 灣區本店',q:'ラッキーピエロ ベイエリア本店',time:'18:20',mode:W,ride:'走路約 4 分',note:'晚餐。招牌是「中華雞肉漢堡」（チャイニーズチキンバーガー）。煙火後人會很多，可以一個人先來排隊、另一個人去買蛋糕。'},
+  {name:'函館山纜車 山頂展望台',q:'函館山ロープウェイ 山麓駅',time:'19:30',mode:W,ride:'走到纜車山麓站約 15 分，一路上坡，下雪要穿防滑的鞋；累了可搭計程車約 5 分',note:'纜車來回大約 2,000 日圓，約 10 分鐘一班、坐 3 分鐘上山。山頂風很大很冷，穿最厚的外套。冬季最後上山約 20:30 左右；風大會停駛，出門前看官網。下山時可能要排隊 20–30 分。'},
+  {name:'Flex Stay Inn 函館站前',q:'フレックステイイン函館駅前',time:'20:45',mode:T,ride:'下山後走到「十字街」站搭市電往函館駅前，約 5–10 分；或計程車約 10 分、1,000 日圓上下',note:'隔天 07:30 要去朝市，早點休息。'}]},
  {date:'12/4',week:'五',title:'大沼・湯之川・五稜郭',city:'函館',stops:[
   {name:'Flex Stay Inn 函館站前',q:'フレックステイイン函館駅前',time:'08:00'},
   {name:'函館朝市 駅二市場',q:'函館朝市 駅二市場',time:'08:35',mode:W,ride:'走路約 5 分'},
@@ -236,13 +236,15 @@ const PLAN={rev:4,days:[
 let data,cur=0,editing=null,allMode='plan';
 const clone=o=>JSON.parse(JSON.stringify(o));
 // 停留時間（從原本 App 抄的）
-const STAY={"12/3": [40, 30, 60, 0, 60, 90, 60], "12/4": [30, 90, 150, 0, 60, 60, 90, 60, 60, 60], "12/5": [0, 45, 30, 20, 60, 60, 60, 60, 60, 60], "12/6": [20, 15, 60, 60, 60, 60], "12/7": [0, 25, 60, 80, 60, 60, 60], "12/8": [60, null]};
+const STAY={"12/3": [40, 10, 15, 10, 50, 45, null], "12/4": [30, 90, 150, 0, 60, 60, 90, 60, 60, 60], "12/5": [0, 45, 30, 20, 60, 60, 60, 60, 60, 60], "12/6": [20, 15, 60, 60, 60, 60], "12/7": [0, 25, 60, 80, 60, 60, 60], "12/8": [60, null]};
 PLAN.days.forEach(d=>{const a=STAY[d.date]||[];d.stops.forEach((s,i)=>{if(a[i]!=null)s.stay=a[i]})});
 try{const s=localStorage.getItem(KEY);data=s?JSON.parse(s):clone(PLAN)}catch(e){data=clone(PLAN)}
 // 一次性更新：套用新的 12/3 行程（保留其他天的修改）
 if((data.rev||1)<2){const k=data.days.findIndex(d=>d.date==='12/3');const nd=clone(PLAN.days[0]);
   if(k>=0)data.days[k]=nd;else data.days.unshift(nd);data.rev=2;}
 if((data.rev||1)<4){data=clone(PLAN);try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){}}
+if(data.rev<5){const k=data.days.findIndex(d=>d.date==='12/3');const nd=clone(PLAN.days[0]);if(k>=0)data.days[k]=nd;else data.days.unshift(nd);
+  data.rev=5;try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){}}
 if(data.rev<3){data.days.forEach(d=>{const pd=PLAN.days.find(x=>x.date===d.date);if(!pd)return;
   d.stops.forEach(s=>{if(s.stay!=null)return;const ps=pd.stops.find(x=>x.q===s.q&&x.name===s.name);if(ps&&ps.stay!=null)s.stay=ps.stay})});
   data.rev=3;try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){}}
