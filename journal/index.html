@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="模擬倉日誌">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#2f5d8a">
+<title>模擬倉交易日誌</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%232f5d8a'/><path d='M12 44l12-12 9 8 18-20' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.json">
+<style>
+:root{
+  --bg:#eef1f4; --surface:#fff; --fg:#17202b; --muted:#5d6876; --line:#d5dbe2;
+  --accent:#2f5d8a; --accent-ink:#fff;
+  --gain:#c8322b; --loss:#16865a; --warn:#b26a00; --warn-bg:#fff4e0;
+  --sans:"PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#10161d; --surface:#18212b; --fg:#e4e9ef; --muted:#93a0ae; --line:#2b3644;
+  --accent:#7fb0e0; --accent-ink:#0d1520; --gain:#ff6b5e; --loss:#3fcf8e; --warn:#ffb648; --warn-bg:#2e2310; color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.55;-webkit-text-size-adjust:100%}
+[hidden]{display:none!important}
+.wrap{max-width:640px;margin:0 auto;padding:calc(64px + env(safe-area-inset-top,0px)) 16px calc(40px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:22px}
+h1{font-size:1.35rem;margin:0}
+h2{font-size:1rem;margin:0 0 10px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+h2 small{font-weight:400;color:var(--muted);font-size:.8rem}
+.sub{color:var(--muted);font-size:.85rem;margin:2px 0 0}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.gain{color:var(--gain)} .loss{color:var(--loss)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px}
+.rules{display:flex;flex-wrap:wrap;gap:6px}
+.rules span{font-size:.78rem;border:1px solid var(--line);border-radius:99px;padding:2px 10px;color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 10px}
+.stat .k{font-size:.72rem;color:var(--muted)}
+.stat .v{font-family:var(--mono);font-size:1.05rem;font-weight:600}
+.big{grid-column:1/-1;display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:10px}
+.big .v{font-size:1.7rem}
+.bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--accent)}
+.alert{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:10px 12px;font-size:.88rem;font-weight:500}
+form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+label{display:flex;flex-direction:column;gap:3px;font-size:.78rem;color:var(--muted);min-width:0}
+.full{grid-column:1/-1}
+input,select,textarea{font:inherit;font-size:16px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:8px 10px;width:100%;min-width:0}
+textarea{min-height:60px;resize:vertical}
+button{font:inherit;font-size:.9rem;border-radius:7px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:8px 12px;cursor:pointer}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+button.on-long{background:var(--gain);border-color:var(--gain);color:#fff}
+button.on-short{background:var(--loss);border-color:var(--loss);color:#fff}
+button.small{padding:4px 10px;font-size:.8rem}
+button:disabled{opacity:.5}
+.seg{display:flex;gap:6px}.seg button{flex:1}
+.riskline{font-size:.82rem;color:var(--muted);margin:0}
+.riskline.bad{color:var(--warn);font-weight:600}
+.list{display:flex;flex-direction:column;gap:10px}
+.trade{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px}
+.trade .top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.tag{font-size:.72rem;border-radius:4px;padding:1px 7px;font-weight:600}
+.tag.long{color:var(--gain);border:1px solid var(--gain)}
+.tag.short{color:var(--loss);border:1px solid var(--loss)}
+.tag.broke{color:var(--warn);border:1px solid var(--warn)}
+.tag.m{color:var(--muted);border:1px solid var(--line);font-weight:500}
+.meta{font-size:.8rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 12px}
+.reason{font-size:.85rem;overflow-wrap:anywhere}
+.closebox{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;border-top:1px dashed var(--line);padding-top:8px}
+.actions{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+.empty{color:var(--muted);font-size:.88rem;text-align:center;padding:18px 8px;border:1px dashed var(--line);border-radius:10px}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.82rem}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:500}
+.status{font-size:.8rem;color:var(--muted);text-align:center;min-height:1.2em;margin:0}
+.setup{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}
+.pane{display:flex;flex-direction:column;gap:22px}
+.tabs{position:fixed;left:0;right:0;top:0;z-index:10;display:flex;background:var(--surface);border-bottom:1px solid var(--line);padding:env(safe-area-inset-top,0px) 8px 0}
+.tabs button{flex:1;border:0;border-bottom:3px solid transparent;border-radius:0;background:none;color:var(--muted);padding:14px 2px 12px;font-size:.85rem;font-weight:500;min-width:0}
+.tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent);font-weight:700}
+.tabs .cnt{font-family:var(--mono);font-size:.75rem}
+.levpick{display:flex;gap:8px;align-items:center}
+.levpick #fLev{width:4.5em;flex:none;text-align:center}
+.levpick .step{flex:none;width:2.4em;padding:6px 0;font-size:1.1rem}
+#fLevRange{flex:1;min-width:0;padding:0;border:0;background:none;accent-color:var(--accent);height:32px}
+.levinfo{margin:0;font-size:.8rem;color:var(--muted)}
+details summary{cursor:pointer;font-size:.85rem;color:var(--accent)}
+.hint{font-size:.8rem;color:var(--muted);margin:8px 0 0}
+@media (max-width:420px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>模擬倉交易日誌</h1>
+    <p class="sub">30 天模擬挑戰・紅色是賺、綠色是賠・資料只存在這台裝置</p>
+  </header>
+
+  <div class="alert" id="stopAlert" hidden></div>
+  <div class="alert" id="streakAlert" hidden></div>
+
+  <div class="pane" id="pane-home">
+    <div class="rules" id="rules"></div>
+
+    <section class="panel">
+      <div class="stats">
+        <div class="stat big">
+          <div><div class="k">帳戶餘額 (USDT)</div><div class="v num" id="sBal">—</div></div>
+          <div style="text-align:right"><div class="k">總損益</div><div class="v num" id="sPnl" style="font-size:1.15rem">—</div></div>
+        </div>
+        <div class="stat"><div class="k">已平倉筆數</div><div class="v" id="sN">0</div></div>
+        <div class="stat"><div class="k">勝率</div><div class="v" id="sWin">—</div></div>
+        <div class="stat"><div class="k">照規則執行</div><div class="v" id="sFollow">—</div></div>
+        <div class="stat"><div class="k">平均賺</div><div class="v gain" id="sAvgW">—</div></div>
+        <div class="stat"><div class="k">平均賠</div><div class="v loss" id="sAvgL">—</div></div>
+        <div class="stat"><div class="k">最大回撤</div><div class="v" id="sDD">—</div></div>
+      </div>
+      <div style="margin-top:12px">
+        <div class="sub" id="dayLabel">第 0 / 30 天</div>
+        <div class="bar"><i id="dayBar" style="width:0%"></i></div>
+      </div>
+      <details style="margin-top:12px">
+        <summary>設定起始資金與規則</summary>
+        <div class="setup">
+          <label>起始資金 USDT<input id="cfgCap" type="number" inputmode="decimal" min="1"></label>
+          <label>開始日期<input id="cfgStart" type="date"></label>
+          <label>每筆最多虧 %<input id="cfgRisk" type="number" inputmode="decimal" min="0.1" step="any"></label>
+          <label>月虧損上限 %<input id="cfgStop" type="number" inputmode="decimal" min="1" step="any"></label>
+          <label>單日連虧幾筆停手<input id="cfgStreak" type="number" inputmode="numeric" min="1"></label>
+        </div>
+        <div class="actions" style="margin-top:10px"><button class="small primary" id="saveCfg" type="button">儲存設定</button></div>
+      </details>
+    </section>
+
+    <section>
+      <h2>記一筆新交易 <small>進場前填好</small></h2>
+      <form id="tradeForm" class="panel">
+        <label>日期<input id="fDate" type="date" required></label>
+        <label>幣種<input id="fCoin" type="text" placeholder="例如 ETH、BTC" required autocomplete="off"></label>
+        <div class="full seg">
+          <button type="button" id="bLong" class="on-long">做多</button>
+          <button type="button" id="bShort">放空</button>
+        </div>
+        <label>週期<select id="fTf"><option>15m</option><option selected>1h</option><option>4h</option><option>其他</option></select></label>
+        <label>進場方式<select id="fMethod">
+          <option value="touch">碰線＋反轉K</option>
+          <option value="reclaim">刺破又站回</option>
+          <option value="break">突破追進</option>
+          <option value="other">其他</option>
+        </select></label>
+        <label>進場價<input id="fEntry" type="number" inputmode="decimal" step="any" required></label>
+        <label>保證金 USDT<input id="fMargin" type="number" inputmode="decimal" step="any" required></label>
+        <div class="full" style="display:flex;flex-direction:column;gap:6px">
+          <label for="fLev">槓桿倍數</label>
+          <div class="levpick">
+            <input id="fLev" type="number" inputmode="decimal" min="1" max="200" step="any" value="1">
+            <button type="button" class="small step" id="levMinus">−</button>
+            <input id="fLevRange" type="range" min="1" max="200" step="1" value="1">
+            <button type="button" class="small step" id="levPlus">+</button>
+          </div>
+          <p class="levinfo num" id="levInfo">倉位價值 —・預估爆倉價 —</p>
+        </div>
+        <label>停損價<input id="fStop" type="number" inputmode="decimal" step="any" required></label>
+        <label>目標價（可空白）<input id="fTarget" type="number" inputmode="decimal" step="any"></label>
+        <label class="full">當下情緒 (1 冷靜 – 5 激動)<select id="fMood"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select></label>
+        <label class="full">進場理由<textarea id="fReason" placeholder="為什麼現在進場？線畫在哪？看到什麼 K 棒？" required></textarea></label>
+        <p class="full riskline" id="riskLine"></p>
+        <div class="full actions"><button class="primary" type="submit">記錄進場</button></div>
+      </form>
+    </section>
+
+    <section>
+      <h2>備份 <small>換手機或清除 Safari 前一定要備份</small></h2>
+      <div class="panel">
+        <div class="actions" style="justify-content:flex-start">
+          <button class="small primary" id="exportBtn" type="button">匯出備份檔</button>
+          <button class="small" id="importBtn" type="button">匯入備份檔</button>
+          <input id="importFile" type="file" accept=".json,application/json" hidden>
+        </div>
+        <p class="hint" id="backupHint">還沒備份過。</p>
+      </div>
+    </section>
+  </div>
+
+  <div class="pane" id="pane-open" hidden><h2>持倉中</h2><div class="list" id="openList"></div></div>
+  <div class="pane" id="pane-weekly" hidden>
+    <h2>每週檢討</h2><div class="panel tablewrap" id="weekly"></div>
+    <h2>進場方式比較 <small>一個月後看哪種比較好</small></h2><div class="panel tablewrap" id="byMethod"></div>
+    <h2>週期比較</h2><div class="panel tablewrap" id="byTf"></div>
+  </div>
+  <div class="pane" id="pane-closed" hidden><h2>已平倉紀錄</h2><div class="list" id="closedList"></div></div>
+
+  <nav class="tabs">
+    <button type="button" data-tab="home" aria-selected="true">總覽・下單</button>
+    <button type="button" data-tab="open" aria-selected="false">持倉 <span class="cnt" id="openCount"></span></button>
+    <button type="button" data-tab="weekly" aria-selected="false">週檢討</button>
+    <button type="button" data-tab="closed" aria-selected="false">已平倉 <span class="cnt" id="closedCount"></span></button>
+  </nav>
+
+  <p class="status" id="status"></p>
+</div>
+
+<script>
+(function(){
+  const KEY = "simJournal.v1";
+  const METHODS = {touch:"碰線＋反轉K", reclaim:"刺破又站回", break:"突破追進", other:"其他"};
+  const DEF = {startCapital:1000, startDate:"", riskPct:2, stopPct:10, streak:3, lastBackup:0};
+  const $ = id => document.getElementById(id);
+
+  // ---------- storage ----------
+  let state = {cfg:{...DEF}, trades:[]};
+  let storageOK = true;
+  try{
+    const raw = localStorage.getItem(KEY);
+    if(raw){ const s = JSON.parse(raw); state = {cfg:{...DEF, ...(s.cfg||{})}, trades:Array.isArray(s.trades)?s.trades:[]}; }
+  }catch(_){ storageOK = false; }
+  function save(){
+    try{ localStorage.setItem(KEY, JSON.stringify(state)); return true; }
+    catch(_){ storageOK = false; setStatus("這個瀏覽器無法存資料（可能是無痕模式）。"); return false; }
+  }
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+  // ask browser not to auto-clear storage
+  try{ navigator.storage && navigator.storage.persist && navigator.storage.persist(); }catch(_){}
+
+  // ---------- helpers ----------
+  const today = () => { const d = new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
+  const fmt = (n,d=2) => (n==null||isNaN(n)) ? "—" : Number(n).toLocaleString("zh-TW",{minimumFractionDigits:d,maximumFractionDigits:d});
+  const px = n => fmt(n,8).replace(/\.?0+$/,"");
+  const signed = n => (n>0?"+":"") + fmt(n);
+  const cls = n => n>0?"gain":n<0?"loss":"";
+  const esc = s => String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const pnlOf = (t,exit) => { const q=(t.margin*t.lev)/t.entry; return (t.side==="long"?exit-t.entry:t.entry-exit)*q; };
+  const riskOf = t => (t.margin*t.lev)/t.entry*Math.abs(t.entry-t.stop);
+  const wrongSide = t => t.side==="long" ? t.stop>=t.entry : t.stop<=t.entry;
+  const closedT = () => state.trades.filter(t=>t.status==="closed");
+  const balance = () => state.cfg.startCapital + closedT().reduce((a,t)=>a+t.pnl,0);
+  function setStatus(s){ $("status").textContent = s; if(s) setTimeout(()=>{ if($("status").textContent===s) $("status").textContent=""; },4000); }
+
+  // ---------- form ----------
+  let side = "long";
+  $("fDate").value = today();
+  function setSide(s){ side=s; $("bLong").className=s==="long"?"on-long":""; $("bShort").className=s==="short"?"on-short":""; updateRisk(); }
+  $("bLong").onclick=()=>setSide("long"); $("bShort").onclick=()=>setSide("short");
+
+  function updateRisk(){
+    const t = {side, entry:+$("fEntry").value, margin:+$("fMargin").value, stop:+$("fStop").value, lev:+$("fLev").value||1};
+    const liq = t.entry ? (side==="long"? t.entry*(1-1/t.lev) : t.entry*(1+1/t.lev)) : null;
+    $("levInfo").textContent = `倉位價值 ${t.margin?fmt(t.margin*t.lev)+" U":"—"}・預估爆倉價 ${t.entry&&t.lev>1?px(liq):"—"}（未計維持保證金，實際會更早爆）`;
+    const line = $("riskLine");
+    if(!t.entry||!t.margin||!t.stop){ line.className="full riskline"; line.textContent="填好進場價、保證金和停損後，這裡會算出這筆最多會賠多少。"; return; }
+    if(wrongSide(t)){ line.className="full riskline bad"; line.textContent = side==="long"?"做多的停損價要低於進場價。":"放空的停損價要高於進場價。"; return; }
+    const r = riskOf(t), pct = r/balance()*100, cap = state.cfg.riskPct;
+    const notes = [];
+    if(pct>cap) notes.push(`超過每筆 ${cap}% 的規則，建議縮小保證金或槓桿`);
+    if(t.lev>1 && (side==="long"? t.stop<=liq : t.stop>=liq)) notes.push("停損比爆倉價還遠，會先爆倉、賠掉全部保證金");
+    const dist = Math.abs(t.entry-t.stop)/t.entry*100;
+    const fitPos = balance()*cap/100/(dist/100);
+    line.className = "full riskline"+(notes.length?" bad":"");
+    line.textContent = `打到停損會賠 ${fmt(r)} U（帳戶 ${fmt(pct,1)}%），停損距離 ${fmt(dist,2)}%。照 ${cap}% 規則，倉位價值最多約 ${fmt(fitPos,0)} U` + (notes.length?`。⚠ ${notes.join("；")}。`:"。");
+  }
+  ["fEntry","fMargin","fStop","fLev"].forEach(id=>$(id).addEventListener("input",updateRisk));
+  const clampLev = v => Math.min(200,Math.max(1,Math.round(+v||1)));
+  const setLev = v => { const n=clampLev(v); $("fLev").value=n; $("fLevRange").value=n; updateRisk(); };
+  $("fLevRange").addEventListener("input",e=>setLev(e.target.value));
+  $("fLev").addEventListener("change",e=>setLev(e.target.value));
+  $("levMinus").onclick=()=>setLev(+$("fLev").value-1);
+  $("levPlus").onclick=()=>setLev(+$("fLev").value+1);
+
+  $("tradeForm").addEventListener("submit", e=>{
+    e.preventDefault();
+    const t = {id:uid(), date:$("fDate").value||today(), coin:$("fCoin").value.trim().toUpperCase(), side,
+      tf:$("fTf").value, method:$("fMethod").value,
+      entry:+$("fEntry").value, margin:+$("fMargin").value, stop:+$("fStop").value, target:+$("fTarget").value||null,
+      lev:+$("fLev").value||1, mood:+$("fMood").value, reason:$("fReason").value.trim(), status:"open", createdAt:Date.now()};
+    if(wrongSide(t)){ setStatus("停損價的方向不對，請檢查。"); return; }
+    t.riskPct = Math.round(riskOf(t)/balance()*10000)/100;
+    state.trades.push(t);
+    if(!state.cfg.startDate) state.cfg.startDate = t.date;
+    if(save()){
+      ["fCoin","fEntry","fMargin","fStop","fTarget","fReason"].forEach(id=>$(id).value=""); $("fMood").value=3;
+      setStatus("已記錄進場。"); render(); showTab("open");
+    }
+  });
+
+  // ---------- open / close / delete ----------
+  document.addEventListener("click", e=>{
+    const c = e.target.closest("[data-close]"), d = e.target.closest("[data-del]");
+    if(c){
+      const id=c.dataset.close, t=state.trades.find(x=>x.id===id), exit=+$("ex-"+id).value;
+      if(!exit){ $("ex-"+id).focus(); setStatus("請先填出場價。"); return; }
+      Object.assign(t,{status:"closed", exit, exitDate:$("exd-"+id).value||today(), pnl:Math.round(pnlOf(t,exit)*100)/100,
+        followed:$("fol-"+id).checked, note:$("note-"+id).value.trim(), closedAt:Date.now()});
+      if(save()){ setStatus("已平倉。"); render(); }
+    }
+    if(d){
+      if(d.dataset.armed!=="1"){ d.dataset.armed="1"; d.textContent="再按一次確認"; setTimeout(()=>{ if(d.isConnected){d.dataset.armed="";d.textContent="刪除";} },3000); return; }
+      state.trades = state.trades.filter(x=>x.id!==d.dataset.del);
+      if(save()){ setStatus("已刪除。"); render(); }
+    }
+  });
+
+  // ---------- settings ----------
+  $("saveCfg").onclick = ()=>{
+    Object.assign(state.cfg,{startCapital:+$("cfgCap").value||DEF.startCapital, startDate:$("cfgStart").value||state.cfg.startDate||"",
+      riskPct:+$("cfgRisk").value||DEF.riskPct, stopPct:+$("cfgStop").value||DEF.stopPct, streak:Math.max(1,Math.round(+$("cfgStreak").value||DEF.streak))});
+    if(save()){ setStatus("設定已儲存。"); render(); }
+  };
+
+  // ---------- backup ----------
+  $("exportBtn").onclick = ()=>{
+    const blob = new Blob([JSON.stringify({app:"simJournal",v:1,exportedAt:new Date().toISOString(),...state},null,2)],{type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = `模擬倉日誌備份-${today()}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+    state.cfg.lastBackup = Date.now(); save(); render();
+    setStatus("備份檔已下載，建議存到 iCloud 雲碟或傳給自己。");
+  };
+  $("importBtn").onclick = ()=>$("importFile").click();
+  $("importFile").onchange = async e=>{
+    const f = e.target.files[0]; if(!f) return;
+    try{
+      const s = JSON.parse(await f.text());
+      if(!Array.isArray(s.trades)) throw 0;
+      if(state.trades.length && !confirmReplace()) return;
+      state = {cfg:{...DEF,...(s.cfg||{})}, trades:s.trades};
+      if(save()){ setStatus(`已匯入 ${s.trades.length} 筆交易。`); render(); }
+    }catch(_){ setStatus("這不是日誌的備份檔。"); }
+    e.target.value="";
+  };
+  let importArmed = false;
+  function confirmReplace(){
+    if(importArmed){ importArmed=false; return true; }
+    importArmed = true; setStatus("匯入會覆蓋現在的紀錄。確定的話，再選一次檔案。");
+    setTimeout(()=>importArmed=false,8000); return false;
+  }
+
+  // ---------- render ----------
+  function groupTable(groups, label){
+    const keys = Object.keys(groups);
+    if(!keys.length) return `<div class="empty" style="border:0">平倉第一筆後就會出現。</div>`;
+    return `<table><thead><tr><th>${label}</th><th>筆數</th><th>勝率</th><th>損益</th><th>平均/筆</th></tr></thead><tbody>${
+      keys.map(k=>{ const w=groups[k], p=w.reduce((a,t)=>a+t.pnl,0), win=w.filter(t=>t.pnl>0).length;
+        return `<tr><td>${esc(k)}</td><td class="num">${w.length}</td><td class="num">${fmt(win/w.length*100,0)}%</td><td class="num ${cls(p)}">${signed(p)}</td><td class="num ${cls(p)}">${signed(p/w.length)}</td></tr>`; }).join("")
+    }</tbody></table>`;
+  }
+
+  function render(){
+    const cfg = state.cfg;
+    $("rules").innerHTML = [`每筆風險 ≤ ${cfg.riskPct}%`,"進場前設停損","停損要在爆倉價之前","絕不加碼凹單",`單日連虧 ${cfg.streak} 筆停手`,`月虧 ${cfg.stopPct}% 停手`].map(s=>`<span>${s}</span>`).join("");
+
+    const closed = closedT().sort((a,b)=>(b.exitDate||"").localeCompare(a.exitDate||"")||(b.closedAt||0)-(a.closedAt||0));
+    const open = state.trades.filter(t=>t.status==="open").sort((a,b)=>b.createdAt-a.createdAt);
+    const pnl = closed.reduce((a,t)=>a+t.pnl,0), bal = cfg.startCapital+pnl;
+    const wins = closed.filter(t=>t.pnl>0), losses = closed.filter(t=>t.pnl<0);
+    $("sBal").textContent = fmt(bal);
+    $("sPnl").textContent = closed.length ? `${signed(pnl)} (${signed(pnl/cfg.startCapital*100)}%)` : "—";
+    $("sPnl").className = "v num "+cls(pnl);
+    $("sN").textContent = closed.length;
+    $("sWin").textContent = closed.length ? fmt(wins.length/closed.length*100,0)+"%" : "—";
+    $("sFollow").textContent = closed.length ? `${closed.filter(t=>t.followed).length}/${closed.length}` : "—";
+    $("sAvgW").textContent = wins.length ? "+"+fmt(wins.reduce((a,t)=>a+t.pnl,0)/wins.length) : "—";
+    $("sAvgL").textContent = losses.length ? fmt(losses.reduce((a,t)=>a+t.pnl,0)/losses.length) : "—";
+    let eq=cfg.startCapital, peak=eq, dd=0;
+    closed.slice().reverse().forEach(t=>{ eq+=t.pnl; peak=Math.max(peak,eq); dd=Math.max(dd,(peak-eq)/peak); });
+    $("sDD").textContent = closed.length ? fmt(dd*100,1)+"%" : "—";
+
+    const start = cfg.startDate;
+    if(start){
+      const days = Math.max(0,Math.floor((new Date(today())-new Date(start))/864e5))+1;
+      $("dayLabel").textContent = `第 ${Math.min(days,30)} / 30 天（${start} 開始）`+(days>30?"・挑戰期已結束":"");
+      $("dayBar").style.width = Math.min(100,days/30*100)+"%";
+    } else { $("dayLabel").textContent="記下第一筆交易，30 天就從那天開始算"; $("dayBar").style.width="0%"; }
+
+    const lossPct = -pnl/cfg.startCapital*100, al=$("stopAlert");
+    if(lossPct>=cfg.stopPct){ al.hidden=false; al.textContent=`已虧損 ${fmt(lossPct,1)}%，達到 ${cfg.stopPct}% 上限。照規則，這個月先停手。`; }
+    else if(lossPct>=cfg.stopPct*0.7){ al.hidden=false; al.textContent=`已虧損 ${fmt(lossPct,1)}%，離 ${cfg.stopPct}% 停手線不遠了，下一筆請縮小部位。`; }
+    else al.hidden=true;
+
+    // consecutive losses today
+    const todays = closed.filter(t=>t.exitDate===today()).sort((a,b)=>(b.closedAt||0)-(a.closedAt||0));
+    let streak=0; for(const t of todays){ if(t.pnl<0) streak++; else break; }
+    const sa=$("streakAlert");
+    if(streak>=cfg.streak){ sa.hidden=false; sa.textContent=`今天已經連虧 ${streak} 筆。照規則今天停手，不要加碼凹回來，明天再看。`; }
+    else sa.hidden=true;
+
+    $("openCount").textContent = open.length?`(${open.length})`:"";
+    $("closedCount").textContent = closed.length?`(${closed.length})`:"";
+    const tags = t => `<span class="tag ${t.side}">${t.side==="long"?"多":"空"}</span>${t.lev>1?` <span class="tag broke">${t.lev}x</span>`:""}${t.tf?` <span class="tag m">${esc(t.tf)}</span>`:""}${t.method?` <span class="tag m">${METHODS[t.method]||esc(t.method)}</span>`:""}`;
+
+    $("openList").innerHTML = open.length ? open.map(t=>`
+      <article class="trade">
+        <div class="top"><strong>${esc(t.coin)} ${tags(t)}</strong><span class="meta">${t.date}</span></div>
+        <div class="meta num"><span>進場 ${px(t.entry)}</span><span>停損 ${px(t.stop)}</span>${t.target?`<span>目標 ${px(t.target)}</span>`:""}<span>保證金 ${fmt(t.margin)}</span><span>風險 ${fmt(t.riskPct,1)}%</span></div>
+        <div class="reason">${esc(t.reason)}</div>
+        <div class="closebox">
+          <label>出場價<input id="ex-${t.id}" type="number" inputmode="decimal" step="any"></label>
+          <label>出場日期<input id="exd-${t.id}" type="date" value="${today()}"></label>
+          <label class="full" style="flex-direction:row;align-items:center;gap:8px;color:var(--fg)"><input id="fol-${t.id}" type="checkbox" style="width:auto" checked> 有照計畫執行（沒移停損、沒加碼）</label>
+          <label class="full">檢討一句話<input id="note-${t.id}" type="text" placeholder="做對什麼？做錯什麼？"></label>
+          <div class="full actions"><button class="small" data-del="${t.id}" type="button">刪除</button><button class="small primary" data-close="${t.id}" type="button">平倉</button></div>
+        </div>
+      </article>`).join("") : `<div class="empty">目前沒有持倉。記一筆新交易，就會出現在這裡等你平倉。</div>`;
+
+    $("closedList").innerHTML = closed.length ? closed.map(t=>`
+      <article class="trade">
+        <div class="top"><strong>${esc(t.coin)} ${tags(t)}${t.followed?"":` <span class="tag broke">違規</span>`}</strong><span class="num ${cls(t.pnl)}" style="font-weight:600">${signed(t.pnl)}</span></div>
+        <div class="meta num"><span>${t.date} → ${t.exitDate||""}</span><span>${px(t.entry)} → ${px(t.exit)}</span><span>情緒 ${t.mood}</span></div>
+        <div class="reason">${esc(t.reason)}${t.note?`<br><span style="color:var(--muted)">檢討：${esc(t.note)}</span>`:""}</div>
+        <div class="actions"><button class="small" data-del="${t.id}" type="button">刪除</button></div>
+      </article>`).join("") : `<div class="empty">還沒有平倉的交易。平倉後，損益和勝率會自動算進總覽。</div>`;
+
+    // weekly
+    const weeks={};
+    closed.forEach(t=>{ const d=new Date((t.exitDate||t.date)+"T00:00:00"); d.setDate(d.getDate()-((d.getDay()+6)%7));
+      const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; (weeks[k] ||= []).push(t); });
+    const wk = Object.keys(weeks).sort().reverse();
+    $("weekly").innerHTML = wk.length ? `<table><thead><tr><th>週（從週一）</th><th>筆數</th><th>勝率</th><th>損益</th><th>違規</th></tr></thead><tbody>${
+      wk.map(k=>{ const w=weeks[k], p=w.reduce((a,t)=>a+t.pnl,0), win=w.filter(t=>t.pnl>0).length, br=w.filter(t=>!t.followed).length;
+        return `<tr><td class="num">${k.slice(5)}</td><td class="num">${w.length}</td><td class="num">${fmt(win/w.length*100,0)}%</td><td class="num ${cls(p)}">${signed(p)}</td><td class="num">${br}</td></tr>`; }).join("")
+    }</tbody></table>` : `<div class="empty" style="border:0">每週一自動分組，平倉第一筆後就會出現。</div>`;
+    const by = f => closed.reduce((g,t)=>{ const k=f(t); (g[k] ||= []).push(t); return g; },{});
+    $("byMethod").innerHTML = groupTable(by(t=>METHODS[t.method]||"未填"),"進場方式");
+    $("byTf").innerHTML = groupTable(by(t=>t.tf||"未填"),"週期");
+
+    // settings inputs
+    if(!document.activeElement || !document.activeElement.closest(".setup")){
+      $("cfgCap").value=cfg.startCapital; $("cfgStart").value=cfg.startDate||""; $("cfgRisk").value=cfg.riskPct; $("cfgStop").value=cfg.stopPct; $("cfgStreak").value=cfg.streak;
+    }
+    const lb = cfg.lastBackup;
+    $("backupHint").textContent = lb ? `上次備份：${new Date(lb).toLocaleString("zh-TW")}` +
+      (state.trades.some(t=>(t.closedAt||t.createdAt)>lb) ? "・之後有新紀錄，記得再備份一次" : "") : "還沒備份過。資料只存在這個瀏覽器，建議每週備份一次。";
+    updateRisk();
+  }
+
+  // ---------- tabs ----------
+  function showTab(name){
+    document.querySelectorAll("[data-tab]").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===name?"true":"false"));
+    ["home","open","weekly","closed"].forEach(n=>$("pane-"+n).hidden = n!==name);
+    window.scrollTo(0,0);
+    try{ localStorage.setItem(KEY+".tab",name); }catch(_){}
+  }
+  document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+
+  render();
+  try{ const t=localStorage.getItem(KEY+".tab"); if(t && $("pane-"+t)) showTab(t); }catch(_){}
+  if(!storageOK) setStatus("這個瀏覽器無法存資料（可能是無痕模式），請換一般模式開啟。");
+})();
+</script>
+</body>
+</html>
