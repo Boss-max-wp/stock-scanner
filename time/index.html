@@ -45,6 +45,11 @@ textarea{resize:vertical;min-height:60px}
 .cat{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px 4px;text-align:center;font-size:13px;transition:transform .1s}
 .cat:active{transform:scale(.95)}
 .cat .e{font-size:24px;display:block}
+.runnote{margin-top:12px;background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.4);color:#fff;font-size:14px}
+.runnote::placeholder{color:rgba(255,255,255,.8)}
+.log li[data-edit]{cursor:pointer}
+.addn{color:var(--muted);font-size:11px;margin-left:6px;opacity:.7}
+.tl .blk[data-eid]{cursor:pointer}
 .gsel{width:auto;padding:4px 8px;font-size:13px}
 .cat.add{border-style:dashed;color:var(--muted)}
 .cat.add .e{font-size:22px}
@@ -150,7 +155,7 @@ nav button.on{color:var(--accent);font-weight:700}
         <button class="navd" id="dNext">›</button>
       </span>
     </h2>
-    <div class="sub" style="margin-bottom:8px">灰色虛線是沒記錄的時間，點一下就能補記。</div>
+    <div class="sub" style="margin-bottom:8px">點色塊可以加註記或修改；灰色虛線是沒記錄的時間，點一下就能補記。</div>
     <div class="tl" id="tl"></div>
   </div>
 
@@ -238,8 +243,9 @@ nav button.on{color:var(--accent);font-weight:700}
       <div style="flex:1"><label class="f">結束</label><input type="time" id="mEnd"></div>
     </div>
     <label class="f">備註（可不填）</label>
-    <input id="mNote" placeholder="例：寫專題第三章">
+    <input id="mNote" maxlength="60" placeholder="例：寫專題第三章、中間去刷牙">
     <button class="btn" style="width:100%;margin-top:14px" id="mSave">儲存</button>
+    <button class="btn ghost" style="width:100%;margin-top:8px;color:var(--phone);border-color:var(--phone)" id="mDel" hidden>刪除這段記錄</button>
   </div>
 </div>
 
@@ -324,7 +330,7 @@ function stop(silent){
     while(true){
       const mid=new Date(s);mid.setHours(24,0,0,0);
       const e=Math.min(end,mid.getTime());
-      S.entries.push({id:Math.random().toString(36).slice(2),cat:r.cat,start:s,end:e,note:""});
+      S.entries.push({id:Math.random().toString(36).slice(2),cat:r.cat,start:s,end:e,note:(r.note||"").trim()});
       if(e>=end)break;s=e;
     }
   }else if(!silent){toast("不到 1 分鐘，沒有記錄");}
@@ -341,14 +347,19 @@ function render(){
 
   // running card
   const rc=$("#runCard");
-  if(S.running){
+  if(S.running&&document.activeElement&&document.activeElement.id==="runNote"){/* typing: keep card */}
+  else if(S.running){
     const c=catOf(S.running.cat);
     rc.className="card running";
     rc.innerHTML=`<div class="row" style="justify-content:space-between">
       <div><div style="opacity:.9">${c.e} 正在${c.n}</div><div class="big" id="elapsed">${clock(Date.now()-S.running.start)}</div>
       <div style="opacity:.85;font-size:13px">從 ${hm(S.running.start)} 開始</div></div>
-      <button class="stop" id="stopBtn">結束</button></div>`;
+      <button class="stop" id="stopBtn">結束</button></div>
+      <input id="runNote" class="runnote" maxlength="60" placeholder="✏️ 小註記（例：中間去刷牙）" value="${esc(S.running.note||"")}">`;
     $("#stopBtn").onclick=()=>stop();
+    let nt;$("#runNote").oninput=e=>{S.running.note=e.target.value;clearTimeout(nt);nt=setTimeout(()=>{save();renderTimeline();},500);};
+    $("#runNote").onkeydown=e=>{if(e.key==="Enter")e.target.blur();};
+    $("#runNote").onblur=()=>{save();render();};
   }else{
     rc.className="card idle";
     rc.innerHTML=`沒有在計時<br><span style="font-size:13px">在下面點一個類別開始。忘了按也沒關係，可以用「補記」。</span>`;
@@ -376,10 +387,11 @@ function render(){
   $("#stat").innerHTML=`<div><b>${(byG.good/3600000).toFixed(1)}</b><small>有效小時</small></div>
     <div><b>${(byG.phone/3600000).toFixed(1)}</b><small>滑手機小時</small></div>
     <div><b>${list.length}</b><small>記錄段數</small></div>`;
-  $("#log").innerHTML=list.map(e=>{const c=catOf(e.cat);return `<li><i class="dot" style="background:${GC[c.g]}"></i>
-    <span class="t">${hm(e.start)}–${hm(e.end)}</span><span class="n">${c.e} ${c.n}${e.note?`<span class="sub"> · ${esc(e.note)}</span>`:""}</span>
+  $("#log").innerHTML=list.map(e=>{const c=catOf(e.cat);return `<li data-edit="${e.id}"><i class="dot" style="background:${GC[c.g]}"></i>
+    <span class="t">${hm(e.start)}–${hm(e.end)}</span><span class="n">${c.e} ${c.n}${e.note?`<span class="sub"> · 📝${esc(e.note)}</span>`:`<span class="addn">＋註記</span>`}</span>
     <span class="d">${dur(e.end-e.start)}</span><button class="x" data-del="${e.id}">×</button></li>`}).join("");
-  document.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{S.entries=S.entries.filter(e=>e.id!==b.dataset.del);save();render();});
+  document.querySelectorAll("[data-del]").forEach(b=>b.onclick=ev=>{ev.stopPropagation();S.entries=S.entries.filter(e=>e.id!==b.dataset.del);save();render();});
+  document.querySelectorAll("#log [data-edit]").forEach(li=>li.onclick=()=>openEdit(li.dataset.edit));
 
   renderTimeline();renderReview();renderWeek();renderIdeas();
 }
@@ -394,7 +406,7 @@ function renderTimeline(){
   $("#dNext").disabled=isToday;
   const base=d0.getTime();
   const items=S.entries.filter(e=>dkey(new Date(e.start))===k).map(e=>({...e})).sort((a,b)=>a.start-b.start);
-  if(isToday&&S.running){const st=Math.max(S.running.start,base);items.push({cat:S.running.cat,start:st,end:Date.now(),live:true});}
+  if(isToday&&S.running){const st=Math.max(S.running.start,base);items.push({cat:S.running.cat,start:st,end:Date.now(),live:true,note:S.running.note||""});}
   const toMin=t=>(t-base)/60000;
   const nowMin=isToday?toMin(Date.now()):1440;
   let sH=7;items.forEach(e=>{sH=Math.min(sH,Math.floor(toMin(e.start)/60));});
@@ -412,11 +424,14 @@ function renderTimeline(){
   gaps.forEach(([a,b])=>{html+=`<div class="blk gap" data-gap="${a},${b}" style="top:${y(a)+1}px;height:${Math.max(18,y(b)-y(a)-2)}px">
     沒記錄 <small>${mtxt(a)}–${mtxt(b)} · 點我補記</small></div>`;});
   items.forEach(e=>{const c=catOf(e.cat),a=toMin(e.start),b=toMin(e.end),hgt=Math.max(18,y(b)-y(a)-2);
-    html+=`<div class="blk ${e.live?"live":""}" title="${c.n} ${hm(e.start)}–${hm(e.end)}" style="top:${y(a)+1}px;height:${hgt}px;background:${GC[c.g]}">
-      <span>${c.e} ${c.n}${e.live?"（進行中）":""}${e.note?" · "+esc(e.note):""}</span>
+    html+=`<div class="blk ${e.live?"live":""}" data-eid="${e.live?"live":e.id}" title="${c.n} ${hm(e.start)}–${hm(e.end)}" style="top:${y(a)+1}px;height:${hgt}px;background:${GC[c.g]}">
+      <span>${c.e} ${c.n}${e.live?"（進行中）":""}${e.note?" · 📝"+esc(e.note):""}</span>
       <small>${hm(e.start)}–${e.live?"現在":hm(e.end)} · ${dur(e.end-e.start)}</small></div>`;});
   if(isToday)html+=`<div class="now" style="top:${y(nowMin)}px"></div>`;
   const tl=$("#tl");tl.style.height=(eH-sH)*PXH+"px";tl.innerHTML=html;
+  tl.querySelectorAll("[data-eid]").forEach(b=>b.onclick=()=>{
+    if(b.dataset.eid==="live"){window.scrollTo({top:0,behavior:"smooth"});const n=$("#runNote");if(n)n.focus();}
+    else openEdit(b.dataset.eid);});
   tl.querySelectorAll("[data-gap]").forEach(g=>g.onclick=()=>{const [a,b]=g.dataset.gap.split(",").map(Number);openModal(d0,a,b);});
 }
 const mtxt=m=>{m=Math.round(m);return pad(Math.floor(m/60)%24)+":"+pad(m%60);};
@@ -508,8 +523,15 @@ $("#cSave").onclick=()=>{
   S.customCats=(S.customCats||[]).concat({id:"u"+Math.random().toString(36).slice(2,8),e:[...e].slice(0,2).join(""),n:n.slice(0,8),g:newG});
   save();render();renderCatModal();$("#cName").value="";$("#cEmoji").value="";toast(`已新增：${n}`);
 };
-let modalDay=new Date();
-function openModal(day,a,b){modalDay=new Date(day);$("#mStart").value=mtxt(a);$("#mEnd").value=b>=1440?"23:59":mtxt(b);
+let modalDay=new Date(),editId=null;
+function openEdit(id){const e=S.entries.find(x=>x.id===id);if(!e)return;
+  const d=new Date(e.start);d.setHours(0,0,0,0);
+  openModal(d,(e.start-d.getTime())/60000,(e.end-d.getTime())/60000);
+  editId=id;$("#mCat").value=e.cat;$("#mNote").value=e.note||"";
+  $("#mHead").textContent="修改這段記錄";$("#mDel").hidden=false;$("#mSave").textContent="儲存修改";
+  setTimeout(()=>$("#mNote").focus(),80);}
+$("#mDel").onclick=()=>{S.entries=S.entries.filter(e=>e.id!==editId);save();$("#modal").classList.remove("on");render();toast("已刪除");};
+function openModal(day,a,b){modalDay=new Date(day);editId=null;$("#mDel").hidden=true;$("#mSave").textContent="儲存";$("#mStart").value=mtxt(a);$("#mEnd").value=b>=1440?"23:59":mtxt(b);
   $("#mNote").value="";$("#mHead").textContent=dkey(day)===todayKey()?"補記一段時間":`補記 ${day.getMonth()+1}/${day.getDate()} 的時間`;
   $("#modal").classList.add("on");}
 $("#addManual").onclick=()=>{const n=new Date(),m=n.getHours()*60+n.getMinutes();openModal(n,Math.max(0,m-60),m);};
@@ -520,8 +542,10 @@ $("#mSave").onclick=()=>{
   if(isNaN(sh)||isNaN(eh)){toast("請填開始和結束時間");return;}
   const s=new Date(modalDay);s.setHours(sh,sm,0,0);const e=new Date(modalDay);e.setHours(eh,em,0,0);
   if(e<=s){toast("結束要比開始晚喔");return;}
-  S.entries.push({id:Math.random().toString(36).slice(2),cat:$("#mCat").value,start:s.getTime(),end:e.getTime(),note:$("#mNote").value.trim()});
-  save();$("#modal").classList.remove("on");render();toast("已補記");
+  const val={cat:$("#mCat").value,start:s.getTime(),end:e.getTime(),note:$("#mNote").value.trim()};
+  if(editId){const x=S.entries.find(q=>q.id===editId);if(x)Object.assign(x,val);}
+  else S.entries.push(Object.assign({id:Math.random().toString(36).slice(2)},val));
+  save();$("#modal").classList.remove("on");render();toast(editId?"已修改":"已補記");
 };
 
 /* ---------- nav ---------- */
