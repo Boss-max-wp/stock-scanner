@@ -58,6 +58,7 @@ button.on-short{background:var(--loss);border-color:var(--loss);color:#fff}
 button.small{padding:4px 10px;font-size:.8rem}
 button:disabled{opacity:.5}
 .seg{display:flex;gap:6px}.seg button{flex:1}
+#amtMode button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .riskline{font-size:.82rem;color:var(--muted);margin:0}
 .riskline.bad{color:var(--warn);font-weight:600}
 .list{display:flex;flex-direction:column;gap:10px}
@@ -155,7 +156,11 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--accent)}
           <option value="other">其他</option>
         </select></label>
         <label>進場價<input id="fEntry" type="number" inputmode="decimal" step="any" required></label>
-        <label>保證金 USDT<input id="fMargin" type="number" inputmode="decimal" step="any" required></label>
+        <label><span id="amtLabel">數量（幣）</span><input id="fAmt" type="number" inputmode="decimal" step="any" required></label>
+        <div class="full seg" id="amtMode">
+          <button type="button" class="small" data-mode="qty">用數量填</button>
+          <button type="button" class="small" data-mode="margin">用保證金填</button>
+        </div>
         <div class="full" style="display:flex;flex-direction:column;gap:6px">
           <label for="fLev">槓桿倍數</label>
           <div class="levpick">
@@ -236,6 +241,28 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--accent)}
   const cls = n => n>0?"gain":n<0?"loss":"";
   const esc = s => String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
   const pnlOf = (t,exit) => { const q=(t.margin*t.lev)/t.entry; return (t.side==="long"?exit-t.entry:t.entry-exit)*q; };
+  let amtMode = "qty";
+  try{ amtMode = localStorage.getItem(KEY+".amtMode") || "qty"; }catch(_){}
+  // 把輸入框的值換成保證金：數量模式 → 保證金 = 數量 × 進場價 ÷ 槓桿
+  function marginFromInput(entry, lev){
+    const v = +$("fAmt").value;
+    if(!v) return 0;
+    return amtMode==="qty" ? (entry ? v*entry/(lev||1) : 0) : v;
+  }
+  function setAmtMode(m){
+    const entry=+$("fEntry").value, lev=+$("fLev").value||1, v=+$("fAmt").value;
+    if(v && entry && m!==amtMode){   // 切換時把數字換算過去
+      const n = m==="qty" ? v*lev/entry : v*entry/lev;
+      $("fAmt").value = +n.toPrecision(6);
+    }
+    amtMode = m;
+    $("amtLabel").textContent = m==="qty" ? "數量（幣）" : "保證金 USDT";
+    document.querySelectorAll("#amtMode button").forEach(b=>b.classList.toggle("on", b.dataset.mode===m));
+    try{ localStorage.setItem(KEY+".amtMode", m); }catch(_){}
+    updateRisk();
+  }
+  document.querySelectorAll("#amtMode button").forEach(b=>b.onclick=()=>setAmtMode(b.dataset.mode));
+  const qtyOf = t => (t.margin*t.lev)/t.entry;
   const riskOf = t => (t.margin*t.lev)/t.entry*Math.abs(t.entry-t.stop);
   const wrongSide = t => t.side==="long" ? t.stop>=t.entry : t.stop<=t.entry;
   const closedT = () => state.trades.filter(t=>t.status==="closed");
@@ -249,11 +276,12 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--accent)}
   $("bLong").onclick=()=>setSide("long"); $("bShort").onclick=()=>setSide("short");
 
   function updateRisk(){
-    const t = {side, entry:+$("fEntry").value, margin:+$("fMargin").value, stop:+$("fStop").value, lev:+$("fLev").value||1};
+    const t = {side, entry:+$("fEntry").value, stop:+$("fStop").value, lev:+$("fLev").value||1};
+    t.margin = marginFromInput(t.entry, t.lev);
     const liq = t.entry ? (side==="long"? t.entry*(1-1/t.lev) : t.entry*(1+1/t.lev)) : null;
-    $("levInfo").textContent = `倉位價值 ${t.margin?fmt(t.margin*t.lev)+" U":"—"}・預估爆倉價 ${t.entry&&t.lev>1?px(liq):"—"}（未計維持保證金，實際會更早爆）`;
+    $("levInfo").textContent = (t.margin ? (amtMode==="qty" ? `保證金 ${fmt(t.margin)} U` : `數量 ${px(qtyOf(t))} 顆`) + "・" : "") + `倉位價值 ${t.margin?fmt(t.margin*t.lev)+" U":"—"}・預估爆倉價 ${t.entry&&t.lev>1?px(liq):"—"}（未計維持保證金，實際會更早爆）`;
     const line = $("riskLine");
-    if(!t.entry||!t.margin||!t.stop){ line.className="full riskline"; line.textContent="填好進場價、保證金和停損後，這裡會算出這筆最多會賠多少。"; return; }
+    if(!t.entry||!t.margin||!t.stop){ line.className="full riskline"; line.textContent="填好進場價、數量（或保證金）和停損後，這裡會算出這筆最多會賠多少。"; return; }
     if(wrongSide(t)){ line.className="full riskline bad"; line.textContent = side==="long"?"做多的停損價要低於進場價。":"放空的停損價要高於進場價。"; return; }
     const r = riskOf(t), pct = r/balance()*100, cap = state.cfg.riskPct;
     const notes = [];
@@ -264,7 +292,7 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--accent)}
     line.className = "full riskline"+(notes.length?" bad":"");
     line.textContent = `打到停損會賠 ${fmt(r)} U（帳戶 ${fmt(pct,1)}%），停損距離 ${fmt(dist,2)}%。照 ${cap}% 規則，倉位價值最多約 ${fmt(fitPos,0)} U` + (notes.length?`。⚠ ${notes.join("；")}。`:"。");
   }
-  ["fEntry","fMargin","fStop","fLev"].forEach(id=>$(id).addEventListener("input",updateRisk));
+  ["fEntry","fAmt","fStop","fLev"].forEach(id=>$(id).addEventListener("input",updateRisk));
   const clampLev = v => Math.min(200,Math.max(1,Math.round(+v||1)));
   const setLev = v => { const n=clampLev(v); $("fLev").value=n; $("fLevRange").value=n; updateRisk(); };
   $("fLevRange").addEventListener("input",e=>setLev(e.target.value));
@@ -276,14 +304,17 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--accent)}
     e.preventDefault();
     const t = {id:uid(), date:$("fDate").value||today(), coin:$("fCoin").value.trim().toUpperCase(), side,
       tf:$("fTf").value, method:$("fMethod").value,
-      entry:+$("fEntry").value, margin:+$("fMargin").value, stop:+$("fStop").value, target:+$("fTarget").value||null,
+      entry:+$("fEntry").value, stop:+$("fStop").value, target:+$("fTarget").value||null,
       lev:+$("fLev").value||1, mood:+$("fMood").value, reason:$("fReason").value.trim(), status:"open", createdAt:Date.now()};
+    t.margin = Math.round(marginFromInput(t.entry, t.lev)*1e6)/1e6;
+    t.qty = +qtyOf(t).toPrecision(8);
+    if(!t.margin){ setStatus("請填數量或保證金。"); return; }
     if(wrongSide(t)){ setStatus("停損價的方向不對，請檢查。"); return; }
     t.riskPct = Math.round(riskOf(t)/balance()*10000)/100;
     state.trades.push(t);
     if(!state.cfg.startDate) state.cfg.startDate = t.date;
     if(save()){
-      ["fCoin","fEntry","fMargin","fStop","fTarget","fReason"].forEach(id=>$(id).value=""); $("fMood").value=3;
+      ["fCoin","fEntry","fAmt","fStop","fTarget","fReason"].forEach(id=>$(id).value=""); $("fMood").value=3;
       setStatus("已記錄進場。"); render(); showTab("open");
     }
   });
@@ -397,7 +428,7 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--accent)}
     $("openList").innerHTML = open.length ? open.map(t=>`
       <article class="trade">
         <div class="top"><strong>${esc(t.coin)} ${tags(t)}</strong><span class="meta">${t.date}</span></div>
-        <div class="meta num"><span>進場 ${px(t.entry)}</span><span>停損 ${px(t.stop)}</span>${t.target?`<span>目標 ${px(t.target)}</span>`:""}<span>保證金 ${fmt(t.margin)}</span><span>風險 ${fmt(t.riskPct,1)}%</span></div>
+        <div class="meta num"><span>進場 ${px(t.entry)}</span><span>停損 ${px(t.stop)}</span>${t.target?`<span>目標 ${px(t.target)}</span>`:""}<span>數量 ${px(t.qty||qtyOf(t))}</span><span>保證金 ${fmt(t.margin)}</span><span>風險 ${fmt(t.riskPct,1)}%</span></div>
         <div class="reason">${esc(t.reason)}</div>
         <div class="closebox">
           <label>出場價<input id="ex-${t.id}" type="number" inputmode="decimal" step="any"></label>
@@ -448,6 +479,7 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--accent)}
   }
   document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 
+  setAmtMode(amtMode);
   render();
   try{ const t=localStorage.getItem(KEY+".tab"); if(t && $("pane-"+t)) showTab(t); }catch(_){}
   if(!storageOK) setStatus("這個瀏覽器無法存資料（可能是無痕模式），請換一般模式開啟。");
