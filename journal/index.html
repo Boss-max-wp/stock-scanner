@@ -51,6 +51,8 @@ label{display:flex;flex-direction:column;gap:3px;font-size:.78rem;color:var(--mu
 .full{grid-column:1/-1}
 input,select,textarea{font:inherit;font-size:16px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:8px 10px;width:100%;min-width:0}
 textarea{min-height:60px;resize:vertical}
+input[type=date]{-webkit-appearance:none;appearance:none;display:block;min-height:40px;max-width:100%}
+input[type=date]::-webkit-date-and-time-value{text-align:left}
 button{font:inherit;font-size:.9rem;border-radius:7px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:8px 12px;cursor:pointer}
 button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
 button.on-long{background:var(--gain);border-color:var(--gain);color:#fff}
