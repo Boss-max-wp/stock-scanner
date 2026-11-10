@@ -45,6 +45,7 @@ textarea{resize:vertical;min-height:60px}
 .cat{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px 4px;text-align:center;font-size:13px;transition:transform .1s}
 .cat:active{transform:scale(.95)}
 .cat .e{font-size:24px;display:block}
+.gsel{width:auto;padding:4px 8px;font-size:13px}
 .cat.add{border-style:dashed;color:var(--muted)}
 .cat.add .e{font-size:22px}
 .cat.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset}
@@ -258,7 +259,7 @@ nav button.on{color:var(--accent);font-weight:700}
       <button data-g="other" style="font-size:14px">🟤 其他</button>
     </div>
     <button class="btn" style="width:100%;margin-top:14px" id="cSave">新增</button>
-    <label class="f" style="margin-top:16px">我的類別</label>
+    <label class="f" style="margin-top:16px">我的類別（右邊可以改類型）</label>
     <ul class="log" id="cList"></ul>
   </div>
 </div>
@@ -489,8 +490,11 @@ function openCatModal(){$("#cEmoji").value="";$("#cName").value="";newG="good";r
 function renderCatModal(){
   document.querySelectorAll("#cType button").forEach(b=>b.classList.toggle("on",b.dataset.g===newG));
   const cc=S.customCats||[];
-  $("#cList").innerHTML=cc.length?cc.map(c=>`<li><i class="dot" style="background:${GC[c.g]}"></i><span class="n">${esc(c.e)} ${esc(c.n)} <span class="sub">· ${GN[c.g]}</span></span><button class="x" data-dc="${c.id}">×</button></li>`).join("")
+  $("#cList").innerHTML=cc.length?cc.map(c=>`<li><i class="dot" style="background:${GC[c.g]}"></i><span class="n">${esc(c.e)} ${esc(c.n)}</span><select class="gsel" data-gc="${c.id}">${Object.keys(GN).map(g=>`<option value="${g}" ${g===c.g?"selected":""}>${GN[g]}</option>`).join("")}</select><button class="x" data-dc="${c.id}">×</button></li>`).join("")
     :`<li class="sub">還沒有自己的類別</li>`;
+  document.querySelectorAll("[data-gc]").forEach(s=>s.onchange=()=>{
+    const c=cc.find(x=>x.id===s.dataset.gc);if(!c)return;c.g=s.value;save();renderCatModal();render();
+    toast(`${c.n} 改成「${GN[c.g]}」了，以前的記錄也一起改`);});
   document.querySelectorAll("[data-dc]").forEach(b=>b.onclick=()=>{
     if(S.running&&S.running.cat===b.dataset.dc){toast("這個類別正在計時，先結束再刪");return;}
     S.customCats=cc.filter(c=>c.id!==b.dataset.dc);save();renderCatModal();render();});
