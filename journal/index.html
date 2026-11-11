@@ -272,7 +272,7 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--accent)}
   function setStatus(s){ $("status").textContent = s; if(s) setTimeout(()=>{ if($("status").textContent===s) $("status").textContent=""; },4000); }
 
   // ---------- form ----------
-  let side = "long";
+  let side = "long", editingId = null;
   $("fDate").value = today();
   function setSide(s){ side=s; $("bLong").className=s==="long"?"on-long":""; $("bShort").className=s==="short"?"on-short":""; updateRisk(); }
   $("bLong").onclick=()=>setSide("long"); $("bShort").onclick=()=>setSide("short");
@@ -324,6 +324,25 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--accent)}
   // ---------- open / close / delete ----------
   document.addEventListener("click", e=>{
     const c = e.target.closest("[data-close]"), d = e.target.closest("[data-del]");
+    const ed = e.target.closest("[data-edit]"), sv = e.target.closest("[data-save]"), ro = e.target.closest("[data-reopen]");
+    if(ed){ editingId = ed.dataset.edit; render(); return; }
+    if(e.target.closest("[data-cancel]")){ editingId = null; render(); return; }
+    if(sv){
+      const id=sv.dataset.save, t=state.trades.find(x=>x.id===id), exit=+$("eex-"+id).value;
+      if(!exit){ $("eex-"+id).focus(); setStatus("請填出場價。"); return; }
+      Object.assign(t,{exit, exitDate:$("eexd-"+id).value||t.exitDate, pnl:Math.round(pnlOf(t,exit)*100)/100,
+        followed:$("efol-"+id).checked, note:$("enote-"+id).value.trim()});
+      editingId = null;
+      if(save()){ setStatus("已修改。"); render(); }
+      return;
+    }
+    if(ro){
+      if(ro.dataset.armed!=="1"){ ro.dataset.armed="1"; ro.textContent="再按一次確認"; setTimeout(()=>{ if(ro.isConnected){ro.dataset.armed="";ro.textContent="改回持倉中";} },3000); return; }
+      const t=state.trades.find(x=>x.id===ro.dataset.reopen);
+      t.status="open"; ["exit","exitDate","pnl","followed","note","closedAt"].forEach(k=>delete t[k]);
+      if(save()){ setStatus("已改回持倉中，到「持倉」分頁重新平倉。"); render(); showTab("open"); }
+      return;
+    }
     if(c){
       const id=c.dataset.close, t=state.trades.find(x=>x.id===id), exit=+$("ex-"+id).value;
       if(!exit){ $("ex-"+id).focus(); setStatus("請先填出場價。"); return; }
@@ -446,7 +465,15 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--accent)}
         <div class="top"><strong>${esc(t.coin)} ${tags(t)}${t.followed?"":` <span class="tag broke">違規</span>`}</strong><span class="num ${cls(t.pnl)}" style="font-weight:600">${signed(t.pnl)}</span></div>
         <div class="meta num"><span>${t.date} → ${t.exitDate||""}</span><span>${px(t.entry)} → ${px(t.exit)}</span><span>情緒 ${t.mood}</span></div>
         <div class="reason">${esc(t.reason)}${t.note?`<br><span style="color:var(--muted)">檢討：${esc(t.note)}</span>`:""}</div>
-        <div class="actions"><button class="small" data-del="${t.id}" type="button">刪除</button></div>
+        ${editingId===t.id ? `
+        <div class="closebox">
+          <label>出場價<input id="eex-${t.id}" type="number" inputmode="decimal" step="any" value="${t.exit}"></label>
+          <label>出場日期<input id="eexd-${t.id}" type="date" value="${t.exitDate||today()}"></label>
+          <label class="full" style="flex-direction:row;align-items:center;gap:8px;color:var(--fg)"><input id="efol-${t.id}" type="checkbox" style="width:auto" ${t.followed?"checked":""}> 有照計畫執行（沒移停損、沒加碼）</label>
+          <label class="full">檢討一句話<input id="enote-${t.id}" type="text" value="${esc(t.note)}"></label>
+          <div class="full actions"><button class="small" data-cancel="1" type="button">取消</button><button class="small primary" data-save="${t.id}" type="button">儲存修改</button></div>
+        </div>` : `
+        <div class="actions"><button class="small" data-del="${t.id}" type="button">刪除</button><button class="small" data-reopen="${t.id}" type="button">改回持倉中</button><button class="small primary" data-edit="${t.id}" type="button">修改出場</button></div>`}
       </article>`).join("") : `<div class="empty">還沒有平倉的交易。平倉後，損益和勝率會自動算進總覽。</div>`;
 
     // weekly
