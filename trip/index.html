@@ -11,6 +11,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#EEF2F5">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
@@ -78,6 +80,14 @@ h1{font-size:24px;font-weight:900;margin:0;letter-spacing:.02em}
 .seg.small button[aria-pressed="true"] .ml{color:var(--accent)}
 .seg.small .mt{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
 .add{align-self:flex-start;margin-left:76px}
+.daymap{margin-top:18px;background:var(--card);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.daymap h3{margin:0;font-size:16px}
+#map{height:340px;border-radius:10px;z-index:0}
+.pin{background:var(--accent);color:var(--accent-ink);border:2px solid #fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font:700 13px var(--sans);box-shadow:0 1px 4px rgba(0,0,0,.35)}
+.pin.dup{background:var(--warm)}
+.maplist{display:flex;flex-direction:column;gap:4px;font-size:13px;margin:0;padding-left:20px}
+.maplist li{overflow-wrap:anywhere}
+.mapnote{font-size:12px;color:var(--muted)}
 .alt{font-size:13px;overflow-wrap:anywhere}
 .alt .k{display:inline-block;font-size:11px;font-weight:700;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:0 5px;margin-right:6px;vertical-align:1px}
 .stay{font-size:13px;color:var(--accent);font-weight:500}
@@ -388,7 +398,15 @@ function render(){
       <a class="btn" target="_blank" rel="noopener" href="${dir('',q,i>0?m:T)}">從我這裡出發</a></div></div></div>`;
   });
   h+=`</div><button class="btn add" id="addstop">＋ 新增一站</button>`;
+  // 全天地圖
+  const qs=d.stops.map(s=>s.q||s.name);
+  const gUrl='https://www.google.com/maps/dir/'+qs.map(enc).join('/');
+  h+=`<div class="daymap"><h3>這天的路線地圖</h3><div id="map"></div>
+    <ol class="maplist">${d.stops.map(s=>`<li>${esc(s.time||'')} ${esc(s.name)}</li>`).join('')}</ol>
+    <a class="btn primary" style="align-self:flex-start" target="_blank" rel="noopener" href="${gUrl}">在 Google 地圖看全天路線 ›</a>
+    <div class="mapnote">地圖上的號碼跟上面的順序一樣，點號碼可以看名稱和「怎麼去」。沒有位置的新景點，打開頁面後會自動找位置。</div></div>`;
   document.getElementById('day').innerHTML=h;
+  drawMap(d);
 }
 const $=id=>document.getElementById(id);
 $('tabs').addEventListener('click',e=>{if(e.target.closest('#addday')){addDay(data.days.length);return}const b=e.target.closest('.tab');if(!b)return;cur=+b.dataset.i;try{localStorage.setItem(KEY+'-tab',cur)}catch(_){}render();window.scrollTo({top:0})});
@@ -452,6 +470,29 @@ $('reset').onclick=()=>{
   if(!resetArmed){resetArmed=true;$('reset').textContent='再按一次：你的修改會被清掉';setTimeout(()=>{resetArmed=false;$('reset').textContent='還原成原本的行程'},4000);return}
   data=clone(PLAN);save();resetArmed=false;$('reset').textContent='還原成原本的行程';render();
 };
+/* ---- 全天地圖 ---- */
+let mapObj=null;
+function drawMap(d){
+  if(mapObj){try{mapObj.remove()}catch(e){}mapObj=null}
+  const el=document.getElementById('map');if(!el)return;
+  if(typeof L==='undefined'){el.innerHTML='<div class="mapnote" style="padding:12px">地圖載入失敗，請用下面的 Google 地圖按鈕。</div>';return}
+  mapObj=L.map(el,{scrollWheelZoom:false,tap:true});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(mapObj);
+  const pts=[],seen={};
+  d.stops.forEach((s,i)=>{
+    const q=s.q||s.name,c=coordOf(q);
+    if(!c){want({id:'geo:'+q,geo:q});return}
+    const key=c.join(',');const dup=key in seen;seen[key]=1;
+    const off=dup?[c[0]+0.0004*(i%3+1),c[1]+0.0004]:c;
+    pts.push(c);
+    const m=L.marker(off,{icon:L.divIcon({className:'',html:`<div class="pin${dup?' dup':''}">${i+1}</div>`,iconSize:[26,26],iconAnchor:[13,13]})}).addTo(mapObj);
+    m.bindPopup(`<b>${i+1}. ${esc(s.name)}</b><br>${esc(s.time||'')}<br><a target="_blank" rel="noopener" href="${dir('',q,'transit')}">怎麼去 ›</a>`);
+  });
+  if(pts.length>1)L.polyline(pts,{color:getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#2C6A8A',weight:3,opacity:.7,dashArray:'6 6'}).addTo(mapObj);
+  if(pts.length)mapObj.fitBounds(L.latLngBounds(pts).pad(0.15),{maxZoom:15});else mapObj.setView([43.06,141.35],11);
+  setTimeout(()=>mapObj&&mapObj.invalidateSize(),200);
+}
+
 /* ---- 天數 ---- */
 const WK='日一二三四五六';
 const toISO=md=>{const m=String(md||'').match(/(\d+)\/(\d+)/);return m?`2026-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`:''};
