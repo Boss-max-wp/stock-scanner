@@ -50,6 +50,15 @@ textarea{resize:vertical;min-height:60px}
 .log li[data-edit]{cursor:pointer}
 .addn{color:var(--muted);font-size:11px;margin-left:6px;opacity:.7}
 .tl .blk[data-eid]{cursor:pointer}
+.still{margin-top:12px;background:rgba(255,255,255,.95);color:var(--accent);border-radius:12px;padding:10px 12px;font-size:14px;font-weight:600}
+.still button{flex:1;padding:8px;border-radius:10px;background:var(--accent);color:#fff;font-weight:700}
+.still button+button{background:transparent;border:1.5px solid var(--accent);color:var(--accent)}
+.back{margin-top:10px;font-size:12px;opacity:.95;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.back button{background:rgba(255,255,255,.25);color:#fff;border-radius:14px;padding:3px 10px;font-size:12px}
+.quick{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.quick button{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px 8px;font-weight:600}
+.quick button small{display:block;color:var(--muted);font-weight:400;font-size:12px}
+.quick button:first-child{border-color:var(--accent);color:var(--accent)}
 .gsel{width:auto;padding:4px 8px;font-size:13px}
 .cat.add{border-style:dashed;color:var(--muted)}
 .cat.add .e{font-size:22px}
@@ -249,6 +258,17 @@ nav button.on{color:var(--accent);font-weight:700}
   </div>
 </div>
 
+<!-- 什麼時候結束的 -->
+<div class="modal" id="endModal">
+  <div class="card">
+    <h2><span id="eHead">什麼時候結束的？</span> <button class="x" id="eClose">✕</button></h2>
+    <div class="sub" id="eSub" style="margin-bottom:10px"></div>
+    <div class="quick" id="eQuick"></div>
+    <label class="f">或自己選時間</label>
+    <div class="row"><input type="time" id="eTime" style="flex:1"><button class="btn" id="eGo">確定</button></div>
+  </div>
+</div>
+
 <!-- 新增類別 -->
 <div class="modal" id="catModal">
   <div class="card">
@@ -314,16 +334,26 @@ function clock(ms){const s=Math.floor(ms/1000);return `${pad(Math.floor(s/3600))
 const W="日一二三四五六";
 
 /* ---------- timer ---------- */
-function start(id){
-  if(S.running&&S.running.cat===id){stop();return;}
-  if(S.running)stop(true);
+/* 跑太久就問一下：滑手機 40 分、其他 90 分 */
+const askLimit=r=>(catOf(r.cat).g==="phone"?40:90)*60000;
+const needAsk=r=>r&&Date.now()-(r.confirmedAt||r.start)>askLimit(r);
+function begin(id){
   S.running={cat:id,start:Date.now()};
   save();render();
   toast(`開始：${catOf(id).e} ${catOf(id).n}`);
 }
-function stop(silent){
+function start(id){
+  if(S.running&&S.running.cat===id){askStop(null);return;}
+  if(S.running){
+    if(needAsk(S.running)){openEnd(id);return;}
+    stop(true);
+  }
+  begin(id);
+}
+function askStop(next){if(needAsk(S.running))openEnd(next);else{stop();if(next)begin(next);}}
+function stop(silent,endAt){
   const r=S.running;if(!r)return;
-  const end=Date.now();
+  const end=Math.max(r.start,Math.min(Date.now(),endAt||Date.now()));
   if(end-r.start>=60000){
     // split across midnight
     let s=r.start;
@@ -355,8 +385,18 @@ function render(){
       <div><div style="opacity:.9">${c.e} 正在${c.n}</div><div class="big" id="elapsed">${clock(Date.now()-S.running.start)}</div>
       <div style="opacity:.85;font-size:13px">從 ${hm(S.running.start)} 開始</div></div>
       <button class="stop" id="stopBtn">結束</button></div>
+      ${needAsk(S.running)?`<div class="still">⏰ 已經 ${dur(Date.now()-S.running.start)} 了，還在${esc(c.n)}嗎？
+        <span class="row" style="gap:6px;margin-top:8px"><button id="stillYes">還在</button><button id="stillNo">早就結束了</button></span></div>`:""}
+      ${Date.now()-S.running.start<10*60000?`<div class="back">其實早就開始了？
+        ${[5,10,15,30].map(m=>`<button data-back="${m}">往前 ${m} 分</button>`).join("")}</div>`:""}
       <input id="runNote" class="runnote" maxlength="60" placeholder="✏️ 小註記（例：中間去刷牙）" value="${esc(S.running.note||"")}">`;
-    $("#stopBtn").onclick=()=>stop();
+    $("#stopBtn").onclick=()=>askStop(null);
+    if($("#stillYes"))$("#stillYes").onclick=()=>{S.running.confirmedAt=Date.now();save();render();toast("好，繼續計時");};
+    if($("#stillNo"))$("#stillNo").onclick=()=>openEnd(null);
+    document.querySelectorAll("[data-back]").forEach(b=>b.onclick=()=>{
+      const prevEnd=Math.max(0,...S.entries.map(e=>e.end).filter(t=>t<=S.running.start));
+      const ns=Math.max(prevEnd,S.running.start-(+b.dataset.back)*60000);
+      S.running.start=ns;save();render();toast(`改成從 ${hm(ns)} 開始`);});
     let nt;$("#runNote").oninput=e=>{S.running.note=e.target.value;clearTimeout(nt);nt=setTimeout(()=>{save();renderTimeline();},500);};
     $("#runNote").onkeydown=e=>{if(e.key==="Enter")e.target.blur();};
     $("#runNote").onblur=()=>{save();render();};
@@ -499,6 +539,33 @@ $("#ideaForm").onsubmit=e=>{e.preventDefault();const v=$("#ideaIn").value.trim()
   $("#ideaIn").value="";save();renderIdeas();toast("💡 已停好，之後再來處理");};
 
 /* ---------- manual add ---------- */
+/* ---------- 結束時間 ---------- */
+let endNext=null;
+function openEnd(next){
+  const r=S.running;if(!r)return;endNext=next;const c=catOf(r.cat),el=Date.now()-r.start;
+  $("#eHead").textContent=`${c.e} ${c.n} 什麼時候結束的？`;
+  $("#eSub").textContent=`從 ${hm(r.start)} 開始，已經跑了 ${dur(el)}。忘記按結束沒關係，選一下大概的時間就好。`+(next?`結束後會開始「${catOf(next).n}」。`:"");
+  const opts=[["現在才結束",0],["15 分鐘前",15],["30 分鐘前",30],["1 小時前",60],["2 小時前",120]].filter(([,m])=>m*60000<el);
+  $("#eQuick").innerHTML=opts.map(([t,m])=>`<button data-ago="${m}">${t}<small>${hm(Date.now()-m*60000)}</small></button>`).join("");
+  document.querySelectorAll("[data-ago]").forEach(b=>b.onclick=()=>finishEnd(Date.now()-(+b.dataset.ago)*60000));
+  $("#eTime").value=hm(Date.now());$("#endModal").classList.add("on");
+}
+function finishEnd(t){
+  const r=S.running;if(!r)return;
+  $("#endModal").classList.remove("on");
+  stop(false,t);
+  if(endNext){const n=endNext;endNext=null;begin(n);}
+}
+$("#eGo").onclick=()=>{
+  const r=S.running;if(!r)return;const [hh,mm]=$("#eTime").value.split(":").map(Number);if(isNaN(hh)){toast("請選時間");return;}
+  const d=new Date(r.start);d.setHours(hh,mm,0,0);let t=d.getTime();
+  while(t<r.start)t+=86400000;
+  if(t>Date.now()+60000){toast("不能選未來的時間");return;}
+  finishEnd(Math.min(t,Date.now()));
+};
+$("#eClose").onclick=()=>{endNext=null;$("#endModal").classList.remove("on");};
+$("#endModal").onclick=e=>{if(e.target.id==="endModal"){endNext=null;$("#endModal").classList.remove("on");}};
+
 /* ---------- custom categories ---------- */
 let newG="good";
 function openCatModal(){$("#cEmoji").value="";$("#cName").value="";newG="good";renderCatModal();$("#catModal").classList.add("on");setTimeout(()=>$("#cName").focus(),50);}
