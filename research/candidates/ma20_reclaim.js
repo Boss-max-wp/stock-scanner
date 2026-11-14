@@ -14,7 +14,7 @@ module.exports = {
       if (s < 90) break;
       const m20 = sma(C, s, 20), m60 = sma(C, s, 60);
       if (!(m20 > sma(C, s - 5, 20))) continue;                          // 月線上彎
-      if (!(C[s] > m60)) continue;                                       // 在季線之上
+      if (!(C[s] > m60 && m20 > m60 && m60 > sma(C, s - 10, 60))) continue;  // 第2輪：多頭排列、季線上彎
       if (!(C[s] > m20 && C[s] > O[s])) continue;                        // 今天紅K站回月線
       let k = s - 1, below = 0;
       while (k > s - 5 && C[k] < sma(C, k, 20)) { below++; k--; }

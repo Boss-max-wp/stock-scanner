@@ -14,12 +14,12 @@ module.exports = {
       if (s < 90) break;
       const m60 = sma(C, s, 60);
       if (!(m60 > sma(C, s - 10, 60))) continue;                         // 季線上彎
-      if (!(L[s] <= m60 * 1.01 && L[s] >= m60 * 0.96 && C[s] > m60)) continue; // 盤中碰季線、收在季線上
-      if (!(H.maxH(s - 15, s - 1) >= C[s] * 1.05)) continue;             // 是拉回，不是在高點
+      if (!(L[s] <= m60 * 1.02 && L[s] >= m60 * 0.96 && C[s] > m60)) continue; // 盤中碰季線、收在季線上
+      if (!(H.maxH(s - 15, s - 1) >= C[s] * 1.04)) continue;             // 是拉回，不是在高點
       const rng = H.H[s] - L[s];
-      if (!(rng / C[s - 1] >= 0.03)) continue;                           // 當天振幅夠大
+      if (!(rng / C[s - 1] >= 0.025)) continue;                           // 當天振幅夠大
       const bodyAbs = Math.abs(C[s] - O[s]), lowerShadow = Math.min(O[s], C[s]) - L[s];
-      if (!(lowerShadow >= 2 * bodyAbs && lowerShadow >= 0.5 * rng)) continue; // 長下影線
+      if (!(lowerShadow >= 1.5 * bodyAbs && lowerShadow >= 0.4 * rng)) continue; // 長下影線
       if (C[s] >= C[s - 1] * 1.095) continue;
       const volRatio = H.volRatio(s), cs = H.closeStr(s);
       const fails = [];
