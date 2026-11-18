@@ -105,6 +105,37 @@ label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--mu
 .ngrid label{display:flex;flex-direction:column;font-size:11px;color:var(--muted);gap:2px}
 .ngrid input{padding:5px 4px;text-align:center;font-size:14px}
 label.btn{display:block;text-align:center}
+.week{display:grid;grid-template-columns:28px repeat(7,1fr) 28px;gap:2px;align-items:center}
+.week .wd{border:0;background:none;font:inherit;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:1px;padding:4px 0;border-radius:12px;cursor:pointer;font-size:11px}
+.week .wd b{font-size:16px;color:var(--ink);font-variant-numeric:tabular-nums;width:30px;height:30px;line-height:30px;border-radius:50%;text-align:center}
+.week .wd.sel b{background:var(--accent);color:var(--accent-ink)}
+.week .wd i{width:5px;height:5px;border-radius:50%;background:transparent}
+.week .wd.has i{background:var(--peach)}
+.week .wd[disabled]{opacity:.35}
+.week .nv{border:0;background:none;color:var(--muted);font-size:20px;cursor:pointer;padding:0}
+.hero{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.hero .big{font-size:52px}
+.minis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.mini{background:var(--soft);border-radius:14px;padding:10px 6px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.mini svg{width:54px;height:54px}
+.mini svg circle{fill:none;stroke-width:6}
+.mini .t{font-size:12px;color:var(--muted)}
+.mini b{font-variant-numeric:tabular-nums;font-size:14px}
+.acts{display:grid;grid-template-columns:1.3fr 1fr;gap:8px}
+.bigbtn{border:0;border-radius:16px;padding:16px 10px;font:inherit;font-weight:700;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.bigbtn.eat{background:var(--peach);color:#fff}
+.bigbtn.mv{background:var(--accent);color:var(--accent-ink)}
+.coach{display:flex;gap:10px;align-items:flex-start}
+.coach .av{font-size:26px;line-height:1}
+.coach .say{flex:1;font-size:15px;font-weight:500}
+.coach.roast .say{color:var(--bad)}
+.thumb{width:46px;height:46px;border-radius:10px;object-fit:cover;flex:none}
+.li .main{display:flex;gap:10px;align-items:center;flex:1;min-width:0}
+.left-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:4px 0 6px 10px}
+.chat{display:flex;flex-direction:column;gap:6px;font-size:14px}
+.chat .me{align-self:flex-end;background:var(--soft);padding:6px 10px;border-radius:12px 12px 2px 12px;max-width:85%}
+.chat .ai{align-self:flex-start;padding:2px 0;max-width:90%}
+#streak{font-weight:700;color:var(--peach);font-size:14px;margin-right:auto;margin-left:10px}
 .card>label.f,.card>.f{flex:none}
 .stat{background:var(--soft);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:2px}
 .stat b{font-family:var(--display);font-size:24px;line-height:1.1;font-variant-numeric:tabular-nums}
@@ -119,7 +150,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:13px}
 </style>
 </head>
 <body>
-<header><h1>飲食<span>熱量</span>日記</h1><div id="sync"><i></i><span>本機儲存</span></div></header>
+<header><h1>飲食<span>熱量</span>日記</h1><span id="streak"></span><div id="sync"><i></i><span>本機儲存</span></div></header>
 <main id="app"></main>
 <div id="toast" role="status" aria-live="polite"></div>
 <nav id="nav"></nav>
@@ -130,6 +161,9 @@ details summary{cursor:pointer;color:var(--muted);font-size:13px}
 const N=[["k","熱量","kcal"],["p","蛋白質","g"],["c","碳水","g"],["f","脂肪","g"],["fb","膳食纖維","g"],["na","鈉","mg"],["su","糖","g"]];
 const MEALS=[["b","早餐",.25],["l","午餐",.35],["d","晚餐",.30],["s","點心",.10]];
 const MEALN={b:"早餐",l:"午餐",d:"晚餐",s:"點心"};
+const GOALS=[["lose","減脂","少吃一點、吃夠蛋白質，慢慢瘦下來"],["recomp","增肌減脂","小小熱量赤字＋高蛋白＋重訓，體重變化慢，但線條會出來"],["keep","維持","吃跟消耗一樣多，維持現在的體重"],["gain","增肌","多吃一點配合重訓，長肌肉"]];
+const GOALN={lose:"減脂",recomp:"增肌減脂",keep:"維持體重",gain:"增肌"};
+const PROT={lose:1.6,recomp:2.0,keep:1.2,gain:1.8};
 // [名稱, kcal, 蛋白, 碳水, 脂肪, 纖維, 鈉mg, 糖]
 const FOODS=[
  ["白飯 1 碗",280,5,62,0.6,0.6,2,0],["糙米飯 1 碗",270,6,56,2,3,4,0],["地瓜 200g",170,3,40,0.3,5,60,12],
@@ -148,7 +182,7 @@ const ACTS=[[1.2,"大多坐著（上班、上課）"],[1.375,"常走動（站著
 
 /* ---------- 狀態 ---------- */
 const KEY="diet-diary-v1";
-const blank=()=>({setup:false,profile:{sex:"f",age:30,h:160,w:60,goalW:55,goal:"lose",pace:2,act:1.2},days:{},myFoods:[],weights:[],updatedAt:0});
+const blank=()=>({setup:false,profile:{sex:"f",age:30,h:160,w:60,goalW:55,goal:"lose",pace:2,act:1.2,coach:"roast"},days:{},myFoods:[],weights:[],updatedAt:0});
 function fix(o){const b=blank();o.profile=Object.assign(b.profile,o.profile||{});if(!o.days||typeof o.days!=="object")o.days={};if(!Array.isArray(o.myFoods))o.myFoods=[];if(!Array.isArray(o.weights))o.weights=[];return o}
 let S=blank();
 try{const raw=localStorage.getItem(KEY);if(raw)S=fix(Object.assign(blank(),JSON.parse(raw)))}catch(e){}
@@ -166,7 +200,7 @@ function peek(d){return S.days[d]||{food:[],ex:[]}}
 
 /* ---------- 儲存 / 雲端同步 ---------- */
 let ref=null,wTimer=null,writing=false,again=false;
-function prune(){const cut=shift(today(),-180);Object.keys(S.days).forEach(k=>{if(k<cut)delete S.days[k]});if(S.weights.length>400)S.weights=S.weights.slice(-400)}
+function prune(){const cut=shift(today(),-180),ic=shift(today(),-14);Object.keys(S.days).forEach(k=>{if(k<cut)delete S.days[k];else if(k<ic)(S.days[k].food||[]).forEach(x=>{delete x.img})});if(S.weights.length>400)S.weights=S.weights.slice(-400)}
 function save(){S.updatedAt=Date.now();prune();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}if(ref){clearTimeout(wTimer);wTimer=setTimeout(flush,1200)}}
 async function flush(){if(!ref)return;if(writing){again=true;return}writing=true;
   try{await ref.set(JSON.parse(JSON.stringify(S)))}catch(e){if(e&&e.code==="quota_exceeded")toast("雲端空間滿了，資料先存在這台裝置");else if(e&&(e.code==="invalid_argument"||e.code==="revoked")){ref=null;setSync(false)}}
@@ -188,11 +222,11 @@ function setSync(on){const el=$("#sync");el.className=on?"cloud":"";el.querySele
 /* ---------- 計算 ---------- */
 function targets(){const p=S.profile;
   const bmr=10*p.w+6.25*p.h-5*p.age+(p.sex==="m"?5:-161);const tdee=bmr*p.act;
-  const delta=p.goal==="lose"?-[275,550,825][p.pace-1]:p.goal==="gain"?[150,300,450][p.pace-1]:0;
+  const cut=p.goal==="lose"||p.goal==="recomp";const delta=p.goal==="lose"?-[275,550,825][p.pace-1]:p.goal==="recomp"?-[150,250,350][p.pace-1]:p.goal==="gain"?[150,300,450][p.pace-1]:0;
   const floor=p.sex==="m"?1500:1200;let kcal=tdee+delta,floored=false;
-  if(p.goal==="lose"&&kcal<floor){kcal=floor;floored=true}
+  if(cut&&kcal<floor){kcal=floor;floored=true}
   kcal=Math.round(kcal/10)*10;
-  const pr=Math.round(p.w*(p.goal==="lose"?1.6:p.goal==="gain"?1.8:1.2));
+  const pr=Math.round(p.w*PROT[p.goal]);
   const fat=Math.round(kcal*0.25/9);const carb=Math.max(0,Math.round((kcal-pr*4-fat*9)/4));
   const weekly=(kcal-tdee)*7/7700;
   return {bmr:Math.round(bmr),tdee:Math.round(tdee),kcal,floored,weekly,
@@ -202,11 +236,40 @@ function exKcal(d){return peek(d).ex.reduce((a,x)=>a+(+x.k||0),0)}
 function budget(d){const T=targets();const e=exKcal(d);return {k:T.kcal+e,ex:e,T}}
 function verdict(d){const L=peek(d).food;if(!L.length)return {cls:"",t:"還沒記錄"};
   const B=budget(d),k=totals(L).k,g=S.profile.goal,isT=d===today(),diff=B.k-k;
-  if(g==="lose"){if(k>B.k*1.05)return {cls:"bad",t:"超過 "+Math.round(k-B.k)+" kcal"};
+  if(g==="lose"||g==="recomp"){if(k>B.k*1.05)return {cls:"bad",t:"超過 "+Math.round(k-B.k)+" kcal"};
     if(!isT&&k<B.k*0.75)return {cls:"warn",t:"吃太少了"};return {cls:isT?"":"good",t:isT?"還可以吃 "+Math.max(0,Math.round(diff))+" kcal":"達成 ✓"};}
   if(g==="gain"){if(k>=B.k*0.95)return {cls:"good",t:"達成 ✓"};return {cls:isT?"":"warn",t:"還差 "+Math.round(diff)+" kcal"};}
   if(Math.abs(diff)<=B.k*0.1)return {cls:"good",t:"達成 ✓"};
   return diff>0?{cls:isT?"":"warn",t:"還差 "+Math.round(diff)+" kcal"}:{cls:"bad",t:"超過 "+Math.round(-diff)+" kcal"};}
+function streak(){let d=today(),n=0;if(!peek(d).food.length)d=shift(d,-1);while(peek(d).food.length){n++;d=shift(d,-1)}return n}
+function pick(a){return a[Math.floor(Math.random()*a.length)]}
+// 依數字產生評語：沒有 AI 也能用
+function coachRule(m,d){const st=S.profile.coach;if(st==="off")return "";const R=st==="roast";
+  const B=budget(d),T=B.T.t,day=totals(peek(d).food),meal=totals(peek(d).food.filter(x=>x.m===m));
+  const mt=B.k*(MEALS.find(z=>z[0]===m)||[0,0,.3])[2],g=S.profile.goal,cutting=g==="lose"||g==="recomp";
+  if(cutting&&day.k>B.k*1.05)return R?pick(["今天已經超過 "+Math.round(day.k-B.k)+" kcal，你的減脂計畫正在默默流淚。","超標 "+Math.round(day.k-B.k)+" kcal。體重計：明天見，我等你。"]):"今天超過 "+Math.round(day.k-B.k)+" kcal 了，沒關係，明天吃清淡一點、多走點路就好。";
+  if(cutting&&meal.k>mt*1.5)return R?pick(["這一餐抵別人一餐半，胃很開心，體重計不會。","一餐吃掉 "+Math.round(meal.k)+" kcal，你是在減脂還是在儲糧過冬？"]):"這餐份量比較多，下一餐可以吃少一點平衡回來。";
+  if(day.su>T.su*1.2)return R?pick(["糖已經 "+Math.round(day.su)+" g，超過上限 "+T.su+" g。手搖飲是甜的，體重也會是。","今天的糖分夠一隻螞蟻家族過冬了（"+Math.round(day.su)+" g）。"]):"今天糖分有點高（"+Math.round(day.su)+" g），下一杯飲料試試無糖或微糖。";
+  if(day.na>2400)return R?pick(["鈉 "+Math.round(day.na)+" mg，明天早上的水腫已經在路上了。","鹽吃這麼多，你是想把自己醃起來嗎？（鈉 "+Math.round(day.na)+" mg）"]):"今天鈉比較高（"+Math.round(day.na)+" mg），多喝水，晚餐少喝湯、少沾醬。";
+  if(meal.k>250&&meal.p<meal.k/40)return R?pick(["這餐蛋白質少到可以忽略，肌肉表示：那我呢？","碳水吃得很開心，蛋白質請假中。"]):"這餐蛋白質少了點，下一餐可以加顆蛋、豆漿或一份肉。";
+  if(g==="gain"&&day.k<B.k*0.6&&new Date().getHours()>=18&&d===today())return R?"都晚上了才吃 "+Math.round(day.k)+" kcal，想增肌是要靠意念長嗎？":"今天吃得還不夠，睡前可以補一杯牛奶或豆漿。";
+  return R?pick(["居然吃得還不錯，我差點找不到可以念你的地方。","這餐還行，今天先放你一馬。","乖，繼續保持，不要讓我抓到。"]):pick(["這餐很均衡，做得很好！","吃得不錯，繼續保持 👍","很棒，今天的進度很穩。"]);}
+function setCoach(d,t,m){if(!t)return;const D=day(d);D.c={t:String(t).slice(0,160),m:m||""};CH.log=[];save()}
+const CH={log:[],busy:false};
+async function talkBack(){const inp=$("#chIn");const q=inp&&inp.value.trim();if(!q||!sampleFn||CH.busy)return;
+  const D=peek(date),t=totals(D.food),B=budget(date);CH.log.push({r:"me",t:q.slice(0,200)});CH.busy=true;render();
+  const st=S.profile.coach==="gentle"?"溫柔鼓勵":"毒舌但不傷人、好笑";
+  const sys="你是飲食 App 裡的教練，說話風格："+st+"。用繁體中文、口語、最多兩句。使用者目標"+GOALN[S.profile.goal]+"，今天可吃 "+B.k+" kcal、已吃 "+Math.round(t.k)+" kcal，今天吃了："+D.food.map(x=>x.n).join("、").slice(0,300)+"。你剛剛說："+((D.c&&D.c.t)||"")+"。使用者回嘴，請回應；不要羞辱外表或體型，不要鼓勵節食過度。";
+  const hist=CH.log.slice(-6);const msgs=[];hist.forEach((x,i)=>msgs.push({role:x.r==="me"?"user":"assistant",content:(i===0?sys+"\n\n使用者說：":"")+x.t}));
+  if(msgs[0].role!=="user")msgs.unshift({role:"user",content:sys});
+  try{const r=await sampleFn(msgs,{modelTier:"quick",cache:false});CH.log.push({r:"ai",t:String(r.text||"").slice(0,300)})}
+  catch(e){CH.log.push({r:"ai",t:e&&e.code==="rate_limited"?"（說太快了，等一下再回嘴）":"（我現在沒辦法回，等一下再試）"})}
+  CH.busy=false;if(tab==="today")render();}
+async function thumbOf(file){return new Promise(res=>{try{const u=URL.createObjectURL(file);const im=new Image();
+  im.onload=()=>{try{const m=120,sc=Math.max(m/im.naturalWidth,m/im.naturalHeight);const c=document.createElement("canvas");c.width=m;c.height=m;
+    const w=im.naturalWidth*sc,h=im.naturalHeight*sc;c.getContext("2d").drawImage(im,(m-w)/2,(m-h)/2,w,h);URL.revokeObjectURL(u);res(c.toDataURL("image/jpeg",0.6))}catch(e){res("")}};
+  im.onerror=()=>{URL.revokeObjectURL(u);res("")};im.src=u}catch(e){res("")}})}
+let leftIdx=-1;const MF={file:null,url:""};
 function curW(){const W=S.weights.slice().sort((a,b)=>a.d<b.d?-1:1);return W.length?W[W.length-1].w:S.profile.w}
 
 /* ---------- 拍照分析 ---------- */
@@ -218,16 +281,17 @@ function shrink(file){return new Promise(res=>{const u=URL.createObjectURL(file)
     c.getContext("2d").drawImage(im,0,0,c.width,c.height);c.toBlob(b=>{URL.revokeObjectURL(u);res(b||file)},"image/jpeg",0.85)}catch(e){URL.revokeObjectURL(u);res(file)}};
   im.onerror=()=>{URL.revokeObjectURL(u);res(file)};im.src=u;})}
 async function analyze(){if(!sampleFn||!PH.file||PH.busy)return;PH.busy=true;PH.err="";render();
-  const B=budget(date),t=totals(peek(date).food),g={lose:"減脂",keep:"維持體重",gain:"增肌"}[S.profile.goal];
-  const prompt="你是幫台灣使用者估算餐點營養的助手，使用者目標是"+g+"。請看這張餐點照片，辨識每一樣食物，估計份量和營養：熱量 kcal、蛋白質 g、碳水化合物 g、脂肪 g、膳食纖維 g、鈉 mg、糖 g。台灣常見的便當、自助餐、小吃、超商、手搖飲、早餐店都要能認。烹調用油和醬汁要算進去。"
+  const B=budget(date),t=totals(peek(date).food),g=GOALN[S.profile.goal];
+  const prompt="你是幫台灣使用者估算餐點營養的助手，使用者目標是"+g+"。請看這張餐點照片，辨識每一樣食物，估計份量和營養：熱量 kcal、蛋白質 g、碳水化合物 g、脂肪 g、膳食纖維 g、鈉 mg、糖 g。台灣常見的便當、自助餐、小吃、超商、手搖飲、早餐店都要能認。烹調用油和醬汁要算進去。如果拍的是包裝上的營養標示，就照標示上的數字填（注意每份和份數）。"
    +(PH.note?"\n使用者補充："+PH.note.slice(0,200):"")
    +"\n這是"+MEALN[addMeal]+"。今天已吃 "+t.k+" kcal，今天可吃 "+B.k+" kcal（含運動 "+B.ex+" kcal）。"
-   +'\n只回傳 JSON，格式：{"items":[{"name":"炸雞腿","portion":"1 隻約 180g","kcal":420,"protein":32,"carbs":12,"fat":27,"fiber":0,"sodium":650,"sugar":1}],"tip":"一句繁體中文建議"}。name、portion、tip 用繁體中文。看不到食物就回 {"items":[],"tip":"說明原因"}。';
+   +'\n另外寫一句 comment 評論這餐，風格：'+(S.profile.coach==="gentle"?"溫柔鼓勵":S.profile.coach==="off"?"中性簡短":"毒舌吐槽、好笑但不傷人，可以針對熱量、糖、鈉、蛋白質，不要攻擊外表")+'，20 字到 40 字。'
+   +'\n只回傳 JSON，格式：{"items":[{"name":"炸雞腿","portion":"1 隻約 180g","kcal":420,"protein":32,"carbs":12,"fat":27,"fiber":0,"sodium":650,"sugar":1}],"tip":"一句繁體中文建議","comment":"一句評論"}。name、portion、tip、comment 用繁體中文。看不到食物就回 {"items":[],"tip":"說明原因"}。';
   try{const img=await shrink(PH.file);const r=await sampleFn.json(prompt,{images:[img]});
     const v=x=>Math.max(0,r1(x));
     const items=(r&&Array.isArray(r.items)?r.items:[]).slice(0,15).map(x=>({n:String(x.name||"食物").slice(0,40),portion:String(x.portion||"").slice(0,40),on:true,
       k:Math.round(v(x.kcal)),p:v(x.protein),c:v(x.carbs),f:v(x.fat),fb:v(x.fiber),na:Math.round(v(x.sodium)),su:v(x.sugar)}));
-    PH.res={items,tip:String((r&&r.tip)||"").slice(0,200)};if(!items.length){PH.err=PH.res.tip||"照片裡看不到食物，換一張試試。";PH.res=null}
+    PH.res={items,tip:String((r&&r.tip)||"").slice(0,200),comment:String((r&&r.comment)||"").slice(0,160)};if(!items.length){PH.err=PH.res.tip||"照片裡看不到食物，換一張試試。";PH.res=null}
   }catch(e){const c=e&&e.code;
     if(["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed","images_unavailable"].includes(c))PH.err="這裡沒辦法使用 AI 看照片，請改用下面的快速加入或自己輸入。";
     else if(c==="rate_limited")PH.err="用得有點頻繁，等一下再試。";
@@ -247,33 +311,49 @@ const TABS=[["today","今天"],["ex","運動"],["add","記一餐"],["trend","趨
 function render(){$("#nav").innerHTML=TABS.map(([k,n])=>'<button data-tab="'+k+'" class="'+(tab===k?"on":"")+(k==="add"?" plus":"")+'" aria-label="'+n+'">'+ICONS[k]+n+'</button>').join("");
   $("#app").innerHTML={today:vToday,add:vAdd,ex:vEx,trend:vTrend,me:vMe}[tab]();}
 
-function dateBar(){const isT=date===today();const d=new Date(date+"T12:00:00");
-  return '<div class="row between"><button class="btn sm" data-act="dd" data-n="-1" aria-label="前一天">‹</button><h2>'+(isT?"今天":"")+" "+(d.getMonth()+1)+"/"+d.getDate()+"（"+"日一二三四五六"[d.getDay()]+'）</h2><button class="btn sm" data-act="dd" data-n="1" '+(isT?"disabled":"")+' aria-label="後一天">›</button></div>';}
+function weekStart(d){const x=new Date(d+"T12:00:00");return shift(d,-((x.getDay()+6)%7))}
+let wk=null;
+function dateBar(){const ws=wk||weekStart(date),td=today();let h='<div class="week"><button class="nv" data-act="wk" data-n="-7" aria-label="上一週">‹</button>';
+  for(let i=0;i<7;i++){const d=shift(ws,i),dd=new Date(d+"T12:00:00");h+='<button class="wd '+(d===date?"sel ":"")+(peek(d).food.length?"has":"")+'" data-act="pick" data-d="'+d+'" '+(d>td?"disabled":"")+' aria-label="'+d+'">'+"一二三四五六日"[i]+'<b>'+dd.getDate()+'</b><i></i></button>'}
+  return h+'<button class="nv" data-act="wk" data-n="7" '+(shift(ws,7)>td?"disabled":"")+' aria-label="下一週">›</button></div>';}
+function mini(lbl,v,t,col){const r=22,C=2*Math.PI*r,p=t?Math.min(1,v/t):0;
+  return '<div class="mini"><svg viewBox="0 0 54 54" aria-hidden="true"><circle cx="27" cy="27" r="'+r+'" stroke="var(--line)"/><circle cx="27" cy="27" r="'+r+'" stroke="'+(v>t*1.15?"var(--bad)":col)+'" stroke-linecap="round" stroke-dasharray="'+C+'" stroke-dashoffset="'+(C*(1-p))+'" transform="rotate(-90 27 27)"/></svg><span class="t">'+lbl+'</span><b>'+Math.round(v)+'<span class="muted"> / '+t+'g</span></b></div>';}
 function ring(eaten,total){const r=50,C=2*Math.PI*r,pct=total?Math.min(1,eaten/total):0,over=eaten>total;const left=Math.round(total-eaten);
   return '<svg class="ring '+(over?"over":"")+'" viewBox="0 0 118 118" role="img" aria-label="已吃 '+eaten+'，可吃 '+total+' 大卡"><circle class="bg" cx="59" cy="59" r="'+r+'"/><circle class="fg" cx="59" cy="59" r="'+r+'" stroke-dasharray="'+C+'" stroke-dashoffset="'+(C*(1-pct))+'" transform="rotate(-90 59 59)"/>'
    +'<text x="59" y="58" text-anchor="middle" font-size="24">'+Math.abs(left)+'</text><text class="s" x="59" y="78" text-anchor="middle" font-size="11">'+(over?"超過 kcal":"還可吃 kcal")+'</text></svg>';}
 function vToday(){let h="";
   if(!S.setup)h+='<div class="card"><h2>先填基本資料</h2><div class="muted">輸入身高、體重和目標體重，App 會算出你每天、每餐該吃多少熱量。</div><button class="btn pri full" data-tab="me">去填資料</button></div>';
-  const D=peek(date),B=budget(date),t=totals(D.food),T=B.T.t,v=verdict(date),scale=B.k/T.k;
-  h+='<div class="card">'+dateBar()+'<div class="ring-wrap">'+ring(t.k,B.k)+'<div class="eq"><span>每日目標</span><b>'+T.k+'</b><span>＋ 運動</span><b>'+B.ex+'</b><span>－ 已吃</span><b>'+t.k+'</b><span style="color:var(--ink)">'+(B.k-t.k>=0?"＝ 還可吃":"＝ 超過")+'</span><b>'+Math.abs(Math.round(B.k-t.k))+'</b></div></div>'
-   +'<div class="row between"><span class="muted">今日結算</span><span class="pill '+v.cls+'">'+esc(v.t)+'</span></div>';
-  h+='<div class="nut">'+N.slice(1).map(([k,n,u])=>{const lim=k==="na"||k==="su";const tg=k==="c"?Math.round(T.c+B.ex/4):T[k];const pct=tg?t[k]/tg*100:0;
-    return '<div><div class="lab"><b>'+n+'</b><span class="num">'+(k==="na"?Math.round(t[k]):r1(t[k]))+' / '+tg+' '+u+(lim?" 上限":"")+'</span></div><div class="bar '+(lim?(pct>100?"over":"lim"):"")+'"><div style="width:'+Math.min(100,pct)+'%"></div></div></div>'}).join("")+'</div></div>';
-  h+='<div class="card"><h3>每一餐</h3>'+MEALS.map(([m,n,r])=>{const L=D.food.map((x,i)=>[x,i]).filter(([x])=>x.m===m);const mk=totals(L.map(z=>z[0])).k;const tg=Math.round(B.k*r/10)*10;
-    return '<div class="meal"><div class="meal-h"><b>'+n+'</b><span class="row"><span class="muted num">'+mk+' / '+tg+' kcal</span><button class="btn sm" data-act="goadd" data-m="'+m+'" aria-label="新增'+n+'">＋</button></span></div>'
-     +L.map(([x,i])=>'<div class="li"><div>'+esc(x.n)+'<div class="muted num">'+x.k+' kcal · 蛋白 '+r1(x.p)+' g · 碳水 '+r1(x.c)+' g · 鈉 '+Math.round(x.na||0)+' mg</div></div><button class="btn sm ghost danger" data-act="delfood" data-i="'+i+'">刪除</button></div>').join("")+'</div>'}).join("")+'</div>';
-  if(D.ex.length)h+='<div class="card"><h3>今天的運動</h3>'+D.ex.map((x,i)=>'<div class="li"><div>'+esc(x.n)+'<div class="muted">'+(x.min?x.min+" 分鐘 · ":"")+x.k+' kcal</div></div><button class="btn sm ghost danger" data-act="delex" data-i="'+i+'">刪除</button></div>').join("")+'</div>';
+  const D=peek(date),B=budget(date),t=totals(D.food),T=B.T.t,v=verdict(date),left=Math.round(B.k-t.k),isT=date===today();
+  h+='<div class="card">'+dateBar()
+   +'<div class="hero"><div><div class="muted">'+(left>=0?"還可以吃":"已經超過")+'</div><div class="big" style="color:'+(left<0?"var(--bad)":"var(--ink)")+'">'+Math.abs(left)+'<small> kcal</small></div>'
+   +'<div class="muted num">已吃 '+Math.round(t.k)+' / '+B.k+'（目標 '+T.k+(B.ex?' ＋ 運動 '+B.ex:'')+'）</div></div>'+ring(t.k,B.k)+'</div>'
+   +'<div class="muted num">🌙 基礎代謝 '+B.T.bmr+' kcal　⚡ 每日消耗 '+B.T.tdee+' kcal</div>'
+   +'<div class="minis">'+mini("蛋白質",t.p,T.p,"var(--accent)")+mini("碳水",t.c,Math.round(T.c+B.ex/4),"#d9a520")+mini("脂肪",t.f,T.f,"var(--peach)")+'</div>'
+   +'<details><summary>纖維、鈉、糖</summary><div class="nut" style="margin-top:8px">'+[["fb","膳食纖維","g"],["na","鈉","mg"],["su","糖","g"]].map(([k,n,u])=>{const lim=k!=="fb";const tg=T[k];const pct=tg?t[k]/tg*100:0;
+    return '<div><div class="lab"><b>'+n+'</b><span class="num">'+Math.round(t[k])+' / '+tg+' '+u+(lim?" 上限":"")+'</span></div><div class="bar '+(lim?(pct>100?"over":"lim"):"")+'"><div style="width:'+Math.min(100,pct)+'%"></div></div></div>'}).join("")+'</div></details>'
+   +'<div class="row between"><span class="muted">'+(isT?"今日結算":"當天結算")+'</span><span class="pill '+v.cls+'">'+esc(v.t)+'</span></div></div>';
+  h+='<div class="acts"><button class="bigbtn eat" data-act="goadd" data-m="'+guessMeal()+'">📸 又吃了，留下證據</button><button class="bigbtn mv" data-tab="ex">🏃 有運動？</button></div>';
+  if(D.c&&D.c.t&&S.profile.coach!=="off"){const R=S.profile.coach==="roast";
+    h+='<div class="card"><div class="coach '+(R?"roast":"")+'"><span class="av">'+(R?"💀":"🌱")+'</span><div class="say">'+esc(D.c.t)+'</div></div>';
+    if(sampleFn&&isT){h+='<div class="chat">'+CH.log.map(x=>'<div class="'+x.r+'">'+esc(x.t)+'</div>').join("")+(CH.busy?'<div class="ai muted">輸入中…</div>':'')+'</div>'
+      +'<div class="row" style="flex-wrap:nowrap"><input id="chIn" placeholder="'+(R?"不服？回嘴啊":"想說什麼？")+'" maxlength="200" aria-label="回覆教練"><button class="btn sm" style="white-space:nowrap" data-act="chat" '+(CH.busy?"disabled":"")+'>送出</button></div>'}
+    h+='</div>';}
+  h+='<div class="card"><h3>'+(isT?"今日紀錄":"當天紀錄")+'</h3>'+MEALS.map(([m,n,r])=>{const L=D.food.map((x,i)=>[x,i]).filter(([x])=>x.m===m);const mk=totals(L.map(z=>z[0])).k;const tg=Math.round(B.k*r/10)*10;
+    return '<div class="meal"><div class="meal-h"><b>'+n+'</b><span class="row"><span class="muted num">'+Math.round(mk)+' / '+tg+' kcal</span><button class="btn sm" data-act="goadd" data-m="'+m+'" aria-label="新增'+n+'">＋</button></span></div>'
+     +L.map(([x,i])=>'<div class="li"><div class="main">'+(x.img?'<img class="thumb" src="'+x.img+'" alt="">':'')+'<div>'+esc(x.n)+(x.pct&&x.pct<100?' <span class="pill">吃了 '+x.pct+'%</span>':'')+'<div class="muted num">'+Math.round(x.k)+' kcal · 蛋白 '+r1(x.p)+' g · 碳水 '+r1(x.c)+' g · 脂肪 '+r1(x.f)+' g</div></div></div><div class="row" style="flex-wrap:nowrap"><button class="btn sm ghost" data-act="left" data-i="'+i+'">吃剩</button><button class="btn sm ghost danger" data-act="delfood" data-i="'+i+'" aria-label="刪除">✕</button></div></div>'
+       +(leftIdx===i?'<div class="left-row"><span class="muted">實際吃了：</span>'+[25,50,75,100].map(p=>'<button class="btn sm '+((x.pct||100)===p?"pri":"")+'" data-act="leftp" data-i="'+i+'" data-p="'+p+'">'+p+'%</button>').join("")+'</div>':'')).join("")+'</div>'}).join("")+'</div>';
+  if(D.ex.length)h+='<div class="card"><h3>運動</h3>'+D.ex.map((x,i)=>'<div class="li"><div>'+esc(x.n)+'<div class="muted">'+(x.min?x.min+" 分鐘 · ":"")+x.k+' kcal</div></div><button class="btn sm ghost danger" data-act="delex" data-i="'+i+'">刪除</button></div>').join("")+'</div>';
   return h;}
 
 function vAdd(){let h='<div class="card"><h2>記一餐</h2><div class="muted">'+(date===today()?"今天":date)+'，加到哪一餐？</div><div class="seg">'+MEALS.map(([m,n])=>'<button data-act="meal" data-m="'+m+'" class="'+(addMeal===m?"on":"")+'">'+n+'</button>').join("")+'</div></div>';
   if(imgOK)h+=vPhoto();
   const all=S.myFoods.concat(FOODS.map(a=>({n:a[0],k:a[1],p:a[2],c:a[3],f:a[4],fb:a[5],na:a[6],su:a[7]})));
   h+='<div class="card"><h3>點一下加入</h3><div class="chips">'+all.map((f,i)=>'<button class="chip" data-act="qf" data-i="'+i+'">'+esc(f.n)+'<span>'+f.k+'</span></button>').join("")+'</div><div class="muted">外食份量差很多，這些是一般估計值。</div></div>';
-  h+='<div class="card"><h3>自己輸入</h3><label class="f" for="cfN">名稱<input id="cfN" placeholder="例如：媽媽煮的晚餐"></label><div class="ngrid">'
+  h+='<div class="card"><h3>自己輸入</h3>'+(imgOK?'':'<label class="btn full" for="mfIn">'+(MF.url?'<img class="thumb" src="'+MF.url+'" alt="" style="vertical-align:middle;margin-right:8px">換一張照片':'📸 附上照片當證據（選填）')+'</label><input type="file" id="mfIn" accept="image/*" capture="environment" hidden>')+'<label class="f" for="cfN">名稱<input id="cfN" placeholder="例如：媽媽煮的晚餐"></label><div class="ngrid">'
    +N.map(([k,n,u])=>'<label for="cf_'+k+'">'+n+'('+u+')<input id="cf_'+k+'" inputmode="decimal"></label>').join("")+'</div><div class="muted">只知道熱量也可以，其他空著就好。包裝食品可以照營養標示填。</div>'
    +'<label class="row muted" for="cfS"><input type="checkbox" id="cfS"> 存成常用食物</label><button class="btn pri full" data-act="addcf">加入'+MEALN[addMeal]+'</button></div>';
   return h;}
-function vPhoto(){let h='<div class="card"><h3>📷 拍照算營養</h3><div class="muted">拍下餐點，AI 會估每樣食物的熱量、蛋白質、碳水、脂肪、纖維、鈉、糖。</div>'
+function vPhoto(){let h='<div class="card"><h3>📷 拍照算營養</h3><div class="muted">拍下餐點，AI 會估每樣食物的熱量、蛋白質、碳水、脂肪、纖維、鈉、糖。包裝食品可以直接拍背面的營養標示。</div>'
   +'<label class="btn full '+(PH.url?"":"pri")+'" for="phIn">'+(PH.url?"換一張照片":"拍照或選一張照片")+'</label><input type="file" id="phIn" accept="image/*" capture="environment" hidden>';
   if(PH.url)h+='<img class="ph-img" src="'+PH.url+'" alt="餐點照片"><label class="f" for="phNote">補充說明（選填，會更準）<input id="phNote" value="'+esc(PH.note)+'" placeholder="例如：飯只吃一半、雞腿是炸的、醬很多"></label>'
    +'<button class="btn pri full" data-act="phGo" '+(PH.busy?"disabled":"")+'>'+(PH.busy?"分析中…約 10–30 秒":(PH.res?"重新分析":"分析這餐"))+'</button>';
@@ -330,47 +410,58 @@ function vMe(){const p=S.profile,R=targets(),T=R.t;
    +'<div class="row"><label class="f" for="pSex">性別<select id="pSex">'+opt([["f","女"],["m","男"]],p.sex)+'</select></label><label class="f" for="pAge">年齡<input id="pAge" inputmode="numeric" value="'+p.age+'"></label></div>'
    +'<div class="row"><label class="f" for="pH">身高 cm<input id="pH" inputmode="decimal" value="'+p.h+'"></label><label class="f" for="pW">體重 kg<input id="pW" inputmode="decimal" value="'+p.w+'"></label><label class="f" for="pG">目標體重 kg<input id="pG" inputmode="decimal" value="'+p.goalW+'"></label></div>'
    +'<label class="f" for="pAct">平常活動量（不含運動，運動另外記）<select id="pAct">'+opt(ACTS,p.act)+'</select></label>'
-   +'<div class="f"><span>目標</span><div class="seg g3">'+[["lose","減脂"],["keep","維持"],["gain","增肌"]].map(([k,n])=>'<button data-act="goal" data-g="'+k+'" class="'+(p.goal===k?"on":"")+'">'+n+'</button>').join("")+'</div></div>'
+   +'<div class="f"><span>目標</span><div class="seg">'+GOALS.map(([k,n])=>'<button data-act="goal" data-g="'+k+'" class="'+(p.goal===k?"on":"")+'">'+n+'</button>').join("")+'</div><span class="muted">'+GOALS.find(g=>g[0]===p.goal)[2]+'</span></div>'
    +(p.goal!=="keep"?'<div class="f"><span>速度</span><div class="seg g3">'+[[1,"慢慢來"],[2,"一般"],[3,"積極"]].map(([k,n])=>'<button data-act="pace" data-p="'+k+'" class="'+(p.pace===k?"on":"")+'">'+n+'</button>').join("")+'</div></div>':'')
+   +'<div class="f"><span>教練說話風格（每次記錄後會評論一句）</span><div class="seg g3">'+[["roast","💀 毒舌"],["gentle","🌱 溫柔"],["off","關閉"]].map(([k,n])=>'<button data-act="coach" data-c="'+k+'" class="'+(p.coach===k?"on":"")+'">'+n+'</button>').join("")+'</div></div>'
    +'<button class="btn pri full" data-act="saveP">儲存並計算</button></div>';
   let eta="";const gap=curW()-p.goalW;
-  if(p.goal==="lose"&&gap>0&&R.weekly<0){const wk=gap/-R.weekly;const d=new Date();d.setDate(d.getDate()+Math.round(wk*7));eta="照這個吃法，每週約減 "+r1(-R.weekly)+" kg，大約 "+Math.ceil(wk)+" 週後（"+d.getFullYear()+"/"+(d.getMonth()+1)+"）到達 "+p.goalW+" kg。"}
+  if((p.goal==="lose"||p.goal==="recomp")&&gap>0&&R.weekly<0){const wk=gap/-R.weekly;const d=new Date();d.setDate(d.getDate()+Math.round(wk*7));eta="照這個吃法，每週約減 "+r1(-R.weekly)+" kg，大約 "+Math.ceil(wk)+" 週後（"+d.getFullYear()+"/"+(d.getMonth()+1)+"）到達 "+p.goalW+" kg。"}
   else if(p.goal==="gain"&&gap<0&&R.weekly>0){const wk=-gap/R.weekly;eta="每週約增 "+r1(R.weekly)+" kg，大約 "+Math.ceil(wk)+" 週到達 "+p.goalW+" kg。"}
   h+='<div class="card"><h2>你的每日目標</h2><div class="grid2"><div class="stat"><span class="muted">熱量</span><b>'+T.k+'</b><span class="muted">kcal / 天</span></div><div class="stat"><span class="muted">蛋白質</span><b>'+T.p+'</b><span class="muted">g / 天</span></div></div>'
    +'<div class="eq">'+N.slice(2).map(([k,n,u])=>'<span>'+n+((k==="na"||k==="su")?"（上限）":"")+'</span><b>'+T[k]+' '+u+'</b>').join("")+'</div>'
    +'<div class="eq" style="border-top:1px solid var(--line);padding-top:8px">'+MEALS.map(([m,n,r])=>'<span>'+n+'（'+Math.round(r*100)+'%）</span><b>'+Math.round(T.k*r/10)*10+' kcal</b>').join("")+'</div>'
    +(eta?'<div class="sug">'+eta+'</div>':'')+(R.floored?'<div class="sug">為了健康，每日熱量不會低於 '+R.kcal+' kcal（吃太少容易掉肌肉、代謝變慢），所以減重速度會比選的慢一點。</div>':'')
    +'<details><summary>這些數字怎麼算的？</summary><div class="muted" style="margin-top:6px">基礎代謝 BMR（Mifflin 公式）= '+R.bmr+' kcal，是躺著不動一天消耗的熱量。乘上活動量 = 每日總消耗 '+R.tdee+' kcal。'
-   +(p.goal==="lose"?"減脂：每天少吃一些，每少 7700 kcal 約減 1 kg 脂肪。":p.goal==="gain"?"增肌：每天多吃一點，配合重訓。":"維持：吃跟消耗一樣多。")
-   +'<br>蛋白質 = 體重 × '+(p.goal==="lose"?1.6:p.goal==="gain"?1.8:1.2)+' g（減脂時吃夠蛋白質才不會掉肌肉）；脂肪佔熱量 25%；剩下給碳水。纖維每 1000 kcal 約 14 g；鈉上限 2400 mg（衛福部建議）；糖指的是添加糖，上限為熱量的 10%，水果和牛奶的天然糖不用太擔心。</div></details></div>';
+   +(p.goal==="lose"?"減脂：每天少吃一些，每少 7700 kcal 約減 1 kg 脂肪。":p.goal==="recomp"?"增肌減脂：只少吃一點點，蛋白質吃很多，一定要配合重訓，否則只會變成慢慢減脂。":p.goal==="gain"?"增肌：每天多吃一點，配合重訓。":"維持：吃跟消耗一樣多。")
+   +'<br>蛋白質 = 體重 × '+PROT[p.goal]+' g（減脂時吃夠蛋白質才不會掉肌肉）；脂肪佔熱量 25%；剩下給碳水。纖維每 1000 kcal 約 14 g；鈉上限 2400 mg（衛福部建議）；糖指的是添加糖，上限為熱量的 10%，水果和牛奶的天然糖不用太擔心。</div></details></div>';
   h+='<div class="card"><h3>資料</h3><div class="muted">'+(ref?"已自動存到雲端，換手機也看得到。":"資料存在這支手機的瀏覽器裡。換手機或清除瀏覽器資料前，先按「複製備份」把文字存到記事本。")+'</div><div class="row"><button class="btn sm" data-act="copy">複製備份</button><button class="btn sm ghost danger" data-act="reset">清除全部資料</button></div>'
    +'<details><summary>從備份還原</summary><textarea id="rsT" rows="4" style="width:100%;margin-top:8px;font:inherit;font-size:12px;background:var(--soft);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px" placeholder="貼上備份文字"></textarea><button class="btn full" data-act="restore" style="margin-top:6px">還原</button></details></div>';
   return h;}
 
 /* ---------- 互動 ---------- */
 function addFood(o){day(date).food.push(Object.assign({m:addMeal},o));save()}
+function keepForm(fn){const keep={};document.querySelectorAll("main input,main select").forEach(el=>{if(el.id)keep[el.id]=el.value});fn();render();Object.keys(keep).forEach(id=>{const el=document.getElementById(id);if(el&&el.type!=="file")el.value=keep[id]})}
+function afterAdd(){setCoach(date,coachRule(addMeal,date),addMeal)}
 function exCalc(){const m=+($("#exM")&&$("#exM").value)||0;return Math.round(SPORTS[exPick][1]*curW()*m/60)}
 function phSum(){const el=$("#phSum");if(!el||!PH.res)return;const t=totals(PH.res.items.filter(x=>x.on));el.textContent=Math.round(t.k)+" kcal · 蛋白 "+r1(t.p)+" g"}
 function confirmInline(b,msg){if(b.dataset.armed)return true;b.dataset.armed="1";const o=b.textContent;b.textContent=msg;setTimeout(()=>{if(b.isConnected){delete b.dataset.armed;b.textContent=o}},3000);return false}
-document.addEventListener("click",function(ev){const b=ev.target.closest("[data-tab],[data-act]");if(!b)return;
+document.addEventListener("click",async function(ev){const b=ev.target.closest("[data-tab],[data-act]");if(!b)return;
   if(b.dataset.tab){tab=b.dataset.tab;render();window.scrollTo(0,0);return}
   const a=b.dataset.act;
-  if(a==="dd"){const n=shift(date,+b.dataset.n);if(n<=today()){date=n;render()}}
+  if(a==="dd"){const n=shift(date,+b.dataset.n);if(n<=today()){date=n;wk=null;render()}}
+  else if(a==="pick"){date=b.dataset.d;leftIdx=-1;CH.log=[];render()}
+  else if(a==="wk"){wk=shift(wk||weekStart(date),+b.dataset.n);render()}
+  else if(a==="left"){leftIdx=leftIdx===+b.dataset.i?-1:+b.dataset.i;render()}
+  else if(a==="leftp"){const x=day(date).food[+b.dataset.i],p=+b.dataset.p;if(!x.o){x.o={};N.forEach(([k])=>x.o[k]=+x[k]||0)}N.forEach(([k])=>x[k]=k==="k"||k==="na"?Math.round(x.o[k]*p/100):r1(x.o[k]*p/100));x.pct=p;leftIdx=-1;save();render();toast(p===100?"已改回全部吃完":"已改成吃了 "+p+"%")}
+  else if(a==="chat"){talkBack()}
+  else if(a==="coach"){keepForm(()=>{S.profile.coach=b.dataset.c;save()})}
   else if(a==="goadd"){addMeal=b.dataset.m;tab="add";render();window.scrollTo(0,0)}
   else if(a==="meal"){addMeal=b.dataset.m;render()}
-  else if(a==="delfood"){day(date).food.splice(+b.dataset.i,1);save();render()}
+  else if(a==="delfood"){day(date).food.splice(+b.dataset.i,1);leftIdx=-1;save();render()}
   else if(a==="delex"){day(date).ex.splice(+b.dataset.i,1);save();render()}
-  else if(a==="qf"){const all=S.myFoods.concat(FOODS.map(x=>({n:x[0],k:x[1],p:x[2],c:x[3],f:x[4],fb:x[5],na:x[6],su:x[7]})));const f=all[+b.dataset.i];addFood({n:f.n,k:f.k,p:f.p,c:f.c,f:f.f,fb:f.fb,na:f.na,su:f.su});toast("已加入"+MEALN[addMeal]+"："+f.n)}
+  else if(a==="qf"){const all=S.myFoods.concat(FOODS.map(x=>({n:x[0],k:x[1],p:x[2],c:x[3],f:x[4],fb:x[5],na:x[6],su:x[7]})));const f=all[+b.dataset.i];addFood({n:f.n,k:f.k,p:f.p,c:f.c,f:f.f,fb:f.fb,na:f.na,su:f.su});afterAdd();toast("已加入"+MEALN[addMeal]+"："+f.n)}
   else if(a==="addcf"){const o={n:$("#cfN").value.trim()||"自訂食物"};N.forEach(([k])=>o[k]=Math.max(0,r1($("#cf_"+k).value)));if(!o.k&&!o.p&&!o.c){toast("請至少填熱量");return}
-    addFood(o);if($("#cfS").checked&&!S.myFoods.some(f=>f.n===o.n)){S.myFoods.unshift(Object.assign({},o));save()}render();toast("已加入"+MEALN[addMeal]+"："+o.n)}
+    const mf=MF.file;if(mf){o.img=await thumbOf(mf);try{URL.revokeObjectURL(MF.url)}catch(e){}MF.file=null;MF.url=""}
+    addFood(o);afterAdd();if($("#cfS").checked&&!S.myFoods.some(f=>f.n===o.n)){S.myFoods.unshift(Object.assign({},o));save()}render();toast("已加入"+MEALN[addMeal]+"："+o.n)}
   else if(a==="phGo")analyze();
   else if(a==="phAdd"){const on=PH.res.items.filter(x=>x.on);if(!on.length){toast("請至少勾一樣");return}
-    on.forEach(x=>{const o={n:x.n};N.forEach(([k])=>o[k]=Math.max(0,r1(x[k])));addFood(o)});
+    const th=await thumbOf(PH.file);on.forEach((x,j)=>{const o={n:x.n};N.forEach(([k])=>o[k]=Math.max(0,r1(x[k])));if(j===0&&th)o.img=th;addFood(o)});
+    setCoach(date,PH.res.comment&&S.profile.coach!=="off"?PH.res.comment:coachRule(addMeal,date),addMeal);
     try{URL.revokeObjectURL(PH.url)}catch(e){}Object.assign(PH,{file:null,url:"",res:null,err:"",note:""});tab="today";render();window.scrollTo(0,0);toast("已加入 "+on.length+" 樣食物")}
   else if(a==="addex"){const m=+$("#exM").value||0;if(m<=0||m>600){toast("請輸入運動幾分鐘");return}const kk=exCalc();day(date).ex.push({n:SPORTS[exPick][0],min:m,k:kk});save();render();toast("已加入，多了 "+kk+" kcal 可吃")}
   else if(a==="addex2"){const k=Math.round(+$("#exK2").value||0);if(k<=0||k>3000){toast("請輸入消耗的熱量");return}day(date).ex.push({n:$("#exN2").value.trim()||"運動",min:0,k});save();render();toast("已加入")}
-  else if(a==="goal"){S.profile.goal=b.dataset.g;save();render()}
-  else if(a==="pace"){S.profile.pace=+b.dataset.p;save();render()}
+  else if(a==="goal"){keepForm(()=>{S.profile.goal=b.dataset.g;save()})}
+  else if(a==="pace"){keepForm(()=>{S.profile.pace=+b.dataset.p;save()})}
   else if(a==="saveP"){const p=S.profile;const num=(id,lo,hi,d)=>{const v=+$(id).value;return v>=lo&&v<=hi?v:d};
     p.sex=$("#pSex").value;p.age=num("#pAge",12,100,p.age);p.h=num("#pH",120,230,p.h);const nw=num("#pW",30,250,p.w);
     if(nw!==p.w){p.w=nw;const d=today();S.weights=S.weights.filter(x=>x.d!==d);S.weights.push({d,w:nw})}
@@ -382,14 +473,16 @@ document.addEventListener("click",function(ev){const b=ev.target.closest("[data-
   else if(a==="reset"){if(!confirmInline(b,"再按一次確定清除"))return;S=blank();save();render();toast("已清除")}
 });
 document.addEventListener("change",function(ev){const t=ev.target;
-  if(t.id==="phIn"&&t.files&&t.files[0]){try{if(PH.url)URL.revokeObjectURL(PH.url)}catch(e){}PH.file=t.files[0];PH.url=URL.createObjectURL(PH.file);PH.res=null;PH.err="";render()}
+  if(t.id==="mfIn"&&t.files&&t.files[0]){try{if(MF.url)URL.revokeObjectURL(MF.url)}catch(e){}MF.file=t.files[0];MF.url=URL.createObjectURL(MF.file);const keep={};document.querySelectorAll("[id^=cf]").forEach(el=>keep[el.id]=el.type==="checkbox"?el.checked:el.value);render();Object.keys(keep).forEach(id=>{const el=document.getElementById(id);if(el){if(el.type==="checkbox")el.checked=keep[id];else el.value=keep[id]}})}
+  else if(t.id==="phIn"&&t.files&&t.files[0]){try{if(PH.url)URL.revokeObjectURL(PH.url)}catch(e){}PH.file=t.files[0];PH.url=URL.createObjectURL(PH.file);PH.res=null;PH.err="";render()}
   else if(t.id==="exS"){exPick=+t.value;const k=$("#exK");if(k)k.textContent=$("#exM").value?exCalc()+" kcal":"—"}
   else if(t.dataset&&t.dataset.ph==="on"&&PH.res){PH.res.items[+t.dataset.i].on=t.checked;t.closest(".item").classList.toggle("off",!t.checked);phSum()}});
+document.addEventListener("keydown",function(ev){if(ev.target.id==="chIn"&&ev.key==="Enter"&&!ev.isComposing){ev.preventDefault();talkBack()}});
 document.addEventListener("input",function(ev){const t=ev.target;
   if(t.id==="phNote"){PH.note=t.value;return}
   if(t.id==="exM"){$("#exK").textContent=t.value?exCalc()+" kcal":"—";return}
   if(t.dataset.ph&&t.dataset.ph!=="on"&&PH.res){PH.res.items[+t.dataset.i][t.dataset.ph]=t.value.replace(/[^\d.]/g,"");phSum()}});
-const _r=render;render=function(){_r();phSum()};
+const _r=render;render=function(){_r();phSum();const n=streak();$("#streak").textContent=n?"🔥 "+n+" 天":""};
 render();
 })();
 </script>
