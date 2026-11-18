@@ -263,7 +263,7 @@ async function talkBack(){const inp=$("#chIn");const q=inp&&inp.value.trim();if(
   const hist=CH.log.slice(-6);const msgs=[];hist.forEach((x,i)=>msgs.push({role:x.r==="me"?"user":"assistant",content:(i===0?sys+"\n\n使用者說：":"")+x.t}));
   if(msgs[0].role!=="user")msgs.unshift({role:"user",content:sys});
   try{const r=await sampleFn(msgs,{modelTier:"quick",cache:false});CH.log.push({r:"ai",t:String(r.text||"").slice(0,300)})}
-  catch(e){CH.log.push({r:"ai",t:e&&e.code==="rate_limited"?"（說太快了，等一下再回嘴）":"（我現在沒辦法回，等一下再試）"})}
+  catch(e){CH.log.push({r:"ai",t:e&&e.code==="rate_limited"?"（說太快了，等一下再回嘴）":e&&e.code==="daily_limit"?"（今天的次數用完了，明天再來吵）":"（我現在沒辦法回，等一下再試）"})}
   CH.busy=false;if(tab==="today")render();}
 async function thumbOf(file){return new Promise(res=>{try{const u=URL.createObjectURL(file);const im=new Image();
   im.onload=()=>{try{const m=120,sc=Math.max(m/im.naturalWidth,m/im.naturalHeight);const c=document.createElement("canvas");c.width=m;c.height=m;
@@ -274,6 +274,10 @@ async function gTest(){GT.busy=true;GT.msg="";render();try{localStorage.removeIt
   try{const m=await gModel(true);const r=await makeGemini()("只回答兩個字：可以");GT.msg="連線成功，使用 "+m+"。"}
   catch(e){GT.msg=e.code==="bad_key"?"金鑰不對，請重新複製一次。":e.code==="rate_limited"?"金鑰可以用，但現在額度滿了，等一下再試。":e.code==="network"?"連不上網路。":"測試失敗："+String(e.message||"").slice(0,80);
     if(e.code==="bad_key"){try{localStorage.setItem(GKEY,"none")}catch(x){}useGemini()}}
+  GT.busy=false;if(tab==="me")render()}
+async function rTest(){GT.busy=true;GT.msg="";render();
+  try{const j=await rPost({ping:1});GT.msg="連線成功，"+(j.name?"嗨 "+j.name+"！":"")+"可以拍照了。"}
+  catch(e){GT.msg=e.code==="bad_code"?"邀請碼不對，再確認一次。":e.code==="network"?"連不上網路。":"測試失敗，等一下再試。";if(e.code==="bad_code"){try{localStorage.removeItem(RCODE)}catch(x){}useGemini()}}
   GT.busy=false;if(tab==="me")render()}
 let leftIdx=-1;const MF={file:null,url:""};
 function curW(){const W=S.weights.slice().sort((a,b)=>a.d<b.d?-1:1);return W.length?W[W.length-1].w:S.profile.w}
@@ -311,7 +315,21 @@ function makeGemini(){const f=async(msgs)=>{const L=typeof msgs==="string"?[{rol
   f.json=async(prompt,o)=>{const parts=[{text:prompt}];for(const im of ((o&&o.images)||[]).slice(0,1))parts.push({inline_data:{mime_type:im.type||"image/jpeg",data:await b64(im)}});
     const t=await gGen([{role:"user",parts}],true);try{return JSON.parse(t.replace(/^```(?:json)?|```$/g,"").trim())}catch(e){throw gErr("failed","bad json")}};
   return f}
-function useGemini(){if(viaClaude)return;if(gKey()){sampleFn=makeGemini();imgOK=true}else{sampleFn=null;imgOK=false}}
+/* ---------- 邀請碼：透過你的 Cloudflare 中繼站，朋友不用金鑰 ---------- */
+const RELAY="https://diet-ai.joshua66940625.workers.dev",RCODE="diet-invite";
+function rCode(){try{return localStorage.getItem(RCODE)||""}catch(e){return ""}}
+function relayOn(){return /^https:/.test(RELAY)}
+async function rPost(body){let r;try{r=await fetch(RELAY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.assign({code:rCode()},body))})}catch(e){throw gErr("network")}
+  let j={};try{j=await r.json()}catch(e){}
+  if(!r.ok){const c=j.error||"failed";throw gErr(c==="bad_code"?"bad_code":c==="daily_limit"?"daily_limit":c==="rate_limited"?"rate_limited":c==="server_key"?"server_key":"failed",j.message||"")}
+  return j}
+function makeRelay(){const f=async(msgs)=>{const L=typeof msgs==="string"?[{role:"user",content:msgs}]:msgs;
+    const j=await rPost({contents:L.map(x=>({role:x.role==="assistant"?"model":"user",parts:[{text:x.content}]}))});return {text:j.text||"",truncated:false}};
+  f.limits=async()=>({images:{maxCount:1}});
+  f.json=async(prompt,o)=>{const parts=[{text:prompt}];for(const im of ((o&&o.images)||[]).slice(0,1))parts.push({inline_data:{mime_type:im.type||"image/jpeg",data:await b64(im)}});
+    const j=await rPost({json:true,contents:[{role:"user",parts}]});try{return JSON.parse(String(j.text).replace(/^```(?:json)?|```$/g,"").trim())}catch(e){throw gErr("failed","bad json")}};
+  return f}
+function useGemini(){if(viaClaude)return;if(relayOn()&&rCode()){sampleFn=makeRelay();imgOK=true}else if(gKey()){sampleFn=makeGemini();imgOK=true}else{sampleFn=null;imgOK=false}}
 useGemini();
 function shrink(file){return new Promise(res=>{const u=URL.createObjectURL(file);const im=new Image();
   im.onload=()=>{try{const m=1280,s=Math.min(1,m/Math.max(im.naturalWidth,im.naturalHeight));const c=document.createElement("canvas");c.width=Math.round(im.naturalWidth*s);c.height=Math.round(im.naturalHeight*s);
@@ -333,6 +351,9 @@ async function analyze(){if(!sampleFn||!PH.file||PH.busy)return;PH.busy=true;PH.
     if(["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed","images_unavailable"].includes(c))PH.err="這裡沒辦法使用 AI 看照片，請改用下面的快速加入或自己輸入。";
     else if(c==="rate_limited")PH.err=viaClaude?"用得有點頻繁，等一下再試。":"今天的免費額度用完了，或用得太快。等一下再試；如果一直這樣，就是今天的額度用完了，明天會恢復。";
     else if(c==="bad_key")PH.err="AI 金鑰不對或已失效，請到「我的」重新貼上。";
+    else if(c==="bad_code")PH.err="邀請碼不對，請到「我的」重新輸入。";
+    else if(c==="daily_limit")PH.err="今天的拍照次數用完了，明天會恢復。可以先用「點一下加入」或自己輸入。";
+    else if(c==="server_key")PH.err="AI 服務暫時不能用，請跟網站管理員說一聲。";
     else if(c==="network")PH.err="連不上網路，確認有網路後再試。";
     else if(c==="image_rejected")PH.err="這張照片讀不到，換一張試試。";
     else if(c==="session_expired")PH.err="登入過期了，重新登入 Claude 後再試。";
@@ -463,11 +484,14 @@ function vMe(){const p=S.profile,R=targets(),T=R.t;
    +'<details><summary>這些數字怎麼算的？</summary><div class="muted" style="margin-top:6px">基礎代謝 BMR（Mifflin 公式）= '+R.bmr+' kcal，是躺著不動一天消耗的熱量。乘上活動量 = 每日總消耗 '+R.tdee+' kcal。'
    +(p.goal==="lose"?"減脂：每天少吃一些，每少 7700 kcal 約減 1 kg 脂肪。":p.goal==="recomp"?"增肌減脂：只少吃一點點，蛋白質吃很多，一定要配合重訓，否則只會變成慢慢減脂。":p.goal==="gain"?"增肌：每天多吃一點，配合重訓。":"維持：吃跟消耗一樣多。")
    +'<br>蛋白質 = 體重 × '+PROT[p.goal]+' g（減脂時吃夠蛋白質才不會掉肌肉）；脂肪佔熱量 25%；剩下給碳水。纖維每 1000 kcal 約 14 g；鈉上限 2400 mg（衛福部建議）；糖指的是添加糖，上限為熱量的 10%，水果和牛奶的天然糖不用太擔心。</div></details></div>';
-  if(!viaClaude){const k=gKey();h+='<div class="card"><h3>🤖 AI 拍照功能</h3>'
+  if(!viaClaude){const k=gKey(),rc=relayOn()&&rCode();h+='<div class="card"><h3>🤖 AI 拍照功能</h3>'
+    +(rc?'<div class="muted">已開啟 ✓（使用邀請碼）'+(GT.msg?'<br>'+esc(GT.msg):'')+'</div><div class="row"><button class="btn sm" data-act="rtest" '+(GT.busy?"disabled":"")+'>'+(GT.busy?"測試中…":"測試連線")+'</button><button class="btn sm ghost danger" data-act="rdel">移除邀請碼</button></div>'
+     :(relayOn()?'<div class="muted">輸入朋友給你的邀請碼，就能拍照算營養、讓教練用 AI 吐槽。</div><div class="row" style="flex-wrap:nowrap"><input id="rIn" autocomplete="off" placeholder="邀請碼" aria-label="邀請碼"><button class="btn pri" style="white-space:nowrap" data-act="rsave">開啟</button></div>'+(GT.msg&&!k?'<div class="sug">'+esc(GT.msg)+'</div>':'')+'<details><summary>或用自己的 Gemini 金鑰</summary><div style="margin-top:8px">':'')
     +(k?'<div class="muted">已開啟 ✓（'+(gFromVocab()?'沿用單字填空機的金鑰，':'')+'金鑰結尾 …'+esc(k.slice(-4))+'）'+(GT.msg?'<br>'+esc(GT.msg):'')+'</div><div class="row"><button class="btn sm" data-act="gtest" '+(GT.busy?"disabled":"")+'>'+(GT.busy?"測試中…":"測試連線")+'</button><button class="btn sm ghost danger" data-act="gdel">停用 AI</button></div>'
        :'<div class="muted">貼上 Google Gemini 的免費 API 金鑰，就能拍照算營養、讓教練用 AI 吐槽。金鑰只存在這支手機裡。</div><label class="f" for="gIn">Gemini API 金鑰<input id="gIn" type="password" autocomplete="off" placeholder="AIza 開頭的一串字"></label><button class="btn pri full" data-act="gsave">儲存並測試</button>'
          +(GT.msg?'<div class="sug">'+esc(GT.msg)+'</div>':'')
          +'<details><summary>怎麼拿到金鑰？</summary><div class="muted" style="margin-top:6px">1. 用電腦或手機打開 aistudio.google.com，登入 Google 帳號<br>2. 點「Get API key」→「Create API key」<br>3. 按複製，回來貼在上面<br>免費版每天有次數上限，用完隔天會恢復。不要把金鑰傳到群組或公開的地方。</div></details>')
+    +(relayOn()?'</div></details>':''))
     +'</div>'}
   h+='<div class="card"><h3>資料</h3><div class="muted">'+(ref?"已自動存到雲端，換手機也看得到。":"資料存在這支手機的瀏覽器裡。換手機或清除瀏覽器資料前，先按「複製備份」把文字存到記事本。")+'</div><div class="row"><button class="btn sm" data-act="copy">複製備份</button><button class="btn sm ghost danger" data-act="reset">清除全部資料</button></div>'
    +'<details><summary>從備份還原</summary><textarea id="rsT" rows="4" style="width:100%;margin-top:8px;font:inherit;font-size:12px;background:var(--soft);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px" placeholder="貼上備份文字"></textarea><button class="btn full" data-act="restore" style="margin-top:6px">還原</button></details></div>';
@@ -491,6 +515,9 @@ document.addEventListener("click",async function(ev){const b=ev.target.closest("
   else if(a==="chat"){talkBack()}
   else if(a==="gsave"){const v=($("#gIn").value||"").trim();if(v.length<20){toast("請貼上完整的金鑰");return}try{localStorage.setItem(GKEY,v)}catch(e){toast("這個瀏覽器沒辦法存金鑰");return}useGemini();gTest()}
   else if(a==="gtest"){gTest()}
+  else if(a==="rsave"){const v=($("#rIn").value||"").trim();if(!v){toast("請輸入邀請碼");return}try{localStorage.setItem(RCODE,v)}catch(e){toast("這個瀏覽器沒辦法存");return}useGemini();rTest()}
+  else if(a==="rtest"){rTest()}
+  else if(a==="rdel"){if(!confirmInline(b,"再按一次移除"))return;try{localStorage.removeItem(RCODE)}catch(e){}GT.msg="";useGemini();render();toast("已移除邀請碼")}
   else if(a==="gdel"){if(!confirmInline(b,"再按一次移除"))return;try{localStorage.setItem(GKEY,"none");localStorage.removeItem(GMOD)}catch(e){}GT.msg="";useGemini();render();toast("已停用 AI（單字填空機的金鑰不受影響）")}
   else if(a==="coach"){keepForm(()=>{S.profile.coach=b.dataset.c;save()})}
   else if(a==="goadd"){addMeal=b.dataset.m;tab="add";render();window.scrollTo(0,0)}
