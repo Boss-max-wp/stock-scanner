@@ -273,7 +273,7 @@ const GT={busy:false,msg:""};
 async function gTest(){GT.busy=true;GT.msg="";render();try{localStorage.removeItem(GMOD)}catch(e){}
   try{const m=await gModel(true);const r=await makeGemini()("只回答兩個字：可以");GT.msg="連線成功，使用 "+m+"。"}
   catch(e){GT.msg=e.code==="bad_key"?"金鑰不對，請重新複製一次。":e.code==="rate_limited"?"金鑰可以用，但現在額度滿了，等一下再試。":e.code==="network"?"連不上網路。":"測試失敗："+String(e.message||"").slice(0,80);
-    if(e.code==="bad_key"){try{localStorage.removeItem(GKEY)}catch(x){}useGemini()}}
+    if(e.code==="bad_key"){try{localStorage.setItem(GKEY,"none")}catch(x){}useGemini()}}
   GT.busy=false;if(tab==="me")render()}
 let leftIdx=-1;const MF={file:null,url:""};
 function curW(){const W=S.weights.slice().sort((a,b)=>a.d<b.d?-1:1);return W.length?W[W.length-1].w:S.profile.w}
@@ -285,7 +285,9 @@ let viaClaude=false;
   const lim=await sm.limits().catch(()=>null);if(lim&&lim.images){sampleFn=sm;imgOK=true;viaClaude=true;render()}}catch(e){}})();
 /* ---------- Gemini（網站版用自己的免費金鑰） ---------- */
 const GKEY="diet-gemini-key",GMOD="diet-gemini-model",GAPI="https://generativelanguage.googleapis.com/v1beta/";
-function gKey(){try{return localStorage.getItem(GKEY)||""}catch(e){return ""}}
+// 同一個網站（boss-max-wp.github.io）的單字填空機存過金鑰（vc-key），這裡直接沿用
+function gKey(){try{const d=localStorage.getItem(GKEY);if(d==="none")return "";return d||localStorage.getItem("vc-key")||""}catch(e){return ""}}
+function gFromVocab(){try{return !localStorage.getItem(GKEY)&&!!localStorage.getItem("vc-key")}catch(e){return false}}
 function gErr(code,msg){const e=new Error(msg||code);e.code=code;return e}
 async function gFetch(path,body){const k=gKey();if(!k)throw gErr("no_key");
   let r;try{r=await fetch(GAPI+path,{method:body?"POST":"GET",headers:Object.assign({"x-goog-api-key":k},body?{"Content-Type":"application/json"}:{}),body:body?JSON.stringify(body):undefined})}catch(e){throw gErr("network")}
@@ -462,7 +464,7 @@ function vMe(){const p=S.profile,R=targets(),T=R.t;
    +(p.goal==="lose"?"減脂：每天少吃一些，每少 7700 kcal 約減 1 kg 脂肪。":p.goal==="recomp"?"增肌減脂：只少吃一點點，蛋白質吃很多，一定要配合重訓，否則只會變成慢慢減脂。":p.goal==="gain"?"增肌：每天多吃一點，配合重訓。":"維持：吃跟消耗一樣多。")
    +'<br>蛋白質 = 體重 × '+PROT[p.goal]+' g（減脂時吃夠蛋白質才不會掉肌肉）；脂肪佔熱量 25%；剩下給碳水。纖維每 1000 kcal 約 14 g；鈉上限 2400 mg（衛福部建議）；糖指的是添加糖，上限為熱量的 10%，水果和牛奶的天然糖不用太擔心。</div></details></div>';
   if(!viaClaude){const k=gKey();h+='<div class="card"><h3>🤖 AI 拍照功能</h3>'
-    +(k?'<div class="muted">已開啟 ✓（金鑰結尾 …'+esc(k.slice(-4))+'）'+(GT.msg?'<br>'+esc(GT.msg):'')+'</div><div class="row"><button class="btn sm" data-act="gtest" '+(GT.busy?"disabled":"")+'>'+(GT.busy?"測試中…":"測試連線")+'</button><button class="btn sm ghost danger" data-act="gdel">移除金鑰</button></div>'
+    +(k?'<div class="muted">已開啟 ✓（'+(gFromVocab()?'沿用單字填空機的金鑰，':'')+'金鑰結尾 …'+esc(k.slice(-4))+'）'+(GT.msg?'<br>'+esc(GT.msg):'')+'</div><div class="row"><button class="btn sm" data-act="gtest" '+(GT.busy?"disabled":"")+'>'+(GT.busy?"測試中…":"測試連線")+'</button><button class="btn sm ghost danger" data-act="gdel">停用 AI</button></div>'
        :'<div class="muted">貼上 Google Gemini 的免費 API 金鑰，就能拍照算營養、讓教練用 AI 吐槽。金鑰只存在這支手機裡。</div><label class="f" for="gIn">Gemini API 金鑰<input id="gIn" type="password" autocomplete="off" placeholder="AIza 開頭的一串字"></label><button class="btn pri full" data-act="gsave">儲存並測試</button>'
          +(GT.msg?'<div class="sug">'+esc(GT.msg)+'</div>':'')
          +'<details><summary>怎麼拿到金鑰？</summary><div class="muted" style="margin-top:6px">1. 用電腦或手機打開 aistudio.google.com，登入 Google 帳號<br>2. 點「Get API key」→「Create API key」<br>3. 按複製，回來貼在上面<br>免費版每天有次數上限，用完隔天會恢復。不要把金鑰傳到群組或公開的地方。</div></details>')
@@ -489,7 +491,7 @@ document.addEventListener("click",async function(ev){const b=ev.target.closest("
   else if(a==="chat"){talkBack()}
   else if(a==="gsave"){const v=($("#gIn").value||"").trim();if(v.length<20){toast("請貼上完整的金鑰");return}try{localStorage.setItem(GKEY,v)}catch(e){toast("這個瀏覽器沒辦法存金鑰");return}useGemini();gTest()}
   else if(a==="gtest"){gTest()}
-  else if(a==="gdel"){if(!confirmInline(b,"再按一次移除"))return;try{localStorage.removeItem(GKEY);localStorage.removeItem(GMOD)}catch(e){}GT.msg="";useGemini();render();toast("已移除金鑰")}
+  else if(a==="gdel"){if(!confirmInline(b,"再按一次移除"))return;try{localStorage.setItem(GKEY,"none");localStorage.removeItem(GMOD)}catch(e){}GT.msg="";useGemini();render();toast("已停用 AI（單字填空機的金鑰不受影響）")}
   else if(a==="coach"){keepForm(()=>{S.profile.coach=b.dataset.c;save()})}
   else if(a==="goadd"){addMeal=b.dataset.m;tab="add";render();window.scrollTo(0,0)}
   else if(a==="meal"){addMeal=b.dataset.m;render()}
