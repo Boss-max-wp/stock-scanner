@@ -341,12 +341,15 @@ async function analyze(){if(!sampleFn||!PH.file||PH.busy)return;PH.busy=true;PH.
    +(PH.note?"\n使用者補充："+PH.note.slice(0,200):"")
    +"\n這是"+MEALN[addMeal]+"。今天已吃 "+t.k+" kcal，今天可吃 "+B.k+" kcal（含運動 "+B.ex+" kcal）。"
    +'\n另外寫一句 comment 評論這餐，風格：'+(S.profile.coach==="gentle"?"溫柔鼓勵":S.profile.coach==="off"?"中性簡短":"毒舌吐槽、好笑但不傷人，可以針對熱量、糖、鈉、蛋白質，不要攻擊外表")+'，20 字到 40 字。'
-   +'\n只回傳 JSON，格式：{"items":[{"name":"炸雞腿","portion":"1 隻約 180g","kcal":420,"protein":32,"carbs":12,"fat":27,"fiber":0,"sodium":650,"sugar":1}],"tip":"一句繁體中文建議","comment":"一句評論"}。name、portion、tip、comment 用繁體中文。看不到食物就回 {"items":[],"tip":"說明原因"}。';
+   +(PH.asked?'\n使用者已經回答過你的問題（見上面的補充），這次不要再問，"ask" 一律給 null。'
+     :'\n如果有一件照片看不出來、但會讓熱量差 20% 以上的事（例如：炸的還是滷的、飯有沒有加大、飲料甜度、醬汁多少、份量是一人份還是多人份、有沒有吃完），就在 "ask" 問使用者一個最重要的問題，給 2 到 4 個簡短選項（每個 10 字以內）；items 仍然先用你最可能的猜測填好。如果都看得很清楚，或使用者補充已經說明，"ask" 給 null。')
+   +'\n只回傳 JSON，格式：{"items":[{"name":"炸雞腿","portion":"1 隻約 180g","kcal":420,"protein":32,"carbs":12,"fat":27,"fiber":0,"sodium":650,"sugar":1}],"tip":"一句繁體中文建議","comment":"一句評論","ask":{"question":"雞腿是炸的還是滷的？","options":["炸的","滷的","烤的"]}}。name、portion、tip、comment、ask 用繁體中文。看不到食物就回 {"items":[],"tip":"說明原因"}。';
   try{const img=await shrink(PH.file);const r=await sampleFn.json(prompt,{images:[img]});
     const v=x=>Math.max(0,r1(x));
     const items=(r&&Array.isArray(r.items)?r.items:[]).slice(0,15).map(x=>({n:String(x.name||"食物").slice(0,40),portion:String(x.portion||"").slice(0,40),on:true,
       k:Math.round(v(x.kcal)),p:v(x.protein),c:v(x.carbs),f:v(x.fat),fb:v(x.fiber),na:Math.round(v(x.sodium)),su:v(x.sugar)}));
-    PH.res={items,tip:String((r&&r.tip)||"").slice(0,200),comment:String((r&&r.comment)||"").slice(0,160)};if(!items.length){PH.err=PH.res.tip||"照片裡看不到食物，換一張試試。";PH.res=null}
+    const ak=r&&r.ask,aq=ak&&typeof ak==="object"?String(ak.question||"").slice(0,80):"",ao=ak&&Array.isArray(ak.options)?ak.options.map(o=>String(o).slice(0,16)).filter(Boolean).slice(0,4):[];
+    PH.res={items,tip:String((r&&r.tip)||"").slice(0,200),comment:String((r&&r.comment)||"").slice(0,160),ask:!PH.asked&&aq&&ao.length>=2?{q:aq,o:ao}:null};if(!items.length){PH.err=PH.res.tip||"照片裡看不到食物，換一張試試。";PH.res=null}
   }catch(e){const c=e&&e.code;
     if(["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed","images_unavailable"].includes(c))PH.err="這裡沒辦法使用 AI 看照片，請改用下面的快速加入或自己輸入。";
     else if(c==="rate_limited")PH.err=viaClaude?"用得有點頻繁，等一下再試。":"今天的免費額度用完了，或用得太快。等一下再試；如果一直這樣，就是今天的額度用完了，明天會恢復。";
@@ -419,6 +422,8 @@ function vPhoto(){let h='<div class="card"><h3>📷 拍照算營養</h3><div cla
    +'<button class="btn pri full" data-act="phGo" '+(PH.busy?"disabled":"")+'>'+(PH.busy?"分析中…約 10–30 秒":(PH.res?"重新分析":"分析這餐"))+'</button>';
   if(PH.err)h+='<div class="sug">'+esc(PH.err)+'</div>';
   if(PH.res){const it=PH.res.items;
+    if(PH.res.ask&&!PH.busy)h+='<div class="sug" style="border-left-color:var(--accent)"><b>🤔 '+esc(PH.res.ask.q)+'</b><div class="chips" style="margin-top:8px">'+PH.res.ask.o.map((o,i)=>'<button class="chip" data-act="phAns" data-i="'+i+'">'+esc(o)+'</button>').join("")
+      +'</div><div class="row" style="flex-wrap:nowrap;margin-top:8px"><input id="phOther" placeholder="其他答案" aria-label="其他答案"><button class="btn sm" style="white-space:nowrap" data-act="phAns" data-i="-1">送出</button></div><div class="muted" style="margin-top:4px">回答後會重新計算（下面是 AI 先猜的數字）</div></div>';
     h+=it.map((x,i)=>'<div class="item '+(x.on?"":"off")+'"><div class="item-h"><input type="checkbox" id="phC'+i+'" data-ph="on" data-i="'+i+'" '+(x.on?"checked":"")+'><label for="phC'+i+'"><b>'+esc(x.n)+'</b>'+(x.portion?'<div class="muted">'+esc(x.portion)+'</div>':'')+'</label></div><div class="ngrid">'
       +N.map(([k,n])=>'<label for="ph'+k+i+'">'+n+'<input id="ph'+k+i+'" inputmode="decimal" data-ph="'+k+'" data-i="'+i+'" value="'+x[k]+'"></label>').join("")+'</div></div>').join("");
     h+='<div class="row between"><b>勾選合計</b><b class="num" id="phSum"></b></div>';
@@ -529,10 +534,12 @@ document.addEventListener("click",async function(ev){const b=ev.target.closest("
     const mf=MF.file;if(mf){o.img=await thumbOf(mf);try{URL.revokeObjectURL(MF.url)}catch(e){}MF.file=null;MF.url=""}
     addFood(o);afterAdd();if($("#cfS").checked&&!S.myFoods.some(f=>f.n===o.n)){S.myFoods.unshift(Object.assign({},o));save()}render();toast("已加入"+MEALN[addMeal]+"："+o.n)}
   else if(a==="phGo")analyze();
+  else if(a==="phAns"&&PH.res&&PH.res.ask){const i=+b.dataset.i,ans=i<0?($("#phOther").value||"").trim():PH.res.ask.o[i];if(!ans){toast("請選一個答案或輸入");return}
+    PH.note=(PH.note?PH.note+"；":"")+PH.res.ask.q.replace(/[？?]$/,"")+"："+ans;PH.asked=true;analyze()}
   else if(a==="phAdd"){const on=PH.res.items.filter(x=>x.on);if(!on.length){toast("請至少勾一樣");return}
     const th=await thumbOf(PH.file);on.forEach((x,j)=>{const o={n:x.n};N.forEach(([k])=>o[k]=Math.max(0,r1(x[k])));if(j===0&&th)o.img=th;addFood(o)});
     setCoach(date,PH.res.comment&&S.profile.coach!=="off"?PH.res.comment:coachRule(addMeal,date),addMeal);
-    try{URL.revokeObjectURL(PH.url)}catch(e){}Object.assign(PH,{file:null,url:"",res:null,err:"",note:""});tab="today";render();window.scrollTo(0,0);toast("已加入 "+on.length+" 樣食物")}
+    try{URL.revokeObjectURL(PH.url)}catch(e){}Object.assign(PH,{file:null,url:"",res:null,err:"",note:"",asked:false});tab="today";render();window.scrollTo(0,0);toast("已加入 "+on.length+" 樣食物")}
   else if(a==="addex"){const m=+$("#exM").value||0;if(m<=0||m>600){toast("請輸入運動幾分鐘");return}const kk=exCalc();day(date).ex.push({n:SPORTS[exPick][0],min:m,k:kk});save();render();toast("已加入，多了 "+kk+" kcal 可吃")}
   else if(a==="addex2"){const k=Math.round(+$("#exK2").value||0);if(k<=0||k>3000){toast("請輸入消耗的熱量");return}day(date).ex.push({n:$("#exN2").value.trim()||"運動",min:0,k});save();render();toast("已加入")}
   else if(a==="goal"){keepForm(()=>{S.profile.goal=b.dataset.g;save()})}
@@ -549,7 +556,7 @@ document.addEventListener("click",async function(ev){const b=ev.target.closest("
 });
 document.addEventListener("change",function(ev){const t=ev.target;
   if(t.id==="mfIn"&&t.files&&t.files[0]){try{if(MF.url)URL.revokeObjectURL(MF.url)}catch(e){}MF.file=t.files[0];MF.url=URL.createObjectURL(MF.file);const keep={};document.querySelectorAll("[id^=cf]").forEach(el=>keep[el.id]=el.type==="checkbox"?el.checked:el.value);render();Object.keys(keep).forEach(id=>{const el=document.getElementById(id);if(el){if(el.type==="checkbox")el.checked=keep[id];else el.value=keep[id]}})}
-  else if(t.id==="phIn"&&t.files&&t.files[0]){try{if(PH.url)URL.revokeObjectURL(PH.url)}catch(e){}PH.file=t.files[0];PH.url=URL.createObjectURL(PH.file);PH.res=null;PH.err="";render()}
+  else if(t.id==="phIn"&&t.files&&t.files[0]){try{if(PH.url)URL.revokeObjectURL(PH.url)}catch(e){}PH.file=t.files[0];PH.url=URL.createObjectURL(PH.file);PH.res=null;PH.err="";PH.asked=false;render()}
   else if(t.id==="exS"){exPick=+t.value;const k=$("#exK");if(k)k.textContent=$("#exM").value?exCalc()+" kcal":"—"}
   else if(t.dataset&&t.dataset.ph==="on"&&PH.res){PH.res.items[+t.dataset.i].on=t.checked;t.closest(".item").classList.toggle("off",!t.checked);phSum()}});
 document.addEventListener("keydown",function(ev){if(ev.target.id==="chIn"&&ev.key==="Enter"&&!ev.isComposing){ev.preventDefault();talkBack()}});
