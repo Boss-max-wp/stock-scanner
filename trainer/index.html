@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>K線練習場（四策略版：15分／1小時／4小時／日線重播）</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="K線練習場">
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+  :root { --bg:#14161c; --panel:#1d2029; --line:#2c303b; --txt:#e6e6e6; --dim:#9aa0ab; --red:#e04848; --green:#26a69a; --blue:#3b82f6; --orange:#f59e0b; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font-family: "Microsoft JhengHei", "PingFang TC", system-ui, sans-serif; font-size:14px; }
+  header { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:8px 12px; background:var(--panel); border-bottom:1px solid var(--line); }
+  header h1 { font-size:16px; margin:0 12px 0 0; }
+  select, input, button { background:#262a35; color:var(--txt); border:1px solid var(--line); border-radius:6px; padding:6px 8px; font-size:14px; font-family:inherit; }
+  input[type=number] { width:90px; }
+  button { cursor:pointer; }
+  button:hover { filter:brightness(1.2); }
+  button.buy { background:var(--red); border-color:var(--red); color:#fff; font-weight:bold; }
+  button.sell { background:var(--green); border-color:var(--green); color:#fff; font-weight:bold; }
+  button.main { background:var(--blue); border-color:var(--blue); color:#fff; }
+  .wrap { display:grid; grid-template-columns: 1fr 330px; height: calc(100vh - 54px); }
+  #chart { position:relative; min-height:300px; }
+  aside { background:var(--panel); border-left:1px solid var(--line); overflow-y:auto; padding:10px; }
+  .box { border:1px solid var(--line); border-radius:8px; padding:10px; margin-bottom:10px; }
+  .box h3 { margin:0 0 8px; font-size:14px; color:var(--dim); font-weight:normal; }
+  .row { display:flex; gap:6px; align-items:center; margin:6px 0; flex-wrap:wrap; }
+  .row label { color:var(--dim); min-width:84px; }
+  .big { font-size:20px; font-weight:bold; }
+  .pos { color:var(--red); } .neg { color:var(--green); }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  td, th { border-bottom:1px solid var(--line); padding:4px 3px; text-align:right; }
+  th:first-child, td:first-child { text-align:left; }
+  .stats { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  .stats div { background:#262a35; border-radius:6px; padding:6px; }
+  .stats b { display:block; font-size:16px; }
+  #legend { position:absolute; left:12px; top:8px; z-index:5; font-size:13px; pointer-events:none; white-space:nowrap; text-shadow:0 0 3px #000; }
+  #legend .sym { color:#fff; font-weight:bold; margin-right:8px; }
+  #legend b { font-weight:normal; color:var(--dim); margin:0 2px 0 8px; }
+  #goLast { position:absolute; right:80px; bottom:40px; z-index:6; display:none; padding:4px 10px; border-radius:14px; background:#2a2e39; }
+  #board { position:absolute; right:70px; top:8px; z-index:5; background:rgba(30,34,45,.92); border:1px solid #3a3f4b; border-radius:6px; font-size:12px; pointer-events:none; }
+  #board table { width:auto; } #board td { border:none; padding:3px 6px; text-align:left; white-space:nowrap; }
+  #board .tag { color:#fff; border-radius:4px; padding:1px 6px; }
+  #prog { color:var(--dim); font-size:13px; }
+  #summary { position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:50; display:none; align-items:center; justify-content:center; }
+  #summary .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px 22px; min-width:320px; line-height:1.9; }
+  #summary h2 { margin:0 0 8px; font-size:18px; }
+  #msg { position:absolute; left:12px; top:34px; z-index:5; background:rgba(0,0,0,.6); padding:6px 10px; border-radius:6px; font-size:13px; pointer-events:none; }
+  .keys { color:var(--dim); font-size:12px; line-height:1.6; }
+  .hide { display:none !important; }
+  .tools button.on { background:var(--orange); border-color:var(--orange); color:#000; }
+  #draw { position:absolute; left:0; top:0; pointer-events:none; z-index:4; }
+  @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; height:auto; } #chart { height:60vh; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>K線練習場</h1>
+  <select id="sym"><option>ETHUSDT</option><option>BTCUSDT</option><option>SOLUSDT</option><option>XRPUSDT</option><option>DOGEUSDT</option><option>BNBUSDT</option><option>ADAUSDT</option><option>AVAXUSDT</option><option>LINKUSDT</option><option>LTCUSDT</option><option>DOTUSDT</option><option>BCHUSDT</option><option>NEARUSDT</option><option>ZECUSDT</option><option>AAVEUSDT</option><option>UNIUSDT</option><option>XMRUSDT</option><option>ICPUSDT</option><option>XLMUSDT</option><option>HBARUSDT</option><option>CRVUSDT</option><option>FILUSDT</option><option>TRXUSDT</option><option>ATOMUSDT</option><option>ETCUSDT</option></select>
+  <select id="tf"><option value="15">15 分</option><option value="60" selected>1 小時</option><option value="240">4 小時</option><option value="D">日線</option></select>
+  <input type="date" id="date" title="從哪一天開始（留空＝隨機）">
+  <button class="main" id="btnLoad">開始練習</button>
+  <button id="btnRand">隨機日期</button>
+  <select id="sessLen" title="這次練習要練幾根K">
+    <option value="100">這次練 100 根</option><option value="200" selected>這次練 200 根</option><option value="300">這次練 300 根</option><option value="0">播完為止</option>
+  </select>
+  <span id="prog"></span>
+  <span style="flex:1"></span>
+  <span class="tools">
+    <button data-tool="trend" title="點兩下：起點、終點（會往右延伸）">／ 趨勢線</button>
+    <button data-tool="hline" title="點一下">— 水平線</button>
+    <button data-tool="box" title="點兩下：對角兩點">▭ 框</button>
+    <button id="btnUndo" title="快捷鍵：Ctrl+Z">↶ 復原</button>
+    <button id="btnClearDraw">清除線</button>
+  </span>
+  <button id="btnNext" title="快捷鍵：→">下一根 ▶</button>
+  <button id="btnPlay">自動播放</button>
+  <select id="speed"><option value="1000">慢</option><option value="400" selected>中</option><option value="120">快</option></select>
+</header>
+
+<div class="wrap">
+  <div id="chart"><canvas id="draw"></canvas><div id="legend"></div><div id="board"></div><button id="goLast" title="回到最新一根（快捷鍵 Alt+R）">≫ 最新</button><div id="msg">選好幣和週期，按「開始練習」</div></div>
+  <aside>
+    <div class="box">
+      <h3>帳戶</h3>
+      <div class="row"><label>本金（U）</label><input type="number" id="cap" value="10000"></div>
+      <div class="row"><label><input type="checkbox" id="propMode"> 自營商考試模式</label><select id="propType"><option value="2">兩階段（10% → 5%，總虧 10%、日虧 5%）</option><option value="1">一階段（10%，總虧 6%、日虧 4%）</option></select></div>
+      <div id="propInfo" class="keys" style="display:none;background:#2a2116;border-radius:6px;padding:6px;line-height:1.6"></div>
+      <div class="row"><label>每筆冒本金</label><input type="number" id="risk" value="1" step="0.5"> %</div>
+      <div class="row"><label>手續費</label><input type="number" id="fee" value="0.055" step="0.005"> % 單邊</div>
+      <div class="row"><label>帳戶權益</label><span class="big" id="eq">10000</span> <span class="keys">（含浮盈浮虧，每根K即時跳）</span></div>
+      <div class="row"><label>錢包餘額</label><span id="bal">10000</span> <span class="keys">（已平倉的）</span></div>
+      <div class="row"><label>未實現盈虧</label><span id="upl">0</span></div>
+      <div class="row"><label>可用資金</label><span id="avail">10000</span></div>
+    </div>
+
+    <div class="box">
+      <h3>下單</h3>
+      <div class="row"><label>下單方式</label><select id="mode">
+        <option value="risk">依停損自動算（每筆冒本金 %）</option>
+        <option value="margin">自己設：投入金額＋槓桿</option>
+        <option value="qty">自己設：數量＋槓桿</option>
+      </select></div>
+      <div class="row" id="rowLev"><label>槓桿</label><input type="number" id="lev" value="10" min="1" max="125"> 倍</div>
+      <div class="row" id="rowMargin"><label>投入金額（U）</label><input type="number" id="margin" value="200"></div>
+      <div class="row" id="rowQty"><label>數量（幣）</label><input type="number" id="qty" value="0.1" step="0.001"></div>
+      <div id="preview" class="keys" style="background:#1b2030;border-radius:6px;padding:6px;line-height:1.6">按「開始練習」後這裡會顯示合約價值</div>
+      <div class="row"><label>停損價</label><input type="number" id="stop" step="0.01" style="width:120px" placeholder="空白＝自動"> <button id="btnAutoStop" title="最近 5 根的低點（做空是高點）">自動</button></div>
+      <div class="row"><label>停利價（可空白）</label><input type="number" id="tp" step="0.01" style="width:120px"></div>
+      <div class="row"><label>進場原因</label><input type="text" id="note" placeholder="例：低點紅包綠" style="flex:1"></div>
+      <div class="row">
+        <button class="buy" id="btnBuy" title="快捷鍵：B">買進（做多）</button>
+        <button class="sell" id="btnSell" title="快捷鍵：S">賣出（做空）</button>
+        <button id="btnClose" title="快捷鍵：C">平倉</button>
+      </div>
+      <div class="row"><button id="btnTrail">停損移到上一波低點</button></div>
+      <div class="row"><button id="btnPendBuy" title="在這根K的最高點上方掛突破買單，3根內突破才成交">掛突破買單</button><button id="btnPendSell" title="在這根K的最低點下方掛突破賣單，3根內跌破才成交">掛突破賣單</button><button id="btnPendCancel">取消掛單</button></div>
+      <div class="row"><label><input type="checkbox" id="pendOpenStop" checked> 突破單的停損放在訊號K開盤價（新版，回測較好）</label></div>
+      <div id="pendInfo" class="keys"></div>
+      <div id="posInfo" class="keys">目前沒有持倉</div>
+    </div>
+
+    <div class="box">
+      <h3>顯示</h3>
+      <div class="row"><label><input type="checkbox" id="ruleHint" checked> 新規則提示（保本／時間停損／移停損／加碼）</label></div>
+      <div class="row"><label><input type="checkbox" id="ruleAuto"> 新規則自動幫我做（保本、時間停損、移到波段低點）</label></div>
+      <div class="row"><label><input type="checkbox" id="stopClose"> 收盤價跌破（做空是漲破）才停損，影線碰到不算</label></div>
+      <div class="row"><label>顯示訊號</label><select id="sigMode"><option value="auto" selected>自動（依週期只顯示適合的策略）</option><option value="all">四個全部顯示</option><option value="none">都不顯示</option></select></div>
+      <div class="row"><label style="min-width:0"><input type="checkbox" id="on1" checked> ① K線反轉</label><label style="min-width:0"><input type="checkbox" id="on2" checked> ② 盤整方向</label></div>
+      <div class="row"><label style="min-width:0"><input type="checkbox" id="on3" checked> ③ 未帶量突破跌破進場點</label><label style="min-width:0"><input type="checkbox" id="on4" checked> ④ 跟著大戶進場</label></div>
+      <div id="sigWhich" class="keys">自動：15分＝①｜1小時＝①②｜4小時＝①③｜日線＝①④</div>
+      <div class="row"><label><input type="checkbox" id="hideDate" checked> 隱藏日期（避免記得行情）</label></div>
+    </div>
+
+    <div class="box">
+      <h3>成績</h3>
+      <div class="stats">
+        <div>筆數<b id="sN">0</b></div>
+        <div>勝率<b id="sW">-</b></div>
+        <div>平均每筆<b id="sR">-</b></div>
+        <div>總損益<b id="sP">0</b></div>
+        <div>獲利因子<b id="sPF">-</b></div>
+        <div>最大回撤<b id="sDD">0%</b></div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button id="btnCopy">複製紀錄（給 Claude 看）</button>
+        <button id="btnReset">清除紀錄</button>
+      </div>
+      <div id="tfStats" style="margin-top:8px"></div>
+      <div id="copyMsg" class="keys">「清除紀錄」＝全部刪掉、本金重來；交易紀錄每一筆後面的 × ＝只刪那一筆</div>
+    </div>
+
+    <div class="box">
+      <h3>交易紀錄</h3>
+      <table><thead><tr><th>#</th><th>方向</th><th>進場</th><th>出場</th><th>R</th><th>損益</th><th></th></tr></thead><tbody id="log"></tbody></table>
+    </div>
+
+    <div class="box keys">
+      快捷鍵：→ 下一根、B 買、S 賣、C 平倉、空白鍵 播放／暫停、Esc 取消畫線、Ctrl+Z 復原<br>
+      畫線：上面選「趨勢線／水平線／框」，在圖上點。畫好之後：點一下線＝選取（變藍色），拖圓點＝延長或改角度，拖線身＝整條移動，按 Delete＝刪除。<br>
+      停損：圖上紫色虛線＝預計停損，可以直接上下拖；進場後的紫色實線也可以拖。<br>
+      R＝這筆賺賠是停損金額的幾倍。紅漲綠跌（跟你的圖一樣）。<br>
+      資料來源：Bybit 永續合約真實行情。
+    </div>
+  </aside>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const IV_MS = { "15": 9e5, "60": 36e5, "240": 144e5, "D": 864e5 };
+const IV_NAME = { "15": "15分", "60": "1小時", "240": "4小時", "D": "日線" };
+let S2 = [], S3 = [], S4 = [], dir4 = [], btcD = [];
+let mtf = [], bias = {}, sessEnd = 0, sessId = 0; // bias[tf][第幾根] = {b, s, n} // 每根K上要顯示的訊號 [{dir, tf}]
+const TW = 8 * 3600; // 顯示台灣時間
+let bars = [], cur = 0, startIdx = 0, sigs = [], timer = null, ATR = [], E20 = [], E50 = [], skipped = [];
+let pos = null; // {dir, entry, stop, tp, qty, risk, time, note, fee}
+let trades = [], equity = 10000, peak = 10000, maxDD = 0;
+let chart, cs, vs, entryLine = null, stopLine = null, tpLine = null;
+
+// ── 圖表 ──
+function makeChart() {
+  const el = $("chart");
+  chart = LightweightCharts.createChart(el, {
+    layout: { background: { color: "#14161c" }, textColor: "#c9ccd3" },
+    grid: { vertLines: { color: "#1f222b" }, horzLines: { color: "#1f222b" } },
+    rightPriceScale: { borderColor: "#2c303b" },
+    timeScale: { borderColor: "#2c303b", timeVisible: true, secondsVisible: false, rightOffset: 8 },
+    crosshair: { mode: 0, vertLine: { color: "#758696", style: 3, labelBackgroundColor: "#363a45" }, horzLine: { color: "#758696", style: 3, labelBackgroundColor: "#363a45" } },
+    handleScale: { axisPressedMouseMove: { time: true, price: true }, mouseWheel: true, pinch: true },
+    autoSize: true,
+  });
+  cs = chart.addCandlestickSeries({ upColor: "#e04848", downColor: "#26a69a", borderUpColor: "#e04848", borderDownColor: "#26a69a", wickUpColor: "#e04848", wickDownColor: "#26a69a" });
+  vs = chart.addHistogramSeries({ priceScaleId: "", priceFormat: { type: "volume" } });
+  vs.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+  applyDateMode();
+  chart.subscribeClick(onChartClick);
+  chart.subscribeCrosshairMove(p => {
+    hoverPt = (p.point && p.logical != null) ? { l: p.logical, p: cs.coordinateToPrice(p.point.y) } : null; drawDirty = true;
+    const i = p.logical != null ? Math.round(p.logical) : cur;
+    legend(i >= 0 && i <= cur ? i : cur);
+  });
+  chart.timeScale().subscribeVisibleLogicalRangeChange(r => { drawDirty = true; $("goLast").style.display = r && bars.length && r.to < cur - 3 ? "block" : "none"; });
+  $("goLast").onclick = () => chart.timeScale().scrollToRealTime();
+  requestAnimationFrame(drawLoop);
+  initInteract();
+}
+function applyDateMode() {
+  const hide = $("hideDate").checked;
+  chart.applyOptions({ timeScale: { tickMarkFormatter: (t) => {
+    const d = new Date(t * 1000);
+    const hh = String(d.getUTCHours()).padStart(2, "0"), mm = String(d.getUTCMinutes()).padStart(2, "0");
+    return hide ? hh + ":" + mm : (d.getUTCMonth() + 1) + "/" + d.getUTCDate() + " " + hh + ":" + mm;
+  } }, localization: { timeFormatter: (t) => {
+    const d = new Date(t * 1000);
+    const hh = String(d.getUTCHours()).padStart(2, "0"), mm = String(d.getUTCMinutes()).padStart(2, "0");
+    return hide ? hh + ":" + mm : d.getUTCFullYear() + "/" + (d.getUTCMonth() + 1) + "/" + d.getUTCDate() + " " + hh + ":" + mm;
+  } } });
+}
+function legend(i) {
+  const b = bars[i]; if (!b) { $("legend").innerHTML = ""; return; }
+  const p = bars[i - 1], ch = p ? (b.c - p.c) / p.c * 100 : 0, col = b.c >= b.o ? "var(--red)" : "var(--green)";
+  const v = b.v >= 1e6 ? (b.v / 1e6).toFixed(2) + "M" : b.v >= 1e3 ? (b.v / 1e3).toFixed(2) + "K" : b.v.toFixed(0);
+  $("legend").innerHTML = `<span class="sym">${$("sym").value} · ${IV_NAME[$("tf").value]}</span><span style="color:${col}"><b>開</b>${b.o}<b>高</b>${b.h}<b>低</b>${b.l}<b>收</b>${b.c}　${ch >= 0 ? "+" : ""}${ch.toFixed(2)}%</span><b>量</b>${v}`;
+}
+function msg(t) { $("msg").textContent = t; }
+
+// ── 抓資料 ──
+async function kline(sym, iv, start, end) {
+  const url = `https://api.bybit.com/v5/market/kline?category=linear&symbol=${sym}&interval=${iv}&start=${start}&end=${end}&limit=1000`;
+  const j = await fetch(url).then(r => r.json());
+  if (j.retCode !== 0) throw new Error(j.retMsg);
+  return j.result.list.map(x => ({ t: +x[0], o: +x[1], h: +x[2], l: +x[3], c: +x[4], v: +x[5] }));
+}
+async function load() {
+  stopPlay();
+  if (pos) closePos(bars[cur].c, "換行情平倉");
+  const sym = $("sym").value, iv = $("tf").value, ms = IV_MS[iv];
+  let t0;
+  if ($("date").value) t0 = Date.parse($("date").value + "T00:00:00+08:00");
+  else {
+    const lo = Date.UTC(2021, 0, 1), hi = Date.now() - 1000 * ms;
+    t0 = lo + Math.random() * (hi - lo);
+  }
+  t0 = Math.floor(t0 / ms) * ms;
+  msg("載入中…");
+  try {
+    const past = await kline(sym, iv, t0 - 300 * ms, t0 - 1);
+    const fut = await kline(sym, iv, t0, Math.min(t0 + 999 * ms, Date.now()));
+    const m = new Map();
+    for (const b of [...past, ...fut]) m.set(b.t, b);
+    bars = [...m.values()].sort((a, b) => a.t - b.t).filter(b => b.t + ms <= Date.now());
+  } catch (e) { msg("抓資料失敗：" + e.message + "（請確認有連網）"); return; }
+  if (bars.length < 320) { msg("這段資料太少，換一個日期"); return; }
+  startIdx = bars.findIndex(b => b.t >= t0); if (startIdx < 50) startIdx = 300;
+  cur = startIdx; drawings = []; pending = null;
+  calcSignals();
+  msg("載入大週期訊號和多空看板…");
+  await Promise.all([loadMTF(sym, iv), loadBias(sym, iv), loadStrats(sym, iv)]);
+  const L = +$("sessLen").value;
+  sessEnd = L ? Math.min(startIdx + L, bars.length - 1) : bars.length - 1;
+  sessId = Date.now(); $("summary").style.display = "none";
+  drawnCur = -1; mkKey = ""; pend = null;
+  draw(true);
+  msg(`${sym} ${$("tf").selectedOptions[0].text}　按 → 一根一根看，覺得可以進場就按 買／賣`);
+}
+
+// ── 四策略（跟 TradingView「四策略整合」指標、電腦通知同一套）──
+function sigShow(k) { // k = 1..4
+  const m = $("sigMode").value, tf = $("tf").value;
+  if (m === "none" || !$("on" + k).checked) return false;
+  if (m === "all") return true;
+  return k === 1 || (k === 2 && tf === "60") || (k === 3 && tf === "240") || (k === 4 && tf === "D");
+}
+function emaArr(a, len) { const e = [], k = 2 / (len + 1); for (let i = 0; i < a.length; i++) e[i] = i ? a[i] * k + e[i - 1] * (1 - k) : a[i]; return e; }
+function engulfAt(i, tolATR) {
+  const b = bars[i], p = bars[i - 1]; if (!p || i < 10) return 0;
+  const bull = b.c > b.o && p.c < p.o && (b.c - b.o) > (p.o - p.c), bear = b.c < b.o && p.c > p.o && (b.o - b.c) > (p.c - p.o);
+  let lo3 = Infinity, lo10 = Infinity, hi3 = -Infinity, hi10 = -Infinity;
+  for (let j = i - 9; j <= i; j++) { lo10 = Math.min(lo10, bars[j].l); hi10 = Math.max(hi10, bars[j].h); if (j >= i - 2) { lo3 = Math.min(lo3, bars[j].l); hi3 = Math.max(hi3, bars[j].h); } }
+  const tol = tolATR * (ATR[i] || 0);
+  if (bull && lo3 <= lo10 + tol) return 1; if (bear && hi3 >= hi10 - tol) return -1; return 0;
+}
+// ② 盤整方向：K棒碰趨勢線至少 3 次＋反轉大K＋跟 4 小時 EMA200 同方向（跟 v9 指標一樣找線）
+function calcS2() {
+  const n = bars.length, pv = 2, PL = [], PH = []; S2 = new Array(n).fill(0);
+  const isPL = j => { for (let q = j - pv; q <= j + pv; q++) if (q !== j && bars[q].l < bars[j].l) return false; return true; };
+  const isPH = j => { for (let q = j - pv; q <= j + pv; q++) if (q !== j && bars[q].h > bars[j].h) return false; return true; };
+  const findLine = (i, arr, dir) => {
+    const ui = arr.filter(ix => ix <= i - pv - 1 && ix >= i - 100).slice(-10), tol = 0.25 * ATR[i]; let best = 0;
+    for (let u = 0; u < ui.length - 1; u++) for (let v = u + 1; v < ui.length; v++) {
+      const x1 = ui[u], x2 = ui[v], y1 = dir > 0 ? bars[x1].l : bars[x1].h, y2 = dir > 0 ? bars[x2].l : bars[x2].h, sl = (y2 - y1) / (x2 - x1);
+      let bad = false, t = 0;
+      for (let xx = x1; xx <= i - 1; xx++) {
+        const yy = y1 + sl * (xx - x1);
+        if (xx <= i - 2) { const cc = bars[xx].c; if ((dir > 0 && cc < yy - 0.1 * ATR[i]) || (dir < 0 && cc > yy + 0.1 * ATR[i])) { bad = true; break; } }
+        if (Math.abs((dir > 0 ? bars[xx].l : bars[xx].h) - yy) <= tol) t++;
+      }
+      if (!bad && t > best) {
+        const yi = y1 + sl * (i - x1), yi1 = yi - sl, b = bars[i], p = bars[i - 1];
+        const nearL = dir > 0 ? (b.l <= yi + tol || p.l <= yi1 + tol) : (b.h >= yi - tol || p.h >= yi1 - tol);
+        const holds = dir > 0 ? b.c > yi : b.c < yi;
+        if (nearL && holds) best = t;
+      }
+    }
+    return best;
+  };
+  for (let i = 4; i < n; i++) {
+    const j = i - pv; if (j >= pv) { if (isPL(j)) { PL.push(j); if (PL.length > 30) PL.shift(); } if (isPH(j)) { PH.push(j); if (PH.length > 30) PH.shift(); } }
+    const e = engulfAt(i, 99); if (!e || dir4[i] !== e) continue; // 只要反轉大K，不限位置
+    if (findLine(i, e > 0 ? PL : PH, e) >= 3) S2[i] = e;
+  }
+}
+// ③ 未帶量突破跌破進場點：吞噬K＋BTC 4 小時 300 根均線同方向；突破那根高點（跌破低點）才進場，停損＝那根開盤
+function calcS3() {
+  S3 = new Array(bars.length).fill(0);
+  for (let i = 10; i < bars.length; i++) { const e = sigs[i]; if (!e || btcD[i] !== e) continue; const b = bars[i], trig = e > 0 ? b.h : b.l; if (Math.abs(trig - b.o) < trig * 0.002) continue; S3[i] = e; }
+}
+// ④ 跟著大戶進場：紅包綠＋MACD 在 0 下＋量 ≥ 前 20 根平均＋掃停損（只做多）
+function calcS4() {
+  const n = bars.length, c = bars.map(b => b.c), e12 = emaArr(c, 12), e26 = emaArr(c, 26); S4 = new Array(n).fill(0);
+  for (let i = 30; i < n; i++) {
+    if (engulfAt(i, 0) !== 1 || !(e12[i] - e26[i] < 0)) continue;
+    let vs = 0; for (let j = i - 20; j < i; j++) vs += bars[j].v; const vr = bars[i].v / (vs / 20); if (vr < 1) continue;
+    let pl = Infinity; for (let j = i - 25; j <= i - 3; j++) pl = Math.min(pl, bars[j].l);
+    const lo3 = Math.min(bars[i].l, bars[i - 1].l, bars[i - 2].l);
+    if (!(lo3 < pl && bars[i].c > pl)) continue;
+    S4[i] = 1;
+  }
+}
+async function loadStrats(sym, iv) {
+  const ms = IV_MS[iv], end = bars[bars.length - 1].t + ms, h = IV_MS["240"];
+  dir4 = new Array(bars.length).fill(0); btcD = new Array(bars.length).fill(0);
+  try {
+    const hb = await klineRange(sym, "240", bars[0].t - 230 * h, end), e = emaArr(hb.map(x => x.c), 200);
+    dir4 = mapToBase(hb, h, hb.map((x, k) => k < 210 ? 0 : x.c > e[k] && e[k] > e[k - 10] ? 1 : x.c < e[k] && e[k] < e[k - 10] ? -1 : 0)).map(v => v ?? 0);
+  } catch (err) {}
+  try {
+    const bb = await klineRange("BTCUSDT", "240", bars[0].t - 310 * h, end); let s = 0; const d = [];
+    for (let k = 0; k < bb.length; k++) { s += bb[k].c; if (k >= 300) s -= bb[k - 300].c; d.push(k < 299 ? 0 : bb[k].c > s / 300 ? 1 : -1); }
+    btcD = mapToBase(bb, h, d).map(v => v ?? 0);
+  } catch (err) {}
+  calcS2(); calcS3(); calcS4();
+}
+function stratAt(i) { // 這根K出現哪些策略訊號（給提示用）
+  const out = [], b = bars[i]; if (!b) return out;
+  let lo5 = Infinity, hi5 = -Infinity; for (let j = Math.max(0, i - 4); j <= i; j++) { lo5 = Math.min(lo5, bars[j].l); hi5 = Math.max(hi5, bars[j].h); }
+  if (sigShow(1) && sigs[i]) out.push(`① K線反轉 ${sigs[i] > 0 ? "買" : "賣"}`);
+  if (sigShow(2) && S2[i]) out.push(`② 盤整方向 ${S2[i] > 0 ? "買" : "賣"}（停損 ${(S2[i] > 0 ? lo5 : hi5).toFixed(2)}）`);
+  if (sigShow(3) && S3[i]) out.push(`③ 未帶量突破跌破：按「掛突破${S3[i] > 0 ? "買" : "賣"}單」（${S3[i] > 0 ? "漲過 " + b.h : "跌破 " + b.l}，停損放開盤 ${b.o}）`);
+  if (sigShow(4) && S4[i]) out.push(`🟢 ④ 跟著大戶進場 買（停損 ${lo5.toFixed(2)}）`);
+  return out;
+}
+
+// ── 吞噬K訊號（跟手機通知同一套：最近10根高低點、差0.5 ATR以內都算）──
+function calcSignals() {
+  const n = bars.length, A = new Array(n).fill(0);
+  let s = 0;
+  for (let i = 0; i < n; i++) {
+    const b = bars[i], p = bars[i - 1];
+    const tr = i ? Math.max(b.h - b.l, Math.abs(b.h - p.c), Math.abs(b.l - p.c)) : b.h - b.l;
+    if (i < 14) { s += tr; A[i] = s / (i + 1); } else A[i] = (A[i - 1] * 13 + tr) / 14;
+  }
+  ATR = A; E20 = ema(20); E50 = ema(50);
+  sigs = sigOf(bars, A);
+}
+function atrOf(arr) {
+  const A = []; let s = 0;
+  for (let i = 0; i < arr.length; i++) {
+    const b = arr[i], p = arr[i - 1];
+    const tr = i ? Math.max(b.h - b.l, Math.abs(b.h - p.c), Math.abs(b.l - p.c)) : b.h - b.l;
+    if (i < 14) { s += tr; A[i] = s / (i + 1); } else A[i] = (A[i - 1] * 13 + tr) / 14;
+  }
+  return A;
+}
+function sigOf(bars, A) {
+  const n = bars.length, sigs = new Array(n).fill(0);
+  for (let i = 10; i < n; i++) {
+    const b = bars[i], p = bars[i - 1];
+    const bull = b.c > b.o && p.c < p.o && (b.c - b.o) > (p.o - p.c);
+    const bear = b.c < b.o && p.c > p.o && (b.o - b.c) > (p.c - p.o);
+    let lo3 = Infinity, lo10 = Infinity, hi3 = -Infinity, hi10 = -Infinity;
+    for (let j = i - 9; j <= i; j++) { lo10 = Math.min(lo10, bars[j].l); hi10 = Math.max(hi10, bars[j].h); if (j >= i - 2) { lo3 = Math.min(lo3, bars[j].l); hi3 = Math.max(hi3, bars[j].h); } }
+    if (bull && lo3 <= lo10 + 0.5 * A[i]) sigs[i] = 1;
+    else if (bear && hi3 >= hi10 - 0.5 * A[i]) sigs[i] = -1;
+  }
+  return sigs;
+}
+async function klineRange(sym, iv, start, end) { // 超過 1000 根就分段一起抓
+  const ms = IV_MS[iv], jobs = [];
+  for (let a = start; a < end; a += 1000 * ms) jobs.push(kline(sym, iv, a, Math.min(a + 999 * ms, end)));
+  const m = new Map(); for (const part of await Promise.all(jobs)) for (const b of part) m.set(b.t, b);
+  return [...m.values()].sort((a, b) => a.t - b.t);
+}
+// 多空看板（跟 v9 指標一樣）：收盤突破前20根高點或跌破前20根低點 → 歸零重算；
+// 之後這段盤整裡：吞噬買 + 假跌破 算「多」，吞噬賣 + 假突破 算「空」
+function biasOf(a, sg) {
+  const out = []; let bc = 0, sc = 0, since = 0, lo = null, loBar = 0, hi = null, hiBar = 0;
+  for (let i = 0; i < a.length; i++) {
+    const b = a[i];
+    if (i < 20) { out.push({ b: 0, s: 0, n: 0 }); continue; }
+    let h20 = -Infinity, l20 = Infinity; for (let j = i - 20; j < i; j++) { h20 = Math.max(h20, a[j].h); l20 = Math.min(l20, a[j].l); }
+    const uR = b.c > h20 && b.c > b.o, dR = b.c < l20 && b.c < b.o;
+    if (lo !== null && i - loBar > 5) lo = null;
+    if (lo === null && b.l < l20) { lo = l20; loBar = i; }
+    const fd = lo !== null && b.c > lo && b.c > b.o; if (fd) lo = null;
+    if (hi !== null && i - hiBar > 5) hi = null;
+    if (hi === null && b.h > h20) { hi = h20; hiBar = i; }
+    const fu = hi !== null && b.c < hi && b.c < b.o; if (fu) hi = null;
+    if (uR || dR) { bc = uR ? 1 : 0; sc = dR ? 1 : 0; since = 0; }
+    else { since++; if (sg[i] === 1 || fd) bc++; if (sg[i] === -1 || fu) sc++; }
+    out.push({ b: bc, s: sc, n: since });
+  }
+  return out;
+}
+function mapToBase(hb, hm, vals) { // 每根小K收盤時，最後一根已經收完的大K（或小週期K）的值
+  const ms = IV_MS[$("tf").value], res = new Array(bars.length).fill(null); let k = -1;
+  for (let i = 0; i < bars.length; i++) {
+    const T = bars[i].t + ms;
+    while (k + 1 < hb.length && hb[k + 1].t + hm <= T) k++;
+    res[i] = k >= 0 ? vals[k] : null;
+  }
+  return res;
+}
+async function loadBias(sym, iv) {
+  bias = {};
+  const end = bars[bars.length - 1].t + IV_MS[iv];
+  await Promise.all(["15", "60", "240"].filter(tf => iv !== "D" || tf === "240").map(async tf => {
+    try {
+      if (tf === iv) { bias[tf] = biasOf(bars, sigs); return; }
+      const hm = IV_MS[tf], hb = await klineRange(sym, tf, bars[startIdx].t - 150 * hm, end);
+      bias[tf] = mapToBase(hb, hm, biasOf(hb, sigOf(hb, atrOf(hb))));
+    } catch (e) {}
+  }));
+}
+function biasTxt(v) { return !v ? "-" : v.b > v.s ? "多" : v.s > v.b ? "空" : "觀望"; }
+function renderBoard() {
+  if (!bars.length) { $("board").innerHTML = ""; return; }
+  const rows = ["15", "60", "240"].filter(tf => bias[tf]).map(tf => {
+    const v = bias[tf][cur]; if (!v) return "";
+    const t = v.n === 0 && v.b > v.s ? "剛突破→偏多" : v.n === 0 && v.s > v.b ? "剛跌破→偏空" : v.b > v.s ? "偏多→做多" : v.s > v.b ? "偏空→做空" : "差不多→觀望";
+    const col = v.b > v.s ? "#2563eb" : v.s > v.b ? "#d97706" : "#4b5563";
+    return `<tr><td>${IV_NAME[tf]}</td><td style="color:#9aa0ab">${v.n === 0 ? "剛發生" : v.n + "根"}</td><td>多${v.b} 空${v.s}</td><td><span class="tag" style="background:${col}">${t}</span></td></tr>`;
+  }).join("");
+  $("board").innerHTML = rows ? `<table><tr><td colspan="4" style="color:#9aa0ab">多空看板（這段盤整的訊號數）</td></tr>${rows}</table>` : "";
+}
+// 練習進度
+function renderProg() {
+  if (!bars.length) { $("prog").textContent = ""; return; }
+  const done = cur - startIdx, total = sessEnd - startIdx, left = sessEnd - cur;
+  const hrs = left * IV_MS[$("tf").value] / 36e5;
+  $("prog").textContent = `第 ${done} / ${total} 根｜剩 ${left} 根（行情時間約 ${hrs >= 24 ? (hrs / 24).toFixed(1) + " 天" : hrs.toFixed(0) + " 小時"}）`;
+}
+function endSession() {
+  stopPlay();
+  if (pos) closePos(bars[cur].c, "練習結束平倉");
+  const T = trades.filter(t => t.sess === sessId), n = T.length, w = T.filter(t => t.pnl > 0).length;
+  const R = T.reduce((a, t) => a + t.R, 0), P = T.reduce((a, t) => a + t.pnl, 0);
+  const best = n ? T.reduce((a, t) => t.R > a.R ? t : a) : null, worst = n ? T.reduce((a, t) => t.R < a.R ? t : a) : null;
+  const sigN = T.filter(t => t.sig).length;
+  const bk = { 大虧: T.filter(t => t.R < -1.1).length, 一R虧: T.filter(t => t.R >= -1.1 && t.R < -0.6).length, 小虧: T.filter(t => t.R >= -0.6 && t.R < 0).length, 小賺: T.filter(t => t.R >= 0 && t.R < 2).length, 大賺: T.filter(t => t.R >= 2).length };
+  const early = T.filter(t => (t.mfe ?? 0) >= 3 && t.R < 1).length;
+  const distTxt = n ? `<div style="margin:6px 0;padding:6px;background:#262a35;border-radius:6px">小虧小賺大賺檢查：<br>💥 大虧（超過 1R）<b>${bk.大虧}</b>｜➖ 虧 1R <b>${bk.一R虧}</b>｜🔸 小虧 <b>${bk.小虧}</b><br>🔹 小賺 <b>${bk.小賺}</b>｜🚀 大賺（2R 以上）<b>${bk.大賺}</b>｜😢 賣太早（曾賺 3R、出場不到 1R）<b>${early}</b><br><span class="keys">目標：大虧 0、大賺佔 1 成左右、虧的單大部分是小虧</span></div>` : "";
+  $("sumCard").innerHTML = `<h2>🏁 這次模擬結束了</h2>
+    ${$("sym").value}｜${IV_NAME[$("tf").value]}｜練了 ${cur - startIdx} 根K<br>
+    下了 <b>${n}</b> 筆${n ? `，勝率 <b>${Math.round(w / n * 100)}%</b>` : ""}<br>
+    總共 <b class="${R >= 0 ? "pos" : "neg"}">${R >= 0 ? "+" : ""}${R.toFixed(2)}R</b>（<span class="${P >= 0 ? "pos" : "neg"}">${P >= 0 ? "+" : ""}${P.toFixed(2)} U</span>）<br>
+    ${n ? `最好一筆 ${best.R >= 0 ? "+" : ""}${best.R.toFixed(2)}R｜最差一筆 ${worst.R.toFixed(2)}R<br>跟著指標訊號進場的有 ${sigN} 筆<br>` : "這次沒有下單，也是一種練習：等不到好位置就不做 👍<br>"}
+    ${distTxt}    目前帳戶 <b>${equity.toFixed(2)} U</b><br>
+    <div class="row" style="margin-top:10px"><button class="main" id="sumNext">再練一段（隨機）</button><button id="sumClose">留在這裡看圖</button></div>`;
+  $("summary").style.display = "flex";
+  $("sumNext").onclick = () => { $("summary").style.display = "none"; $("date").value = ""; load(); };
+  $("sumClose").onclick = () => { $("summary").style.display = "none"; };
+  msg("這次模擬結束了，按「開始練習」或「隨機日期」換一段");
+}
+// 大週期訊號：大週期那根K收完的那一刻，標在小週期對應的K上（跟 TradingView 指標一樣）
+async function loadMTF(sym, iv) {
+  const ms = IV_MS[iv];
+  mtf = bars.map((b, i) => sigs[i] ? [{ dir: sigs[i], tf: iv }] : []);
+  const idx = new Map(bars.map((b, i) => [b.t + ms, i])); // 收盤時間 → 第幾根
+  const higher = ["60", "240", "D"].filter(h => IV_MS[h] > ms);
+  for (const h of higher) {
+    try {
+      const hm = IV_MS[h], end = bars[bars.length - 1].t + ms;
+      const hb = (await kline(sym, h, bars[0].t - 40 * hm, end)).sort((a, b) => a.t - b.t);
+      const hs = sigOf(hb, atrOf(hb));
+      hb.forEach((b, k) => { if (hs[k] && b.t + hm <= end) { const i = idx.get(b.t + hm); if (i !== undefined) mtf[i].push({ dir: hs[k], tf: h }); } });
+    } catch (e) { /* 大週期抓不到就只顯示本週期 */ }
+  }
+}
+
+function ema(len) { const e = [], k = 2 / (len + 1); for (let i = 0; i < bars.length; i++) e[i] = i ? bars[i].c * k + e[i - 1] * (1 - k) : bars[i].c; return e; }
+
+// ── 記錄進場當下的盤面（之後用來研究你的下單方式）──
+function feat(i, dir, stop) {
+  const b = bars[i], a = ATR[i] || 1, avg = k => { let s = 0; for (let j = i - k; j < i; j++) s += bars[j].v; return s / k; };
+  let lo10 = Infinity, hi10 = -Infinity, lo3 = Infinity, hi3 = -Infinity, lo5 = Infinity, hi5 = -Infinity, lo20 = Infinity, hi20 = -Infinity;
+  for (let j = i - 19; j <= i; j++) { const x = bars[j]; lo20 = Math.min(lo20, x.l); hi20 = Math.max(hi20, x.h); if (j > i - 10) { lo10 = Math.min(lo10, x.l); hi10 = Math.max(hi10, x.h); } if (j > i - 5) { lo5 = Math.min(lo5, x.l); hi5 = Math.max(hi5, x.h); } if (j > i - 3) { lo3 = Math.min(lo3, x.l); hi3 = Math.max(hi3, x.h); } }
+  const rng = Math.max(b.h - b.l, 1e-9), body = Math.abs(b.c - b.o);
+  const f = {
+    sig: sigs[i] === dir ? 1 : sigs[i] ? -1 : 0,
+    volX: +(b.v / avg(20)).toFixed(2),
+    preVol: +((bars[i - 1].v + bars[i - 2].v + bars[i - 3].v) / 3 / avg(20)).toFixed(2),
+    bodyPct: +(body / rng).toFixed(2),
+    wickPct: +((dir > 0 ? Math.min(b.o, b.c) - b.l : b.h - Math.max(b.o, b.c)) / rng).toFixed(2),
+    vsE20: Math.sign(b.c - E20[i]), e20Up: Math.sign(E20[i] - E20[i - 5]), vsE50: Math.sign(b.c - E50[i]),
+    fromLow10: +(((dir > 0 ? lo3 - lo10 : hi10 - hi3)) / a).toFixed(2),
+    pos20: +((b.c - lo20) / Math.max(hi20 - lo20, 1e-9)).toFixed(2),
+    move5: +(((b.c - bars[i - 5].c) * dir) / a).toFixed(2),
+  };
+  if (drawings.length) {
+    let best = Infinity;
+    for (const d of drawings) for (const p of lineAt(d, i)) best = Math.min(best, Math.abs(b.c - p) / a, Math.abs((dir > 0 ? b.l : b.h) - p) / a);
+    f.lines = drawings.map(d => d.type).join("+");
+    f.nearLine = best === Infinity ? null : +best.toFixed(2);
+  } else f.lines = "";
+  if (stop != null) {
+    f.stopATR = +(Math.abs(b.c - stop) / a).toFixed(2);
+    const ref5 = dir > 0 ? lo5 : hi5, ref20 = dir > 0 ? lo20 : hi20;
+    f.stopType = Math.abs(stop - ref5) < 0.05 * a ? "5根低點" : Math.abs(stop - ref20) < 0.05 * a ? "20根低點" : Math.abs(stop - (dir > 0 ? b.l : b.h)) < 0.05 * a ? "這根K低點" : "其他";
+  }
+  return f;
+}
+
+// ── 畫線工具 ──
+let tool = null, pending = null, drawings = [], hoverPt = null, sel = -1, drag = null, stopTouched = false;
+function setTool(t) {
+  tool = tool === t ? null : t; pending = null;
+  document.querySelectorAll(".tools [data-tool]").forEach(b => b.classList.toggle("on", b.dataset.tool === tool));
+  msg(tool === "trend" ? "趨勢線：點起點，再點終點" : tool === "hline" ? "水平線：點一下" : tool === "box" ? "框：點一個角，再點對角" : "結束畫線");
+}
+function onChartClick(p) {
+  if (!tool || !p.point || p.logical == null) return;
+  const pt = { l: p.logical, p: cs.coordinateToPrice(p.point.y) };
+  if (pt.p == null) return;
+  if (tool === "hline") { drawings.push({ type: "hline", a: pt }); setTool(null); return; }
+  if (!pending) { pending = pt; msg("再點第二個點"); return; }
+  if (pt.l === pending.l && tool === "trend") { msg("兩個點要在不同的K棒"); return; }
+  drawings.push({ type: tool, a: pending, b: pt }); pending = null; setTool(null);
+}
+function lineAt(d, l) { // 這條線在第 l 根K的價格
+  if (d.type === "hline") return [d.a.p];
+  if (d.type === "box") return (l >= Math.min(d.a.l, d.b.l) && l <= Math.max(d.a.l, d.b.l) + 50) ? [d.a.p, d.b.p] : [];
+  const sl = (d.b.p - d.a.p) / (d.b.l - d.a.l); const l0 = Math.min(d.a.l, d.b.l);
+  return l >= l0 ? [d.a.p + sl * (l - d.a.l)] : [];
+}
+function renderDraw() {
+  const cv = $("draw"), el = $("chart"), dpr = window.devicePixelRatio || 1;
+  const w = el.clientWidth, h = el.clientHeight;
+  if (cv.width !== w * dpr || cv.height !== h * dpr) { cv.width = w * dpr; cv.height = h * dpr; cv.style.width = w + "px"; cv.style.height = h + "px"; }
+  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  if (!chart || !bars.length) return;
+  const ts = chart.timeScale(), paneW = ts.width();
+  const X = l => ts.logicalToCoordinate(l), Y = p => cs.priceToCoordinate(p);
+  g.save(); g.beginPath(); g.rect(0, 0, paneW, h); g.clip();
+  // 還沒進場時：預計停損線（可以拖）
+  const all = drawings.map((d, k) => ({ ...d, sel: k === sel }));
+  if (pending && hoverPt) all.push({ type: tool, a: pending, b: hoverPt, ghost: true });
+  for (const d of all) {
+    g.strokeStyle = d.ghost ? "rgba(245,158,11,.6)" : d.sel ? "#60a5fa" : "#f59e0b"; g.fillStyle = d.sel ? "rgba(96,165,250,.12)" : "rgba(245,158,11,.10)"; g.lineWidth = d.sel ? 2.4 : 1.6;
+    if (d.type === "hline") { const y = Y(d.a.p); if (y == null) continue; g.beginPath(); g.moveTo(0, y); g.lineTo(paneW, y); g.stroke(); continue; }
+    const x1 = X(d.a.l), y1 = Y(d.a.p), x2 = X(d.b.l), y2 = Y(d.b.p);
+    if ([x1, y1, x2, y2].some(v => v == null)) continue;
+    if (d.type === "box") { g.fillRect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1)); g.strokeRect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
+      if (d.sel) { g.fillStyle = "#60a5fa"; for (const [px, py] of [[x1, y1], [x2, y2], [x1, y2], [x2, y1]]) g.fillRect(px - 4, py - 4, 8, 8); } continue; }
+    // 趨勢線：往右延伸
+    const [ax, ay, bx, by] = x1 <= x2 ? [x1, y1, x2, y2] : [x2, y2, x1, y1];
+    const k = (by - ay) / ((bx - ax) || 1e-9);
+    g.beginPath(); g.moveTo(ax, ay); g.lineTo(paneW, ay + k * (paneW - ax)); g.stroke();
+    g.fillStyle = d.sel ? "#60a5fa" : "#f59e0b"; for (const [px, py] of [[ax, ay], [bx, by]]) { g.beginPath(); g.arc(px, py, d.sel ? 5 : 3, 0, 7); g.fill(); }
+  }
+  g.restore();
+}
+let drawDirty = true, lastPriceKey = "";
+function drawLoop() {
+  // 只有畫面有變（拖動、縮放、新K、畫線）才重畫，比較順
+  if (chart && bars.length) { const y = cs.priceToCoordinate(bars[cur].c), k = y + ":" + $("chart").clientWidth + ":" + $("chart").clientHeight; if (k !== lastPriceKey) { lastPriceKey = k; drawDirty = true; } }
+  if (drawDirty || drag) { drawDirty = false; renderDraw(); }
+  requestAnimationFrame(drawLoop);
+}
+
+// ── 像 TradingView 一樣：點線選取、拖端點延長、拖線移動、拖停損線、Delete 刪除 ──
+function relXY(e) { const r = $("chart").getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+function distSeg(px, py, x1, y1, x2, y2) { const dx = x2 - x1, dy = y2 - y1, L = dx * dx + dy * dy || 1e-9; let t = ((px - x1) * dx + (py - y1) * dy) / L; t = Math.max(0, Math.min(1, t)); return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy)); }
+function hitTest(x, y) {
+  if (!chart || !bars.length) return null;
+  const ts = chart.timeScale(), X = l => ts.logicalToCoordinate(l), Y = p => cs.priceToCoordinate(p), W = ts.width(), R = 7;
+  if (pos) { const ys = Y(pos.stop); if (ys != null && Math.abs(y - ys) < R) return { kind: "stop" }; }
+  for (let k = drawings.length - 1; k >= 0; k--) {
+    const d = drawings[k];
+    if (d.type === "hline") { const yy = Y(d.a.p); if (yy != null && Math.abs(y - yy) < R) return { kind: "move", k }; continue; }
+    const x1 = X(d.a.l), y1 = Y(d.a.p), x2 = X(d.b.l), y2 = Y(d.b.p); if ([x1, y1, x2, y2].some(v => v == null)) continue;
+    if (Math.hypot(x - x1, y - y1) < R + 2) return { kind: "a", k };
+    if (Math.hypot(x - x2, y - y2) < R + 2) return { kind: "b", k };
+    if (d.type === "box") {
+      if (Math.hypot(x - x1, y - y2) < R + 2) return { kind: "c", k };
+      if (Math.hypot(x - x2, y - y1) < R + 2) return { kind: "d", k };
+      const inX = x >= Math.min(x1, x2) - R && x <= Math.max(x1, x2) + R, inY = y >= Math.min(y1, y2) - R && y <= Math.max(y1, y2) + R;
+      if (inX && inY) return { kind: "move", k };
+    } else {
+      const [ax, ay, bx, by] = x1 <= x2 ? [x1, y1, x2, y2] : [x2, y2, x1, y1]; const kk = (by - ay) / ((bx - ax) || 1e-9);
+      if (distSeg(x, y, ax, ay, W, ay + kk * (W - ax)) < R) return { kind: "move", k };
+    }
+  }
+  return null;
+}
+function setChartLock(lock) { chart.applyOptions({ handleScroll: !lock, handleScale: !lock }); }
+function initInteract() {
+  const el = $("chart");
+  el.addEventListener("pointerdown", e => {
+    if (tool) return; // 畫線中交給點擊處理
+    const { x, y } = relXY(e), h = hitTest(x, y);
+    if (!h) { sel = -1; return; }
+    if (h.k != null) sel = h.k;
+    const L = chart.timeScale().coordinateToLogical(x), P = cs.coordinateToPrice(y);
+    drag = { ...h, L0: L, P0: P, orig: h.k != null ? JSON.parse(JSON.stringify(drawings[h.k])) : null, stop0: pos ? pos.stop : null };
+    setChartLock(true); el.setPointerCapture(e.pointerId); e.preventDefault(); e.stopPropagation();
+  }, true);
+  el.addEventListener("pointermove", e => {
+    const { x, y } = relXY(e);
+    if (!drag) { if (!tool) { const h = hitTest(x, y); el.style.cursor = !h ? "" : (h.kind === "stop" || h.kind === "plan") ? "ns-resize" : h.kind === "move" ? "move" : "pointer"; } return; }
+    const L = chart.timeScale().coordinateToLogical(x), P = cs.coordinateToPrice(y); if (L == null || P == null) return;
+    if (drag.kind === "plan") { $("stop").value = P.toFixed(2); stopTouched = true; return; }
+    if (drag.kind === "stop") {
+      const okSide = pos.dir > 0 ? P < bars[cur].c : P > bars[cur].c;
+      if (okSide) {
+        pos.stop = P;
+        if (stopLine) stopLine.applyOptions({ price: P, title: "停損 " + P.toFixed(2) });
+        $("stop").value = P.toFixed(2);
+        const lossU = pos.qty * (pos.entry - P) * pos.dir;
+        msg(`拖曳中：停損 ${P.toFixed(2)}｜打到${lossU >= 0 ? "賠 " + lossU.toFixed(2) : "還賺 " + (-lossU).toFixed(2)} U｜放開就確定`);
+        updatePosInfo();
+      } else msg("停損不能拖過現在的價格");
+      return;
+    }
+    const d = drawings[drag.k], o = drag.orig, dL = L - drag.L0, dP = P - drag.P0;
+    if (drag.kind === "a") d.a = { l: L, p: P };
+    else if (drag.kind === "b") d.b = { l: L, p: P };
+    else if (drag.kind === "c") { d.a = { l: L, p: d.a.p }; d.b = { l: d.b.l, p: P }; }
+    else if (drag.kind === "d") { d.b = { l: L, p: d.b.p }; d.a = { l: d.a.l, p: P }; }
+    else { d.a = { l: o.a.l + dL, p: o.a.p + dP }; if (o.b) d.b = { l: o.b.l + dL, p: o.b.p + dP }; }
+  }, true);
+  const end = e => {
+    if (!drag) return;
+    if (drag.kind === "stop" && pos && pos.stop !== drag.stop0) { pos.moves.push({ k: cur - pos.inIdx, how: "拖曳", to: +pos.stop.toFixed(2), atr: +((pos.stop - drag.stop0) * pos.dir / (ATR[cur] || 1)).toFixed(2) }); msg("停損移到 " + pos.stop.toFixed(2)); draw(false); }
+    drag = null; setChartLock(false);
+  };
+  el.addEventListener("pointerup", end, true); el.addEventListener("pointercancel", end, true);
+}
+
+// ── 畫圖 ──
+let drawnCur = -1, mkKey = "";
+const cBar = b => ({ time: b.t / 1000 + TW, open: b.o, high: b.h, low: b.l, close: b.c });
+const vBar = b => ({ time: b.t / 1000 + TW, value: b.v, color: b.c >= b.o ? "rgba(224,72,72,.45)" : "rgba(38,166,154,.45)" });
+function draw(fit) {
+  if (!bars.length) { renderStats(); return; }
+  if (fit || drawnCur < 0 || cur < drawnCur || cur - drawnCur > 20) {
+    const vis = bars.slice(0, cur + 1);
+    cs.setData(vis.map(cBar)); vs.setData(vis.map(vBar)); mkKey = "";
+  } else for (let i = drawnCur + 1; i <= cur; i++) { cs.update(cBar(bars[i])); vs.update(vBar(bars[i])); }
+  drawnCur = cur; drawDirty = true;
+  const mk = [];
+  const sh1 = sigShow(1), sh2 = sigShow(2), sh3 = sigShow(3), sh4 = sigShow(4);
+  for (let i = Math.max(0, cur - 400); i <= cur; i++) {
+    const T = bars[i].t / 1000 + TW;
+    if (sh1) {
+      const L = (mtf[i] || []), buy = L.filter(x => x.dir > 0).map(x => IV_NAME[x.tf]), sell = L.filter(x => x.dir < 0).map(x => IV_NAME[x.tf]);
+      if (buy.length) mk.push({ time: T, position: "belowBar", color: "#3b82f6", shape: "arrowUp", text: "K反轉 買 " + buy.join("+") });
+      if (sell.length) mk.push({ time: T, position: "aboveBar", color: "#f59e0b", shape: "arrowDown", text: "K反轉 賣 " + sell.join("+") });
+    }
+    if (sh2 && S2[i]) mk.push({ time: T, position: S2[i] > 0 ? "belowBar" : "aboveBar", color: S2[i] > 0 ? "#14b8a6" : "#be123c", shape: S2[i] > 0 ? "arrowUp" : "arrowDown", text: S2[i] > 0 ? "盤整 買" : "盤整 賣" });
+    if (sh3 && S3[i]) mk.push({ time: T, position: S3[i] > 0 ? "belowBar" : "aboveBar", color: "#d946ef", shape: S3[i] > 0 ? "arrowUp" : "arrowDown", text: S3[i] > 0 ? "突破單 多" : "跌破單 空" });
+    if (sh4 && S4[i]) mk.push({ time: T, position: "belowBar", color: "#22c55e", shape: "arrowUp", text: "🟢 跟著大戶進場" });
+  }
+  for (const t of trades) {
+    if (t.inT <= bars[cur].t) mk.push({ time: t.inT / 1000 + TW, position: t.dir > 0 ? "belowBar" : "aboveBar", color: "#ffffff", shape: t.dir > 0 ? "arrowUp" : "arrowDown", text: t.dir > 0 ? "多" : "空" });
+    if (t.outT <= bars[cur].t) mk.push({ time: t.outT / 1000 + TW, position: t.dir > 0 ? "aboveBar" : "belowBar", color: t.why === "爆倉" ? "#ef4444" : t.pnl >= 0 ? "#e04848" : "#9aa0ab", shape: "circle", text: t.why === "爆倉" ? "爆倉 " + t.R.toFixed(1) + "R" : (t.why === "停損" ? "停損 " : "出場 ") + (t.R >= 0 ? "+" : "") + t.R.toFixed(1) + "R" });
+  }
+  for (const a of [...trades.flatMap(t => (t.adds || []).map(x => ({ ...x, i0: t.inIdx, dir: t.dir }))), ...(pos ? pos.adds.map(x => ({ ...x, i0: pos.inIdx, dir: pos.dir })) : [])]) {
+    const i = a.i0 + a.k; if (i > cur || !bars[i]) continue;
+    const up = (a.qty > 0) === (a.dir > 0);
+    mk.push({ time: bars[i].t / 1000 + TW, position: up ? "belowBar" : "aboveBar", color: "#a78bfa", shape: up ? "arrowUp" : "arrowDown", text: a.qty > 0 ? "加" : "減" });
+  }
+  if (pos) mk.push({ time: pos.inT / 1000 + TW, position: pos.dir > 0 ? "belowBar" : "aboveBar", color: "#ffffff", shape: pos.dir > 0 ? "arrowUp" : "arrowDown", text: pos.dir > 0 ? "多" : "空" });
+  mk.sort((a, b) => a.time - b.time);
+  const key = mk.length + ":" + (mk.length ? mk[mk.length - 1].time + mk[mk.length - 1].text : "") + ":" + mk[0]?.time;
+  if (key !== mkKey) { cs.setMarkers(mk); mkKey = key; }
+  drawLines();
+  if (fit) chart.timeScale().setVisibleLogicalRange({ from: cur - 120, to: cur + 10 });
+  legend(cur); renderBoard(); renderProg();
+  if (pos) { if (document.activeElement !== $("stop")) $("stop").value = pos.stop.toFixed(2); }
+  else if (!stopTouched) $("stop").value = "";
+  updatePosInfo();
+}
+let liqLine = null, linePos = null;
+function setLine(cur0, want, opts) { // 有就更新、沒有就建立、不要就刪掉（不會閃）
+  if (!want) { if (cur0) cs.removePriceLine(cur0); return null; }
+  if (cur0) { cur0.applyOptions(opts); return cur0; }
+  return cs.createPriceLine(opts);
+}
+function drawLines() {
+  window._pendLine = setLine(window._pendLine, !!pend && !pos, pend ? { price: pend.trig, color: "#38bdf8", lineWidth: 1, lineStyle: 2, title: (pend.dir > 0 ? "突破買 " : "突破賣 ") + "（剩 " + Math.max(0, pend.until - cur) + " 根）" } : {});
+  $("pendInfo").textContent = pend && !pos ? `掛單中：${pend.dir > 0 ? "漲過" : "跌破"} ${pend.trig} 成交，停損 ${pend.stop.toFixed(2)}，剩 ${Math.max(0, pend.until - cur)} 根` : "";
+  if (linePos !== pos && window._oneR) { cs.removePriceLine(window._oneR); window._oneR = null; }
+  if (linePos !== pos) { for (const l of [entryLine, stopLine, tpLine, liqLine]) if (l) cs.removePriceLine(l); entryLine = stopLine = tpLine = liqLine = null; linePos = pos; }
+  if (!pos) return;
+  entryLine = setLine(entryLine, true, { price: pos.entry, color: "#ffffff", lineWidth: 1, lineStyle: 2, title: "進場" });
+  stopLine = setLine(stopLine, true, { price: pos.stop, color: "#d946ef", lineWidth: 2, lineStyle: 0, title: "停損 " + pos.stop.toFixed(2) });
+  liqLine = setLine(liqLine, !!pos.liq, { price: pos.liq, color: "#ef4444", lineWidth: 1, lineStyle: 1, title: "爆倉" });
+  window._oneR = setLine(window._oneR, true, { price: pos.e0 + pos.dir * pos.R0, color: "#64748b", lineWidth: 1, lineStyle: 2, title: "1R（到這裡就保本）" });
+  tpLine = setLine(tpLine, !!pos.tp, { price: pos.tp, color: "#22c55e", lineWidth: 1, lineStyle: 0, title: "停利" });
+}
+
+// ── 播放 ──
+function next() {
+  if (!bars.length) return;
+  if (cur >= sessEnd) { endSession(); return; }
+  if (sigs[cur] && sigShow(1) && !(pos && pos.inIdx === cur) && !trades.some(t => t.inIdx === cur && t.sym === $("sym").value)) {
+    skipped.push({ dir: sigs[cur], ...feat(cur, sigs[cur], null), hadPos: pos ? 1 : 0 });
+  }
+  cur++;
+  checkExit();
+  checkPend();
+  manage();
+  propCheck();
+  if (cur >= sessEnd) { draw(false); endSession(); return; }
+  const hint = stratAt(cur); if (hint.length) msg("這根K出現：" + hint.join("｜"));
+  draw(false);
+}
+function togglePlay() { if (timer) stopPlay(); else { timer = setInterval(next, +$("speed").value); $("btnPlay").textContent = "暫停"; } }
+function stopPlay() { if (timer) clearInterval(timer); timer = null; $("btnPlay").textContent = "自動播放"; }
+
+// ── 交易 ──
+function autoStopValue(dir) {
+  if (!bars.length) return;
+  const d = dir || (pos ? pos.dir : 1);
+  let v = d > 0 ? Infinity : -Infinity;
+  for (let j = cur - 4; j <= cur; j++) v = d > 0 ? Math.min(v, bars[j].l) : Math.max(v, bars[j].h);
+  return v;
+}
+function liqPrice(dir, entry, qty, money) {
+  const p = entry - dir * (money - 0.005 * qty * entry) / qty;
+  return p > 0 ? p : null; // 做多跌到 0 都不會賠光 → 沒有爆倉價
+}
+function calcOrder(dir, pxO, stopO) {
+  const price = pxO ?? bars[cur].c;
+  let stop = stopO ?? parseFloat($("stop").value);
+  if (!stop || (dir > 0 ? stop >= price : stop <= price)) stop = autoStopValue(dir);
+  if (dir > 0 ? stop >= price : stop <= price) return { err: "停損價放錯邊了" };
+  const mode = $("mode").value;
+  let qty, lev, margin;
+  if (mode === "risk") {
+    qty = equity * (+$("risk").value) / 100 / Math.abs(price - stop);
+    lev = qty * price / equity; margin = equity;
+  } else {
+    lev = Math.max(1, +$("lev").value || 1);
+    qty = mode === "margin" ? (+$("margin").value) * lev / price : +$("qty").value;
+    margin = qty * price / lev;
+    if (!(qty > 0)) return { err: "數量要大於 0" };
+  }
+  const riskU = qty * Math.abs(price - stop);
+  // 全倉：沒有保證金限制，只要帳戶有錢就能下；帳戶的錢全部賠光（留 0.5% 維持）那個價格才爆倉
+  const liq = liqPrice(dir, price, qty, equity);
+  lev = qty * price / Math.max(equity, 1e-9); // 實際槓桿＝合約價值 ÷ 帳戶的錢
+  return { price, stop, mode, qty, lev, margin, riskU, liq, notional: qty * price };
+}
+function renderPreview() {
+  if (!bars.length) return;
+  const head = pos ? `持倉中：合約價值 <b>${(pos.qty * bars[cur].c).toFixed(2)} U</b>｜按同方向＝加倉，反方向＝減倉<br>` : "";
+  const line = d => {
+    const o = calcOrder(d), nm = d > 0 ? "做多" : "做空";
+    if (o.err) return `${nm}：${o.err}`;
+    const over = "";
+    const far = o.liq && (d > 0 ? o.liq >= o.stop : o.liq <= o.stop) ? ` <span class="neg">⚠️ 錢不夠撐到停損</span>` : "";
+    const inv = o.mode !== "risk" ? `｜${+$("lev").value || 1} 倍槓桿投入 ${(o.notional / (+$("lev").value || 1)).toFixed(2)} U` : "";
+    return `${nm}${pos ? (pos.dir === d ? "（加倉）" : "（減倉）") : ""}：合約價值 <b>${o.notional.toFixed(2)} U</b>（帳戶的 ${o.lev.toFixed(1)} 倍）${inv}｜數量 ${o.qty.toFixed(4)}｜停損 ${o.stop.toFixed(2)} 賠 <span class="neg">${o.riskU.toFixed(2)} U</span>｜${o.liq ? "跌到 " + o.liq.toFixed(2) + " 帳戶賠光" : "不會賠光"}${far}`.replace("跌到", d > 0 ? "跌到" : "漲到");
+  };
+  $("preview").innerHTML = head + line(1) + "<br>" + line(-1);
+}
+function open(dir, pxO, stopO, how) {
+  if (!bars.length) return msg("先按「開始練習」");
+  const o = calcOrder(dir, pxO, stopO);
+  if (o.err) return msg(o.err);
+  if (pos && pos.dir !== dir) return reducePos(o.qty);
+  if (pos) return addPos(o);
+  const { price, stop, mode, qty, lev, margin, riskU, liq } = o;
+  const tp = parseFloat($("tp").value) || null;
+  if (liq && (dir > 0 ? liq >= stop : liq <= stop) && window._liqOk !== cur + ":" + dir) {
+    window._liqOk = cur + ":" + dir;
+    return msg(`⚠️ 你帳戶的錢不夠撐到停損：價格到 ${liq.toFixed(2)} 你的錢就全部賠光（爆倉），比停損 ${stop.toFixed(2)} 還近。確定要下就再按一次；不然把數量調小。`);
+  }
+  window._liqOk = null;
+  pos = { dir, mode, entry: price, stop, stop0: stop, tp, qty, riskU, lev, margin, liq, inT: bars[cur].t, inIdx: cur, note: $("note").value, sig: sigs[cur] === dir || !!(how && sigs[how.sigIdx] === dir), how: how ? "突破單" : "市價", e0: price, R0: Math.abs(price - stop), mfeR: 0, realized: 0, adds: [], f: { ...feat(cur, dir, stop), bias: ["15", "60", "240"].filter(tf => bias[tf]).map(tf => IV_NAME[tf] + biasTxt(bias[tf][cur])).join(" ") }, moves: [] };
+  const liqWarn = liq && (dir > 0 ? liq >= stop : liq <= stop) ? "｜⚠️ 錢不夠撐到停損，會先爆倉！" : "";
+  msg(`${dir > 0 ? "做多" : "做空"} ${price}｜停損 ${stop.toFixed(2)}｜數量 ${qty.toFixed(4)}｜合約價值 ${(qty * price).toFixed(2)} U（帳戶的 ${lev.toFixed(1)} 倍）｜打到停損賠 ${riskU.toFixed(2)} U${liq ? "｜到 " + liq.toFixed(2) + " 帳戶賠光" : ""}${liqWarn}`);
+  draw(false);
+}
+// 加倉：同方向再下一筆，進場價變成平均價，停損維持你現在設的
+function addPos(o) {
+  const price = o.price, nq = pos.qty + o.qty, ne = (pos.entry * pos.qty + price * o.qty) / nq;
+  const typed = parseFloat($("stop").value);
+  const st = typed && (pos.dir > 0 ? typed < price : typed > price) ? typed : pos.stop;
+  const liq = liqPrice(pos.dir, ne, nq, equity);
+  if (liq && (pos.dir > 0 ? liq >= st : liq <= st) && window._liqOk !== cur + ":add") {
+    window._liqOk = cur + ":add";
+    return msg(`⚠️ 加倉之後錢不夠撐到停損：價格到 ${liq.toFixed(2)} 帳戶就賠光。確定要加就再按一次；不然把數量調小。`);
+  }
+  window._liqOk = null;
+  if (st !== pos.stop) { pos.moves.push({ k: cur - pos.inIdx, how: "加倉時改", to: +st.toFixed(2) }); pos.stop = st; }
+  pos.adds.push({ k: cur - pos.inIdx, px: price, qty: +o.qty.toFixed(4) });
+  pos.qty = nq; pos.entry = +ne.toFixed(4); pos.liq = liq; pos.lev = nq * price / Math.max(equity, 1e-9);
+  pos.riskU = Math.max(pos.riskU, nq * Math.abs(ne - pos.stop));
+  msg(`加倉 ${o.qty.toFixed(4)} @ ${price}｜現在共 ${nq.toFixed(4)}，平均進場 ${ne.toFixed(2)}｜合約價值 ${(nq * price).toFixed(2)} U｜打到停損 ${pos.stop.toFixed(2)} ${pos.dir * (pos.stop - ne) >= 0 ? "還賺" : "賠"} ${Math.abs(nq * (pos.stop - ne)).toFixed(2)} U${liq ? "｜到 " + liq.toFixed(2) + " 帳戶賠光" : ""}`);
+  draw(false);
+}
+// 減倉：反方向下單＝平掉一部分（不會反手，要反手請先全部平掉）
+function reducePos(q) {
+  const price = bars[cur].c;
+  if (q >= pos.qty - 1e-9) return closePos(price, "反向平倉");
+  const pnl = (price - pos.entry) * pos.dir * q - (+$("fee").value) / 100 * (pos.entry + price) * q;
+  equity += pnl; pos.realized += pnl; pos.qty -= q;
+  pos.adds.push({ k: cur - pos.inIdx, px: price, qty: -(+q.toFixed(4)) });
+  pos.liq = liqPrice(pos.dir, pos.entry, pos.qty, equity); pos.lev = pos.qty * price / Math.max(equity, 1e-9);
+  msg(`減倉 ${q.toFixed(4)} @ ${price}｜這部分${pnl >= 0 ? "賺" : "賠"} ${Math.abs(pnl).toFixed(2)} U｜還剩 ${pos.qty.toFixed(4)}`);
+  save(); draw(false);
+}
+// ── 突破掛單（新規則：訊號K高點被突破才進場，3根內沒突破就取消）──
+let pend = null;
+function placePend(dir) {
+  if (!bars.length) return msg("先按「開始練習」");
+  if (pos) return msg("手上有單時不能掛新的突破單");
+  const b = bars[cur];
+  let stop = parseFloat($("stop").value);
+  if ($("pendOpenStop").checked && !stopTouched) stop = b.o;
+  if (!stop || (dir > 0 ? stop >= b.h : stop <= b.l)) stop = autoStopValue(dir);
+  pend = { dir, trig: dir > 0 ? b.h : b.l, stop, until: cur + 3, sigIdx: cur };
+  const dist = Math.abs(pend.trig - stop), atr = ATR[cur] || dist;
+  if (dist < 0.5 * atr) { msg(`⚠️ 停損離進場只有 ${(dist / atr).toFixed(2)} 個 ATR，太近了：手續費和滑價會吃掉很多（回測這種單建議跳過）。真的要做就再按一次掛單；不然按「取消掛單」`); if (window._tightOk !== cur) { window._tightOk = cur; pend = null; draw(false); return; } }
+  msg(`已掛${dir > 0 ? "突破買單：價格漲過 " + b.h : "突破賣單：價格跌破 " + b.l} 才成交｜停損 ${stop.toFixed(2)}｜3 根內沒成交就自動取消`);
+  draw(false);
+}
+function checkPend() {
+  if (!pend || pos) return;
+  const b = bars[cur], d = pend.dir;
+  if (d > 0 ? b.l <= pend.stop : b.h >= pend.stop) { msg("突破單取消：還沒突破就先碰到停損了（這筆不做是對的）"); pend = null; return; }
+  if (d > 0 ? b.h > pend.trig : b.l < pend.trig) {
+    const px = d > 0 ? Math.max(b.o, pend.trig) : Math.min(b.o, pend.trig), p0 = pend; pend = null;
+    open(d, +px.toFixed(4), p0.stop, p0);
+    if (pos) { const save = cur; checkExit(); }
+    return;
+  }
+  if (cur >= pend.until) { msg("突破單取消：3 根內都沒突破，代表這個訊號沒有後續力道"); pend = null; }
+}
+// ── 新規則管理：1R 保本、5 根沒到 0.5R 出場、移到左右各 5 根的波段低點 ──
+function pivotAt(d) { // 剛確認的波段低點（做空是高點）
+  const k = 5, p = cur - k; if (!pos || p - k < pos.inIdx - 4) return null;
+  for (let q = p - k; q <= cur; q++) { if (q === p) continue; if (d > 0 ? bars[q].l < bars[p].l : bars[q].h > bars[p].h) return null; }
+  return d > 0 ? bars[p].l : bars[p].h;
+}
+function manage() {
+  if (!pos) return;
+  const b = bars[cur], d = pos.dir, auto = $("ruleAuto").checked, hint = $("ruleHint").checked, tips = [];
+  if (cur > pos.inIdx) pos.mfeR = Math.max(pos.mfeR, (d > 0 ? b.h - pos.e0 : pos.e0 - b.l) / pos.R0);
+  const n = cur - pos.inIdx, fee = (+$("fee").value) / 100;
+  const be = pos.e0 * (1 + d * 2 * fee);
+  // 時間停損
+  if (n === 5 && pos.mfeR < 0.5) {
+    if (auto) { closePos(b.c, "時間停損"); msg("時間停損：進場 5 根都沒賺到 0.5R，代表判斷沒有發生，先小虧出場"); return; }
+    tips.push("⏰ 進場第 5 根了，最多只賺到 " + pos.mfeR.toFixed(2) + "R（沒到 0.5R）→ 新規則：現在收盤出場，換成小虧");
+  }
+  // 保本
+  if (pos.mfeR >= 1 && (d > 0 ? pos.stop < be : pos.stop > be)) {
+    if (auto) { pos.moves.push({ k: n, how: "自動保本", to: +be.toFixed(2) }); pos.stop = be; }
+    else tips.push(`🛡 已經賺到 1R → 新規則：停損移到成本 ${be.toFixed(2)}，這筆最差也不會虧`);
+  }
+  // 移到波段低點
+  const pv = pivotAt(d);
+  if (pv !== null && (d > 0 ? pv > pos.stop && pv < b.c : pv < pos.stop && pv > b.c)) {
+    if (auto) { pos.moves.push({ k: n, how: "自動波段", to: +pv.toFixed(2) }); pos.stop = pv; }
+    else tips.push(`📈 出現新的波段${d > 0 ? "低" : "高"}點 ${pv} → 新規則：停損移過去`);
+  }
+  // 加碼提示（只加賺錢的單）
+  const safe = d > 0 ? pos.stop >= pos.e0 : pos.stop <= pos.e0, addsUp = pos.adds.filter(a => a.qty > 0).length;
+  if (safe && addsUp === 0 && pos.mfeR >= 1.5) tips.push("➕ 停損已在成本以上、賺到 1.5R → 進階：可以加半倉");
+  else if (safe && addsUp === 1 && pos.mfeR >= 3) tips.push("➕ 賺到 3R → 進階：可以再加半倉（最多加 2 次）");
+  if (hint && tips.length) msg(tips.join("　"));
+}
+function checkExit() {
+  if (!pos) return;
+  const b = bars[cur];
+  const liqFirst = pos.liq && (pos.dir > 0 ? pos.liq >= pos.stop : pos.liq <= pos.stop);
+  if (pos.liq && liqFirst && (pos.dir > 0 ? b.l <= pos.liq : b.h >= pos.liq)) { closePos(pos.liq, "爆倉", true); msg("💥 爆倉了！價格先碰到爆倉價 " + trades[trades.length - 1].exit.toFixed(2) + "，還沒到停損，帳戶的錢全部賠光"); return; }
+  const byClose = $("stopClose").checked;
+  const hitStop = byClose ? (pos.dir > 0 ? b.c <= pos.stop : b.c >= pos.stop) : (pos.dir > 0 ? b.l <= pos.stop : b.h >= pos.stop);
+  const hitTp = pos.tp && (pos.dir > 0 ? b.h >= pos.tp : b.l <= pos.tp);
+  if (hitStop) {
+    const st = pos.stop, st0 = pos.stop0, nMv = pos.moves.length, d = pos.dir;
+    const px = byClose ? b.c : (d > 0 ? Math.min(b.o, st) : Math.max(b.o, st));
+    closePos(px, "停損");
+    msg(byClose
+      ? `停損：這根K收盤 ${b.c} ${d > 0 ? "跌破" : "漲破"} 停損 ${st.toFixed(2)}`
+      : `停損：這根K${d > 0 ? "最低 " + b.l : "最高 " + b.h} 碰到停損 ${st.toFixed(2)}（影線碰到就算，跟交易所一樣）` + (nMv ? `｜停損原本在 ${st0.toFixed(2)}，被移動過 ${nMv} 次` : ""));
+  }
+  else if (hitTp) closePos(pos.dir > 0 ? Math.max(b.o, pos.tp) : Math.min(b.o, pos.tp), "停利");
+}
+// ── 自營商考試模式：用含浮虧的即時淨值算，跟真的考試一樣嚴格 ──
+let prop = null;
+function propRules() { return $("propType").value === "1" ? { tgt: [0.10], max: 0.06, day: 0.04 } : { tgt: [0.10, 0.05], max: 0.10, day: 0.05 }; }
+function propStart(phase) {
+  const size = 100000;
+  pos = null; pend = null; stopTouched = false; equity = size; peak = size; maxDD = 0; $("cap").value = size;
+  prop = { phase, base: size, dayKey: null, dayStart: size, days: new Set(), trades0: trades.length, done: null };
+  save(); renderStats(); if (bars.length) draw(false); propShow();
+  msg(`自營商考試第 ${phase} 關開始：帳戶 100,000 U，目標 +${propRules().tgt[phase - 1] * 100}%`);
+}
+function propShow() {
+  const el = $("propInfo"); if (!$("propMode").checked || !prop) { el.style.display = "none"; return; }
+  const R = propRules(), un = pos ? (bars[cur].c - pos.entry) * pos.dir * pos.qty : 0, eqv = equity + un;
+  const tgt = prop.base * (1 + R.tgt[prop.phase - 1]), maxL = prop.base * (1 - R.max), dayL = prop.dayStart - prop.base * R.day;
+  el.style.display = "block";
+  el.innerHTML = prop.done ? prop.done : `🎯 第 ${prop.phase} 關｜目前 <b>${eqv.toFixed(0)}</b> U（${((eqv / prop.base - 1) * 100).toFixed(2)}%）<br>過關線 ${tgt.toFixed(0)}（還差 ${Math.max(0, tgt - eqv).toFixed(0)}）｜總虧底線 ${maxL.toFixed(0)}（還能虧 ${(eqv - maxL).toFixed(0)}）<br>今天最多再虧 ${(eqv - dayL).toFixed(0)} U｜已交易 ${prop.days.size} 天`;
+}
+function propCheck() {
+  if (!$("propMode").checked || !prop || prop.done || !bars.length) return;
+  const R = propRules(), dk = Math.floor(bars[cur].t / 864e5);
+  if (prop.dayKey !== dk) { prop.dayKey = dk; prop.dayStart = equity + (pos ? (bars[cur].o - pos.entry) * pos.dir * pos.qty : 0); }
+  if (pos) prop.days.add(dk);
+  // 用這根K最差的價格算浮虧（真的考試是即時算）
+  const worst = pos ? ((pos.dir > 0 ? bars[cur].l : bars[cur].h) - pos.entry) * pos.dir * pos.qty : 0;
+  const eqWorst = equity + worst, eqv = equity + (pos ? (bars[cur].c - pos.entry) * pos.dir * pos.qty : 0);
+  const fail = eqWorst <= prop.base * (1 - R.max) ? "總虧損超過 " + R.max * 100 + "%" : eqWorst <= prop.dayStart - prop.base * R.day ? "單日虧損超過 " + R.day * 100 + "%" : null;
+  if (fail) {
+    if (pos) closePos(pos.dir > 0 ? Math.max(bars[cur].l, pos.stop) : Math.min(bars[cur].h, pos.stop), "考試爆掉");
+    prop.done = `💥 <b>考試失敗：${fail}</b>（第 ${prop.phase} 關，交易 ${prop.days.size} 天、${trades.length - prop.trades0} 筆）<br>真的考試這時候報名費就沒了。按「清除紀錄」或重新勾選考試模式再考一次。`;
+    stopPlay(); msg("💥 考試失敗：" + fail); propShow(); return;
+  }
+  if (!pos && eqv >= prop.base * (1 + R.tgt[prop.phase - 1])) {
+    const n = prop.days.size, k = trades.length - prop.trades0;
+    if (prop.phase < R.tgt.length) { stopPlay(); msg(`🎉 通過第 ${prop.phase} 關！交易 ${n} 天、${k} 筆。開始第 ${prop.phase + 1} 關`); propStart(prop.phase + 1); return; }
+    prop.done = `🏆 <b>兩關都通過了！</b>最後一關交易 ${n} 天、${k} 筆。真的考試到這裡就會拿到資金帳戶。`;
+    stopPlay(); msg("🏆 考試通過！"); propShow(); return;
+  }
+  propShow();
+}
+function closePos(px, why, liquidated) {
+  if (!pos) return;
+  const fee = (+$("fee").value) / 100 * (pos.entry + px) * pos.qty;
+  let pnl = (px - pos.entry) * pos.dir * pos.qty - fee;
+  if (liquidated) pnl = -Math.max(equity, 0); // 全倉爆倉：帳戶歸零
+  equity += pnl;
+  pnl += pos.realized || 0; // 加上之前減倉已經實現的
+  const R = pnl / pos.riskU; peak = Math.max(peak, equity); maxDD = Math.min(maxDD, equity / peak - 1);
+  const mfe = (() => { let m = 0; for (let j = pos.inIdx + 1; j <= cur; j++) m = Math.max(m, (pos.dir > 0 ? bars[j].h - pos.entry : pos.entry - bars[j].l) / Math.abs(pos.entry - pos.stop0)); return +m.toFixed(2); })();
+  if (pos.f) pos.f.stopBy = $("stopClose").checked ? "收盤" : "影線";
+  trades.push({ dir: pos.dir, entry: pos.entry, stop0: pos.stop0, exit: px, R, pnl, inT: pos.inT, outT: bars[cur].t, inIdx: pos.inIdx, bars: cur - pos.inIdx, why, note: pos.note, sig: pos.sig, sym: $("sym").value, tf: $("tf").value, f: pos.f, moves: pos.moves, mfe, lev: +pos.lev.toFixed(1), margin: +pos.margin.toFixed(2), sess: sessId, adds: pos.adds || [], how: pos.how, mfeR: +(pos.mfeR || 0).toFixed(2) });
+  msg(`${why}：${pnl >= 0 ? "賺" : "賠"} ${Math.abs(pnl).toFixed(2)} U（${R >= 0 ? "+" : ""}${R.toFixed(2)}R）`);
+  pos = null; stopTouched = false; $("note").value = ""; $("tp").value = "";
+  save(); renderStats(); draw(false);
+}
+function trailToSwing() {
+  if (!pos) return;
+  // 上一波低點：最近一個「左右各 2 根都比它高」的低點（做空相反），只往有利方向移
+  for (let j = cur - 2; j > pos.inIdx; j--) {
+    let ok = true;
+    for (let q = j - 2; q <= j + 2; q++) if (pos.dir > 0 ? bars[q].l < bars[j].l : bars[q].h > bars[j].h) ok = false;
+    if (ok) {
+      const v = pos.dir > 0 ? bars[j].l : bars[j].h;
+      if (pos.dir > 0 ? v > pos.stop && v < bars[cur].c : v < pos.stop && v > bars[cur].c) { pos.moves.push({ k: cur - pos.inIdx, how: "上一波", to: v }); pos.stop = v; msg("停損移到 " + v); draw(false); }
+      else msg("上一波的點沒有比現在的停損更好，不移");
+      return;
+    }
+  }
+  msg("進場之後還沒有形成新的一波");
+}
+function updatePosInfo() {
+  if (!pos) {
+    const t = trades[trades.length - 1];
+    $("posInfo").innerHTML = "<b>目前沒有持倉</b>" + (t ? `<br>上一筆：${t.dir > 0 ? "做多" : "做空"} ${t.entry} → <span style="color:${t.why === "爆倉" ? "#ef4444" : "inherit"}">${t.why} ${t.exit.toFixed(2)}</span>（${t.R >= 0 ? "+" : ""}${t.R.toFixed(2)}R）` : "");
+    setAcct(0); return;
+  }
+  const px = bars[cur].c, un = (px - pos.entry) * pos.dir * pos.qty;
+  const roe = `｜帳戶 ${un >= 0 ? "+" : ""}${(un / equity * 100).toFixed(1)}%`;
+  $("posInfo").innerHTML = `${pos.dir > 0 ? "做多" : "做空"} ${pos.entry}｜停損 ${pos.stop.toFixed(2)}｜${pos.lev.toFixed(1)} 倍${pos.liq ? "｜爆倉 " + pos.liq.toFixed(2) : ""}<br>數量 ${pos.qty.toFixed(4)}${pos.adds.length ? "（加減倉 " + pos.adds.length + " 次）" : ""}｜合約價值 ${(pos.qty * px).toFixed(2)} U<br>未實現 <span class="${un >= 0 ? "pos" : "neg"}">${un >= 0 ? "+" : ""}${un.toFixed(2)} U（${(un / pos.riskU).toFixed(2)}R${roe}）</span><br><span class="keys">進場第 ${cur - pos.inIdx} 根｜最多曾賺 ${(pos.mfeR || 0).toFixed(2)}R｜1R 價位 ${(pos.e0 + pos.dir * pos.R0).toFixed(2)}${cur - pos.inIdx < 5 ? "｜時間停損倒數 " + (5 - (cur - pos.inIdx)) + " 根" : ""}</span>`;
+  setAcct(un);
+}
+function setAcct(un) {
+  const eqv = equity + un, cap = +$("cap").value || eqv;
+  $("eq").innerHTML = `<span class="${eqv >= cap ? "pos" : "neg"}">${eqv.toFixed(2)}</span>`;
+  $("bal").textContent = equity.toFixed(2);
+  $("upl").innerHTML = `<span class="${un >= 0 ? "pos" : "neg"}">${un >= 0 ? "+" : ""}${un.toFixed(2)}</span>`;
+  const used = 0; // 全倉：不鎖保證金
+  $("avail").textContent = Math.max(0, eqv - used).toFixed(2);
+  renderPreview();
+}
+
+// ── 成績 ──
+function renderTfStats() {
+  const rows = ["15", "60", "240", "D"].map(tf => {
+    const T = trades.filter(t => t.tf === tf), n = T.length;
+    if (!n) return `<tr><td>${IV_NAME[tf]}</td><td colspan="4" style="color:#9aa0ab;text-align:left">還沒有紀錄</td></tr>`;
+    const w = T.filter(t => t.pnl > 0).length, R = T.reduce((a, t) => a + t.R, 0), P = T.reduce((a, t) => a + t.pnl, 0);
+    return `<tr><td>${IV_NAME[tf]}</td><td>${n} 筆</td><td>${Math.round(w / n * 100)}%</td><td class="${R >= 0 ? "pos" : "neg"}">${(R / n).toFixed(2)}R</td><td class="${P >= 0 ? "pos" : "neg"}">${P.toFixed(0)}</td></tr>`;
+  }).join("");
+  $("tfStats").innerHTML = `<table><thead><tr><th>週期</th><th>筆數</th><th>勝率</th><th>平均每筆</th><th>損益U</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+function renderStats() {
+  renderTfStats();
+  const n = trades.length, w = trades.filter(t => t.pnl > 0).length;
+  const gp = trades.filter(t => t.pnl > 0).reduce((a, t) => a + t.pnl, 0), gl = -trades.filter(t => t.pnl < 0).reduce((a, t) => a + t.pnl, 0);
+  $("sN").textContent = n;
+  $("sW").textContent = n ? Math.round(w / n * 100) + "%" : "-";
+  $("sR").textContent = n ? (trades.reduce((a, t) => a + t.R, 0) / n).toFixed(2) + "R" : "-";
+  const tot = trades.reduce((a, t) => a + t.pnl, 0);
+  $("sP").innerHTML = `<span class="${tot >= 0 ? "pos" : "neg"}">${tot.toFixed(0)}</span>`;
+  $("sPF").textContent = gl > 0 ? (gp / gl).toFixed(2) : (gp > 0 ? "∞" : "-");
+  $("sDD").textContent = (maxDD * 100).toFixed(1) + "%";
+  if (!pos) setAcct(0);
+  $("log").innerHTML = trades.slice().reverse().map((t, k) => `<tr><td>${n - k}</td><td>${t.dir > 0 ? "多" : "空"}</td><td>${t.entry}</td><td>${t.exit.toFixed(2)}</td><td class="${t.R >= 0 ? "pos" : "neg"}">${t.R.toFixed(2)}</td><td class="${t.pnl >= 0 ? "pos" : "neg"}">${t.pnl.toFixed(1)}</td><td><button class="del" data-i="${n - 1 - k}" title="刪掉這筆" style="padding:0 6px">×</button></td></tr>`).join("");
+  document.querySelectorAll("#log .del").forEach(b => b.onclick = () => { const t = trades.splice(+b.dataset.i, 1)[0]; if (t) equity -= t.pnl; peak = equity; maxDD = 0; save(); renderStats(); if (bars.length) draw(false); });
+}
+function save() { try { localStorage.setItem("kTrainer", JSON.stringify({ trades, equity, peak, maxDD, skipped })); } catch (e) {} }
+function restore() {
+  try { const s = JSON.parse(localStorage.getItem("kTrainer") || "null"); if (s) { ({ trades, equity, peak, maxDD } = s); skipped = s.skipped || []; } } catch (e) {}
+  $("cap").value = Math.round(trades.length ? $("cap").value : equity);
+  renderStats();
+}
+function copyLog() {
+  const fmt = t => new Date(t + 8 * 36e5).toISOString().slice(0, 16).replace("T", " ");
+  const tfName = { "15": "15分", "60": "1小時", "240": "4小時", "D": "日線" };
+  const head = "幣,週期,進場時間,方向,進場價,停損,出場價,出場原因,持有幾根,R,最多曾賺R,損益U,槓桿,保證金,是不是指標訊號,進場原因,盤面,停損移動,加減倉";
+  const rows = trades.map(t => [t.sym, tfName[t.tf], fmt(t.inT), t.dir > 0 ? "多" : "空", t.entry, t.stop0.toFixed(2), t.exit.toFixed(2), t.why, t.bars, t.R.toFixed(2), t.mfe ?? "", t.pnl.toFixed(2), t.lev ?? "", t.margin ?? "", t.sig ? "是" : "否", (t.note || "").replace(/,/g, "，"), JSON.stringify(t.f || {}).replace(/,/g, ";"), JSON.stringify(t.moves || []).replace(/,/g, ";"), JSON.stringify(t.adds || []).replace(/,/g, ";")].join(","));
+  const sk = skipped.length ? "\n\n# 有出現指標訊號但沒進場的: " + skipped.length + " 次\n" + skipped.slice(-200).map(x => JSON.stringify(x).replace(/,/g, ";")).join("\n") : "";
+  const text = [head, ...rows].join("\n") + sk;
+  navigator.clipboard.writeText(text).then(() => $("copyMsg").textContent = "已複製 " + trades.length + " 筆，貼給 Claude 就可以了", () => $("copyMsg").textContent = "複製失敗，請再按一次");
+}
+
+// ── 事件 ──
+$("btnLoad").onclick = load;
+function modeUI() { const m = $("mode").value; $("rowLev").classList.toggle("hide", m === "risk"); $("rowMargin").classList.toggle("hide", m !== "margin"); $("rowQty").classList.toggle("hide", m !== "qty"); $("risk").closest(".row").classList.toggle("hide", m !== "risk"); }
+$("mode").onchange = modeUI; modeUI();
+document.querySelectorAll(".tools [data-tool]").forEach(b => b.onclick = () => setTool(b.dataset.tool));
+$("btnUndo").onclick = () => { drawings.pop(); };
+$("btnClearDraw").onclick = () => { drawings = []; pending = null; };
+$("btnRand").onclick = () => { $("date").value = ""; load(); };
+$("btnNext").onclick = next;
+$("btnPlay").onclick = togglePlay;
+$("btnBuy").onclick = () => open(1);
+$("btnSell").onclick = () => open(-1);
+$("btnClose").onclick = () => pos && closePos(bars[cur].c, "手動平倉");
+$("btnAutoStop").onclick = () => { if (pos) return; $("stop").value = autoStopValue(1).toFixed(2); stopTouched = true; renderPreview(); };
+$("stop").addEventListener("input", () => { if (!pos) stopTouched = true; });
+$("btnTrail").onclick = trailToSwing;
+$("btnPendBuy").onclick = () => placePend(1);
+$("btnPendSell").onclick = () => placePend(-1);
+$("btnPendCancel").onclick = () => { pend = null; msg("掛單取消了"); draw(false); };
+$("btnCopy").onclick = copyLog;
+$("propMode").onchange = () => { if ($("propMode").checked) { if (pos) closePos(bars[cur].c, "開始考試平倉"); trades = []; skipped = []; propStart(1); } else { prop = null; propShow(); msg("已關閉考試模式"); } };
+$("propType").onchange = () => { if ($("propMode").checked) { trades = []; propStart(1); } };
+$("btnReset").onclick = () => { if ($("propMode").checked) { trades = []; skipped = []; propStart(1); return; } pos = null; stopTouched = false; trades = []; skipped = []; equity = +$("cap").value || 10000; peak = equity; maxDD = 0; save(); renderStats(); draw(false); msg("紀錄清除了，本金 " + equity); };
+$("cap").onchange = () => { if (!trades.length && !pos) { equity = +$("cap").value; peak = equity; renderStats(); } };
+["stop", "lev", "margin", "qty", "risk", "mode"].forEach(id => $(id).addEventListener("input", () => bars.length && renderPreview()));
+function sigWhichTxt() { const m = $("sigMode").value; $("sigWhich").textContent = m === "auto" ? "自動：15分＝①｜1小時＝①②｜4小時＝①③｜日線＝①④（現在顯示：" + ([1, 2, 3, 4].filter(k => sigShow(k)).map(k => "①②③④"[k - 1]).join("") || "無") + "）" : m === "all" ? "四個全部顯示（在不適合的週期上，結果會跟回測不一樣）" : "都不顯示（自己判斷）"; }
+["sigMode", "on1", "on2", "on3", "on4", "tf"].forEach(id => $(id).addEventListener("change", () => { sigWhichTxt(); bars.length && (mkKey = "", draw(false)); }));
+sigWhichTxt();
+$("hideDate").onchange = () => { applyDateMode(); };
+$("stop").onchange = () => { if (!pos) { stopTouched = !!$("stop").value; return; } if (pos) { const v = parseFloat($("stop").value); if (v && (pos.dir > 0 ? v < bars[cur].c : v > bars[cur].c)) { pos.moves.push({ k: cur - pos.inIdx, how: "手動", to: v, atr: +((v - pos.stop) * pos.dir / (ATR[cur] || 1)).toFixed(2) }); pos.stop = v; draw(false); } else msg("停損要放在現在價格的另一邊"); } };
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT") return;
+  if (e.key === "Escape") { pending = null; sel = -1; if (tool) setTool(tool); return; }
+  if ((e.key === "Delete" || e.key === "Backspace") && sel >= 0) { drawings.splice(sel, 1); sel = -1; return; }
+  if ((e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "Z")) { e.preventDefault(); drawings.pop(); return; }
+  if (e.altKey && (e.key === "t" || e.key === "T")) { e.preventDefault(); setTool("trend"); return; }
+  if (e.altKey && (e.key === "h" || e.key === "H")) { e.preventDefault(); setTool("hline"); return; }
+  if (e.altKey && (e.key === "b" || e.key === "B")) { e.preventDefault(); setTool("box"); return; }
+  if (e.altKey && (e.key === "r" || e.key === "R")) { e.preventDefault(); chart.timeScale().setVisibleLogicalRange({ from: cur - 120, to: cur + 10 }); return; }
+  if (e.key === "ArrowRight" && e.shiftKey) { e.preventDefault(); for (let k = 0; k < 10; k++) next(); }
+  else if (e.key === "ArrowRight") { e.preventDefault(); next(); }
+  else if (e.key === "b" || e.key === "B") open(1);
+  else if (e.key === "s" || e.key === "S") open(-1);
+  else if (e.key === "c" || e.key === "C") pos && closePos(bars[cur].c, "手動平倉");
+  else if (e.key === " ") { e.preventDefault(); togglePlay(); }
+});
+
+makeChart();
+restore();
+</script>
+<div id="summary"><div class="card" id="sumCard"></div></div>
+</body>
+</html>
