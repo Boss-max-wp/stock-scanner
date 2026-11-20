@@ -123,6 +123,8 @@
 
     <div class="box">
       <h3>顯示</h3>
+      <div class="row"><label><input type="checkbox" id="showTrend" checked> 顯示趨勢（EMA50 線＋右上角判斷）</label></div>
+      <div class="row"><label><input type="checkbox" id="trendGuard" checked> 逆勢下單要按兩次確認</label></div>
       <div class="row"><label><input type="checkbox" id="ruleHint" checked> 新規則提示（保本／時間停損／移停損／加碼）</label></div>
       <div class="row"><label><input type="checkbox" id="ruleAuto"> 新規則自動幫我做（保本、時間停損、移到波段低點）</label></div>
       <div class="row"><label><input type="checkbox" id="stopClose"> 收盤價跌破（做空是漲破）才停損，影線碰到不算</label></div>
@@ -174,6 +176,7 @@ let S2 = [], S3 = [], S4 = [], dir4 = [], btcD = [];
 let mtf = [], bias = {}, sessEnd = 0, sessId = 0; // bias[tf][第幾根] = {b, s, n} // 每根K上要顯示的訊號 [{dir, tf}]
 const TW = 8 * 3600; // 顯示台灣時間
 let bars = [], cur = 0, startIdx = 0, sigs = [], timer = null, ATR = [], E20 = [], E50 = [], skipped = [];
+let TR = [], TRH = {}, e50s = null; // 趨勢：TR[第幾根] = 1 多頭 / -1 空頭 / 0 盤整；TRH[大週期] = 同樣對到小週期的每一根
 let pos = null; // {dir, entry, stop, tp, qty, risk, time, note, fee}
 let trades = [], equity = 10000, peak = 10000, maxDD = 0;
 let chart, cs, vs, entryLine = null, stopLine = null, tpLine = null;
@@ -193,6 +196,7 @@ function makeChart() {
   cs = chart.addCandlestickSeries({ upColor: "#e04848", downColor: "#26a69a", borderUpColor: "#e04848", borderDownColor: "#26a69a", wickUpColor: "#e04848", wickDownColor: "#26a69a" });
   vs = chart.addHistogramSeries({ priceScaleId: "", priceFormat: { type: "volume" } });
   vs.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+  e50s = chart.addLineSeries({ color: "#f59e0b", lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, title: "EMA50" });
   applyDateMode();
   chart.subscribeClick(onChartClick);
   chart.subscribeCrosshairMove(p => {
@@ -256,7 +260,7 @@ async function load() {
   cur = startIdx; drawings = []; pending = null;
   calcSignals();
   msg("載入大週期訊號和多空看板…");
-  await Promise.all([loadMTF(sym, iv), loadBias(sym, iv), loadStrats(sym, iv)]);
+  await Promise.all([loadMTF(sym, iv), loadBias(sym, iv), loadStrats(sym, iv), loadTrend(sym, iv)]);
   const L = +$("sessLen").value;
   sessEnd = L ? Math.min(startIdx + L, bars.length - 1) : bars.length - 1;
   sessId = Date.now(); $("summary").style.display = "none";
@@ -363,6 +367,7 @@ function calcSignals() {
   }
   ATR = A; E20 = ema(20); E50 = ema(50);
   sigs = sigOf(bars, A);
+  TR = trendOf(bars, E50, A);
 }
 function atrOf(arr) {
   const A = []; let s = 0;
@@ -394,6 +399,41 @@ async function klineRange(sym, iv, start, end) { // 超過 1000 根就分段一�
 }
 // 多空看板（跟 v9 指標一樣）：收盤突破前20根高點或跌破前20根低點 → 歸零重算；
 // 之後這段盤整裡：吞噬買 + 假跌破 算「多」，吞噬賣 + 假突破 算「空」
+// ── 判斷趨勢 ──
+// 多頭：收盤在 EMA50 上面，而且 EMA50 比 10 根前高出 0.3 個 ATR 以上（往上走）
+// 空頭：收盤在 EMA50 下面，而且 EMA50 比 10 根前低 0.3 個 ATR 以上（往下走）
+// 其他：盤整（EMA50 走平，或價格跟 EMA50 方向不一樣）
+function trendOf(a, e, A) {
+  return a.map((b, i) => {
+    if (i < 60) return 0;
+    const sl = e[i] - e[i - 10], th = 0.3 * (A[i] || 0);
+    if (b.c > e[i] && sl > th) return 1;
+    if (b.c < e[i] && sl < -th) return -1;
+    return 0;
+  });
+}
+const TREND_H = { "15": ["60", "240"], "60": ["240"], "240": ["D"], "D": [] };
+async function loadTrend(sym, iv) {
+  TRH = {};
+  const end = bars[bars.length - 1].t + IV_MS[iv];
+  await Promise.all(TREND_H[iv].map(async tf => {
+    try {
+      const hm = IV_MS[tf], hb = await klineRange(sym, tf, bars[0].t - 120 * hm, end);
+      const e = emaArr(hb.map(b => b.c), 50);
+      TRH[tf] = mapToBase(hb, hm, trendOf(hb, e, atrOf(hb)));
+    } catch (e) {}
+  }));
+}
+function trendName(v) { return v === 1 ? "多頭" : v === -1 ? "空頭" : v === 0 ? "盤整" : "-"; }
+function trendCol(v) { return v === 1 ? "#e04848" : v === -1 ? "#26a69a" : "#4b5563"; }
+// 綜合判斷：回傳 {dir: 建議方向 1/-1/0, txt: 給人看的建議}
+function trendVerdict(i) {
+  const base = TR[i] ?? 0, hs = TREND_H[$("tf").value].map(tf => TRH[tf] ? TRH[tf][i] : null).filter(v => v !== null && v !== undefined);
+  if (base === 0) return { dir: 0, txt: "盤整：少做，或只在區間上下緣做反轉" };
+  if (hs.some(v => v === -base)) return { dir: 0, txt: "大小週期打架：觀望，或倉位減半" };
+  const all = hs.length && hs.every(v => v === base);
+  return { dir: base, txt: (all ? "大小週期同方向：" : "") + (base > 0 ? "只做多，回檔找買點" : "只做空，反彈找賣點") };
+}
 function biasOf(a, sg) {
   const out = []; let bc = 0, sc = 0, since = 0, lo = null, loBar = 0, hi = null, hiBar = 0;
   for (let i = 0; i < a.length; i++) {
@@ -442,7 +482,14 @@ function renderBoard() {
     const col = v.b > v.s ? "#2563eb" : v.s > v.b ? "#d97706" : "#4b5563";
     return `<tr><td>${IV_NAME[tf]}</td><td style="color:#9aa0ab">${v.n === 0 ? "剛發生" : v.n + "根"}</td><td>多${v.b} 空${v.s}</td><td><span class="tag" style="background:${col}">${t}</span></td></tr>`;
   }).join("");
-  $("board").innerHTML = rows ? `<table><tr><td colspan="4" style="color:#9aa0ab">多空看板（這段盤整的訊號數）</td></tr>${rows}</table>` : "";
+  let tr = "";
+  if ($("showTrend").checked) {
+    const iv = $("tf").value, one = (name, v) => `<tr><td>${name}</td><td colspan="2" style="color:#9aa0ab">${v === undefined || v === null ? "" : v === 1 ? "價格在EMA50上、EMA50往上" : v === -1 ? "價格在EMA50下、EMA50往下" : "EMA50走平或方向不一致"}</td><td><span class="tag" style="background:${trendCol(v)}">${trendName(v)}</span></td></tr>`;
+    const vd = trendVerdict(cur);
+    tr = `<tr><td colspan="4" style="color:#9aa0ab">趨勢（EMA50）</td></tr>` + one(IV_NAME[iv], TR[cur]) + TREND_H[iv].filter(tf => TRH[tf]).map(tf => one(IV_NAME[tf], TRH[tf][cur])).join("")
+      + `<tr><td colspan="4"><span class="tag" style="background:${vd.dir > 0 ? "#e04848" : vd.dir < 0 ? "#26a69a" : "#4b5563"}">👉 ${vd.txt}</span></td></tr>`;
+  }
+  $("board").innerHTML = (rows || tr) ? `<table>${tr}${rows ? `<tr><td colspan="4" style="color:#9aa0ab">多空看板（這段盤整的訊號數）</td></tr>${rows}` : ""}</table>` : "";
 }
 // 練習進度
 function renderProg() {
@@ -460,13 +507,15 @@ function endSession() {
   const sigN = T.filter(t => t.sig).length;
   const bk = { 大虧: T.filter(t => t.R < -1.1).length, 一R虧: T.filter(t => t.R >= -1.1 && t.R < -0.6).length, 小虧: T.filter(t => t.R >= -0.6 && t.R < 0).length, 小賺: T.filter(t => t.R >= 0 && t.R < 2).length, 大賺: T.filter(t => t.R >= 2).length };
   const early = T.filter(t => (t.mfe ?? 0) >= 3 && t.R < 1).length;
+  const grpT = k => { const L = T.filter(t => (t.f?.withTrend ?? 0) === k); return L.length ? `${L.length} 筆 ${L.reduce((a, t) => a + t.R, 0) >= 0 ? "+" : ""}${L.reduce((a, t) => a + t.R, 0).toFixed(2)}R` : "0 筆"; };
+  const trTxt = n ? `<div style="margin:6px 0;padding:6px;background:#262a35;border-radius:6px">順勢／逆勢檢查：<br>✅ 順勢 <b>${grpT(1)}</b>｜⚪ 盤整或打架時做 <b>${grpT(0)}</b>｜⛔ 逆勢 <b>${grpT(-1)}</b></div>` : "";
   const distTxt = n ? `<div style="margin:6px 0;padding:6px;background:#262a35;border-radius:6px">小虧小賺大賺檢查：<br>💥 大虧（超過 1R）<b>${bk.大虧}</b>｜➖ 虧 1R <b>${bk.一R虧}</b>｜🔸 小虧 <b>${bk.小虧}</b><br>🔹 小賺 <b>${bk.小賺}</b>｜🚀 大賺（2R 以上）<b>${bk.大賺}</b>｜😢 賣太早（曾賺 3R、出場不到 1R）<b>${early}</b><br><span class="keys">目標：大虧 0、大賺佔 1 成左右、虧的單大部分是小虧</span></div>` : "";
   $("sumCard").innerHTML = `<h2>🏁 這次模擬結束了</h2>
     ${$("sym").value}｜${IV_NAME[$("tf").value]}｜練了 ${cur - startIdx} 根K<br>
     下了 <b>${n}</b> 筆${n ? `，勝率 <b>${Math.round(w / n * 100)}%</b>` : ""}<br>
     總共 <b class="${R >= 0 ? "pos" : "neg"}">${R >= 0 ? "+" : ""}${R.toFixed(2)}R</b>（<span class="${P >= 0 ? "pos" : "neg"}">${P >= 0 ? "+" : ""}${P.toFixed(2)} U</span>）<br>
     ${n ? `最好一筆 ${best.R >= 0 ? "+" : ""}${best.R.toFixed(2)}R｜最差一筆 ${worst.R.toFixed(2)}R<br>跟著指標訊號進場的有 ${sigN} 筆<br>` : "這次沒有下單，也是一種練習：等不到好位置就不做 👍<br>"}
-    ${distTxt}    目前帳戶 <b>${equity.toFixed(2)} U</b><br>
+    ${distTxt}${trTxt}    目前帳戶 <b>${equity.toFixed(2)} U</b><br>
     <div class="row" style="margin-top:10px"><button class="main" id="sumNext">再練一段（隨機）</button><button id="sumClose">留在這裡看圖</button></div>`;
   $("summary").style.display = "flex";
   $("sumNext").onclick = () => { $("summary").style.display = "none"; $("date").value = ""; load(); };
@@ -651,13 +700,15 @@ function initInteract() {
 // ── 畫圖 ──
 let drawnCur = -1, mkKey = "";
 const cBar = b => ({ time: b.t / 1000 + TW, open: b.o, high: b.h, low: b.l, close: b.c });
+const eBar = i => i < 50 || !E50[i] ? null : { time: bars[i].t / 1000 + TW, value: E50[i], color: TR[i] === 1 ? "#e04848" : TR[i] === -1 ? "#26a69a" : "#9ca3af" };
 const vBar = b => ({ time: b.t / 1000 + TW, value: b.v, color: b.c >= b.o ? "rgba(224,72,72,.45)" : "rgba(38,166,154,.45)" });
 function draw(fit) {
   if (!bars.length) { renderStats(); return; }
   if (fit || drawnCur < 0 || cur < drawnCur || cur - drawnCur > 20) {
     const vis = bars.slice(0, cur + 1);
     cs.setData(vis.map(cBar)); vs.setData(vis.map(vBar)); mkKey = "";
-  } else for (let i = drawnCur + 1; i <= cur; i++) { cs.update(cBar(bars[i])); vs.update(vBar(bars[i])); }
+    e50s.setData($("showTrend").checked ? vis.map((b, i) => eBar(i)).filter(Boolean) : []);
+  } else for (let i = drawnCur + 1; i <= cur; i++) { cs.update(cBar(bars[i])); vs.update(vBar(bars[i])); if ($("showTrend").checked && eBar(i)) e50s.update(eBar(i)); }
   drawnCur = cur; drawDirty = true;
   const mk = [];
   const sh1 = sigShow(1), sh2 = sigShow(2), sh3 = sigShow(3), sh4 = sigShow(4);
@@ -790,7 +841,13 @@ function open(dir, pxO, stopO, how) {
     return msg(`⚠️ 你帳戶的錢不夠撐到停損：價格到 ${liq.toFixed(2)} 你的錢就全部賠光（爆倉），比停損 ${stop.toFixed(2)} 還近。確定要下就再按一次；不然把數量調小。`);
   }
   window._liqOk = null;
-  pos = { dir, mode, entry: price, stop, stop0: stop, tp, qty, riskU, lev, margin, liq, inT: bars[cur].t, inIdx: cur, note: $("note").value, sig: sigs[cur] === dir || !!(how && sigs[how.sigIdx] === dir), how: how ? "突破單" : "市價", e0: price, R0: Math.abs(price - stop), mfeR: 0, realized: 0, adds: [], f: { ...feat(cur, dir, stop), bias: ["15", "60", "240"].filter(tf => bias[tf]).map(tf => IV_NAME[tf] + biasTxt(bias[tf][cur])).join(" ") }, moves: [] };
+  const vd = trendVerdict(cur);
+  if ($("trendGuard").checked && vd.dir === -dir && window._trOk !== cur + ":" + dir) {
+    window._trOk = cur + ":" + dir;
+    return msg(`⚠️ 逆勢單：現在${IV_NAME[$("tf").value]}是${trendName(TR[cur])}，建議「${vd.txt}」。你上一批練習，逆著 EMA50 的單是 10 筆 -6.7R。確定要做就再按一次。`);
+  }
+  window._trOk = null;
+  pos = { dir, mode, entry: price, stop, stop0: stop, tp, qty, riskU, lev, margin, liq, inT: bars[cur].t, inIdx: cur, note: $("note").value, sig: sigs[cur] === dir || !!(how && sigs[how.sigIdx] === dir), how: how ? "突破單" : "市價", e0: price, R0: Math.abs(price - stop), mfeR: 0, realized: 0, adds: [], f: { ...feat(cur, dir, stop), bias: ["15", "60", "240"].filter(tf => bias[tf]).map(tf => IV_NAME[tf] + biasTxt(bias[tf][cur])).join(" "), trend: TR[cur] ?? 0, trendH: TREND_H[$("tf").value].filter(tf => TRH[tf]).map(tf => IV_NAME[tf] + trendName(TRH[tf][cur])).join(" "), withTrend: vd.dir === dir ? 1 : vd.dir === -dir ? -1 : 0 }, moves: [] };
   const liqWarn = liq && (dir > 0 ? liq >= stop : liq <= stop) ? "｜⚠️ 錢不夠撐到停損，會先爆倉！" : "";
   msg(`${dir > 0 ? "做多" : "做空"} ${price}｜停損 ${stop.toFixed(2)}｜數量 ${qty.toFixed(4)}｜合約價值 ${(qty * price).toFixed(2)} U（帳戶的 ${lev.toFixed(1)} 倍）｜打到停損賠 ${riskU.toFixed(2)} U${liq ? "｜到 " + liq.toFixed(2) + " 帳戶賠光" : ""}${liqWarn}`);
   draw(false);
@@ -1054,6 +1111,7 @@ $("btnPendBuy").onclick = () => placePend(1);
 $("btnPendSell").onclick = () => placePend(-1);
 $("btnPendCancel").onclick = () => { pend = null; msg("掛單取消了"); draw(false); };
 $("btnCopy").onclick = copyLog;
+$("showTrend").onchange = () => { drawnCur = -1; draw(false); };
 $("propMode").onchange = () => { if ($("propMode").checked) { if (pos) closePos(bars[cur].c, "開始考試平倉"); trades = []; skipped = []; propStart(1); } else { prop = null; propShow(); msg("已關閉考試模式"); } };
 $("propType").onchange = () => { if ($("propMode").checked) { trades = []; propStart(1); } };
 $("btnReset").onclick = () => { if ($("propMode").checked) { trades = []; skipped = []; propStart(1); return; } pos = null; stopTouched = false; trades = []; skipped = []; equity = +$("cap").value || 10000; peak = equity; maxDD = 0; save(); renderStats(); draw(false); msg("紀錄清除了，本金 " + equity); };
