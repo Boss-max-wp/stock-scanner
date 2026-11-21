@@ -131,7 +131,7 @@
       <div class="row"><label>顯示訊號</label><select id="sigMode"><option value="auto" selected>自動（依週期只顯示適合的策略）</option><option value="all">四個全部顯示</option><option value="none">都不顯示</option></select></div>
       <div class="row"><label style="min-width:0"><input type="checkbox" id="on1" checked> ① K線反轉</label><label style="min-width:0"><input type="checkbox" id="on2" checked> ② 盤整方向</label></div>
       <div class="row"><label style="min-width:0"><input type="checkbox" id="on3" checked> ③ 未帶量突破跌破進場點</label><label style="min-width:0"><input type="checkbox" id="on4" checked> ④ 跟著大戶進場</label></div>
-      <div id="sigWhich" class="keys">自動：15分＝①｜1小時＝①②｜4小時＝①③｜日線＝①④</div>
+      <div id="sigWhich" class="keys">自動：15分＝①④｜1小時＝①②④｜4小時＝①③④｜日線＝①④</div>
       <div class="row"><label><input type="checkbox" id="hideDate" checked> 隱藏日期（避免記得行情）</label></div>
     </div>
 
@@ -172,7 +172,7 @@
 const $ = id => document.getElementById(id);
 const IV_MS = { "15": 9e5, "60": 36e5, "240": 144e5, "D": 864e5 };
 const IV_NAME = { "15": "15分", "60": "1小時", "240": "4小時", "D": "日線" };
-let S2 = [], S3 = [], S4 = [], dir4 = [], btcD = [];
+let S2 = [], S2G = [], S3 = [], S4 = [], S4S = [], dir4 = [], btcD = [];
 let mtf = [], bias = {}, sessEnd = 0, sessId = 0; // bias[tf][第幾根] = {b, s, n} // 每根K上要顯示的訊號 [{dir, tf}]
 const TW = 8 * 3600; // 顯示台灣時間
 let bars = [], cur = 0, startIdx = 0, sigs = [], timer = null, ATR = [], E20 = [], E50 = [], skipped = [];
@@ -274,7 +274,7 @@ function sigShow(k) { // k = 1..4
   const m = $("sigMode").value, tf = $("tf").value;
   if (m === "none" || !$("on" + k).checked) return false;
   if (m === "all") return true;
-  return k === 1 || (k === 2 && tf === "60") || (k === 3 && tf === "240") || (k === 4 && tf === "D");
+  return k === 1 || k === 4 || (k === 2 && tf === "60") || (k === 3 && tf === "240"); // ④ 一律用日線算，任何週期都顯示（跟 TradingView 一樣）
 }
 function emaArr(a, len) { const e = [], k = 2 / (len + 1); for (let i = 0; i < a.length; i++) e[i] = i ? a[i] * k + e[i - 1] * (1 - k) : a[i]; return e; }
 function engulfAt(i, tolATR) {
@@ -287,7 +287,7 @@ function engulfAt(i, tolATR) {
 }
 // ② 盤整方向：K棒碰趨勢線至少 3 次＋反轉大K＋跟 4 小時 EMA200 同方向（跟 v9 指標一樣找線）
 function calcS2() {
-  const n = bars.length, pv = 2, PL = [], PH = []; S2 = new Array(n).fill(0);
+  const n = bars.length, pv = 2, PL = [], PH = []; S2 = new Array(n).fill(0); S2G = new Array(n).fill("");
   const isPL = j => { for (let q = j - pv; q <= j + pv; q++) if (q !== j && bars[q].l < bars[j].l) return false; return true; };
   const isPH = j => { for (let q = j - pv; q <= j + pv; q++) if (q !== j && bars[q].h > bars[j].h) return false; return true; };
   const findLine = (i, arr, dir) => {
@@ -312,7 +312,11 @@ function calcS2() {
   for (let i = 4; i < n; i++) {
     const j = i - pv; if (j >= pv) { if (isPL(j)) { PL.push(j); if (PL.length > 30) PL.shift(); } if (isPH(j)) { PH.push(j); if (PH.length > 30) PH.shift(); } }
     const e = engulfAt(i, 99); if (!e || dir4[i] !== e) continue; // 只要反轉大K，不限位置
-    if (findLine(i, e > 0 ? PL : PH, e) >= 3) S2[i] = e;
+    if (findLine(i, e > 0 ? PL : PH, e) >= 3) {
+      S2[i] = e;
+      let vs = 0; for (let j = Math.max(0, i - 19); j <= i; j++) vs += bars[j].v; // 跟 TradingView 一樣：量 > 20 根平均量 1.2 倍＝A級
+      S2G[i] = bars[i].v > vs / Math.min(20, i + 1) * 1.2 ? "A" : "B";
+    }
   }
 }
 // ③ 未帶量突破跌破進場點：吞噬K＋BTC 4 小時 300 根均線同方向；突破那根高點（跌破低點）才進場，停損＝那根開盤
@@ -320,17 +324,41 @@ function calcS3() {
   S3 = new Array(bars.length).fill(0);
   for (let i = 10; i < bars.length; i++) { const e = sigs[i]; if (!e || btcD[i] !== e) continue; const b = bars[i], trig = e > 0 ? b.h : b.l; if (Math.abs(trig - b.o) < trig * 0.002) continue; S3[i] = e; }
 }
-// ④ 跟著大戶進場：紅包綠＋MACD 在 0 下＋量 ≥ 前 20 根平均＋掃停損（只做多）
-function calcS4() {
-  const n = bars.length, c = bars.map(b => b.c), e12 = emaArr(c, 12), e26 = emaArr(c, 26); S4 = new Array(n).fill(0);
-  for (let i = 30; i < n; i++) {
-    if (engulfAt(i, 0) !== 1 || !(e12[i] - e26[i] < 0)) continue;
-    let vs = 0; for (let j = i - 20; j < i; j++) vs += bars[j].v; const vr = bars[i].v / (vs / 20); if (vr < 1) continue;
-    let pl = Infinity; for (let j = i - 25; j <= i - 3; j++) pl = Math.min(pl, bars[j].l);
-    const lo3 = Math.min(bars[i].l, bars[i - 1].l, bars[i - 2].l);
-    if (!(lo3 < pl && bars[i].c > pl)) continue;
-    S4[i] = 1;
+// ④ 跟著大戶進場（新規則，跟 TradingView v2.1 一樣，一律用日線算）：
+// 做多：BTC 收盤在 200 日線上＋紅包綠在 10 根低點＋MACD 快線 < 0＋量 ≥ 前 20 天平均＋最近 3 根掃前低再收回＋停損（5 根低點）距離 ≤ 15%
+// 做空：BTC 在 200 日線下，條件全部反過來
+function s4Daily(d, btcDir) { // d＝日K，btcDir[k]＝那天 BTC 在 200 日線上(1)／下(-1)；回傳每天的 {sig, stop}
+  const n = d.length, c = d.map(b => b.c), e12 = emaArr(c, 12), e26 = emaArr(c, 26), out = new Array(n).fill(null);
+  for (let k = 30; k < n; k++) {
+    const b = d[k], p = d[k - 1], m = e12[k] - e26[k];
+    const bk = b.c > b.o && p.c < p.o && b.c >= p.o && b.o <= p.c, bsk = b.c < b.o && p.c > p.o && b.c <= p.o && b.o >= p.c;
+    if (!bk && !bsk) continue;
+    let vs = 0; for (let j = k - 20; j < k; j++) vs += d[j].v; if (b.v < vs / 20) continue;
+    let lo3 = Infinity, hi3 = -Infinity, lo10 = Infinity, hi10 = -Infinity, lo5 = Infinity, hi5 = -Infinity, pL = Infinity, pH = -Infinity;
+    for (let j = k - 9; j <= k; j++) { lo10 = Math.min(lo10, d[j].l); hi10 = Math.max(hi10, d[j].h); if (j >= k - 4) { lo5 = Math.min(lo5, d[j].l); hi5 = Math.max(hi5, d[j].h); } if (j >= k - 2) { lo3 = Math.min(lo3, d[j].l); hi3 = Math.max(hi3, d[j].h); } }
+    for (let j = k - 25; j <= k - 3; j++) { pL = Math.min(pL, d[j].l); pH = Math.max(pH, d[j].h); }
+    if (bk && btcDir[k] === 1 && lo3 <= lo10 && m < 0 && lo3 < pL && b.c > pL && (b.c - lo5) / b.c <= 0.15) out[k] = { sig: 1, stop: lo5 };
+    else if (bsk && btcDir[k] === -1 && hi3 >= hi10 && m > 0 && hi3 > pH && b.c < pH && (hi5 - b.c) / b.c <= 0.15) out[k] = { sig: -1, stop: hi5 };
   }
+  return out;
+}
+async function calcS4(sym, iv) {
+  const n = bars.length, D = IV_MS["D"], end = bars[n - 1].t + IV_MS[iv];
+  S4 = new Array(n).fill(0); S4S = new Array(n).fill(0);
+  try {
+    const [d, bb] = await Promise.all([iv === "D" ? Promise.resolve(bars) : klineRange(sym, "D", bars[0].t - 60 * D, end), klineRange("BTCUSDT", "D", bars[0].t - 260 * D, end)]);
+    const bm = new Map(); let s = 0;
+    bb.forEach((x, k) => { s += x.c; if (k >= 200) s -= bb[k - 200].c; if (k >= 199) bm.set(x.t, x.c > s / 200 ? 1 : -1); });
+    const r = s4Daily(d, d.map(x => bm.get(x.t) ?? 0));
+    if (iv === "D") { r.forEach((v, k) => { if (v) { S4[k] = v.sig; S4S[k] = v.stop; } }); return; }
+    // 小週期：日K收盤後，標在「新的一天第一根K」（跟 TradingView 一樣）
+    let k = 0;
+    for (let i = 0; i < n; i++) {
+      while (k < d.length && d[k].t + D <= bars[i].t) k++;
+      const v = r[k - 1];
+      if (v && bars[i].t >= d[k - 1].t + D && (i === 0 || bars[i - 1].t < d[k - 1].t + D)) { S4[i] = v.sig; S4S[i] = v.stop; }
+    }
+  } catch (err) {}
 }
 async function loadStrats(sym, iv) {
   const ms = IV_MS[iv], end = bars[bars.length - 1].t + ms, h = IV_MS["240"];
@@ -344,15 +372,15 @@ async function loadStrats(sym, iv) {
     for (let k = 0; k < bb.length; k++) { s += bb[k].c; if (k >= 300) s -= bb[k - 300].c; d.push(k < 299 ? 0 : bb[k].c > s / 300 ? 1 : -1); }
     btcD = mapToBase(bb, h, d).map(v => v ?? 0);
   } catch (err) {}
-  calcS2(); calcS3(); calcS4();
+  calcS2(); calcS3(); await calcS4(sym, iv);
 }
 function stratAt(i) { // 這根K出現哪些策略訊號（給提示用）
   const out = [], b = bars[i]; if (!b) return out;
   let lo5 = Infinity, hi5 = -Infinity; for (let j = Math.max(0, i - 4); j <= i; j++) { lo5 = Math.min(lo5, bars[j].l); hi5 = Math.max(hi5, bars[j].h); }
   if (sigShow(1) && sigs[i]) out.push(`① K線反轉 ${sigs[i] > 0 ? "買" : "賣"}`);
-  if (sigShow(2) && S2[i]) out.push(`② 盤整方向 ${S2[i] > 0 ? "買" : "賣"}（停損 ${(S2[i] > 0 ? lo5 : hi5).toFixed(2)}）`);
+  if (sigShow(2) && S2[i]) out.push(`② 盤整方向 ${S2[i] > 0 ? "買" : "賣"} ${S2G[i] === "A" ? "A級（帶量）" : "B級"}（停損 ${(S2[i] > 0 ? lo5 : hi5).toFixed(2)}）`);
   if (sigShow(3) && S3[i]) out.push(`③ 未帶量突破跌破：按「掛突破${S3[i] > 0 ? "買" : "賣"}單」（${S3[i] > 0 ? "漲過 " + b.h : "跌破 " + b.l}，停損放開盤 ${b.o}）`);
-  if (sigShow(4) && S4[i]) out.push(`🟢 ④ 跟著大戶進場 買（停損 ${lo5.toFixed(2)}）`);
+  if (sigShow(4) && S4[i]) out.push(`${S4[i] > 0 ? "🟢 ④ 跟著大戶進場 買" : "🔴 ④ 跟著大戶放空 賣"}（日線訊號，停損 ${(+S4S[i]).toFixed(2)}；賺到 2R 加碼一份、停損移成本）`);
   return out;
 }
 
@@ -719,9 +747,9 @@ function draw(fit) {
       if (buy.length) mk.push({ time: T, position: "belowBar", color: "#3b82f6", shape: "arrowUp", text: "K反轉 買 " + buy.join("+") });
       if (sell.length) mk.push({ time: T, position: "aboveBar", color: "#f59e0b", shape: "arrowDown", text: "K反轉 賣 " + sell.join("+") });
     }
-    if (sh2 && S2[i]) mk.push({ time: T, position: S2[i] > 0 ? "belowBar" : "aboveBar", color: S2[i] > 0 ? "#14b8a6" : "#be123c", shape: S2[i] > 0 ? "arrowUp" : "arrowDown", text: S2[i] > 0 ? "盤整 買" : "盤整 賣" });
+    if (sh2 && S2[i]) mk.push({ time: T, position: S2[i] > 0 ? "belowBar" : "aboveBar", color: S2[i] > 0 ? "#14b8a6" : "#be123c", shape: S2[i] > 0 ? "arrowUp" : "arrowDown", text: (S2[i] > 0 ? "盤整 買 " : "盤整 賣 ") + (S2G[i] === "A" ? "A級(帶量)" : "B級") });
     if (sh3 && S3[i]) mk.push({ time: T, position: S3[i] > 0 ? "belowBar" : "aboveBar", color: "#d946ef", shape: S3[i] > 0 ? "arrowUp" : "arrowDown", text: S3[i] > 0 ? "突破單 多" : "跌破單 空" });
-    if (sh4 && S4[i]) mk.push({ time: T, position: "belowBar", color: "#22c55e", shape: "arrowUp", text: "🟢 跟著大戶進場" });
+    if (sh4 && S4[i]) mk.push({ time: T, position: S4[i] > 0 ? "belowBar" : "aboveBar", color: S4[i] > 0 ? "#22c55e" : "#ef4444", shape: S4[i] > 0 ? "arrowUp" : "arrowDown", text: (S4[i] > 0 ? "🟢 跟著大戶進場 損" : "🔴 跟著大戶放空 損") + (+S4S[i]).toFixed(2) });
   }
   for (const t of trades) {
     if (t.inT <= bars[cur].t) mk.push({ time: t.inT / 1000 + TW, position: t.dir > 0 ? "belowBar" : "aboveBar", color: "#ffffff", shape: t.dir > 0 ? "arrowUp" : "arrowDown", text: t.dir > 0 ? "多" : "空" });
@@ -847,7 +875,7 @@ function open(dir, pxO, stopO, how) {
     return msg(`⚠️ 逆勢單：現在${IV_NAME[$("tf").value]}是${trendName(TR[cur])}，建議「${vd.txt}」。你上一批練習，逆著 EMA50 的單是 10 筆 -6.7R。確定要做就再按一次。`);
   }
   window._trOk = null;
-  pos = { dir, mode, entry: price, stop, stop0: stop, tp, qty, riskU, lev, margin, liq, inT: bars[cur].t, inIdx: cur, note: $("note").value, sig: sigs[cur] === dir || !!(how && sigs[how.sigIdx] === dir), how: how ? "突破單" : "市價", e0: price, R0: Math.abs(price - stop), mfeR: 0, realized: 0, adds: [], f: { ...feat(cur, dir, stop), bias: ["15", "60", "240"].filter(tf => bias[tf]).map(tf => IV_NAME[tf] + biasTxt(bias[tf][cur])).join(" "), trend: TR[cur] ?? 0, trendH: TREND_H[$("tf").value].filter(tf => TRH[tf]).map(tf => IV_NAME[tf] + trendName(TRH[tf][cur])).join(" "), withTrend: vd.dir === dir ? 1 : vd.dir === -dir ? -1 : 0 }, moves: [] };
+  pos = { dir, mode, entry: price, stop, stop0: stop, tp, qty, riskU, lev, margin, liq, inT: bars[cur].t, inIdx: cur, note: $("note").value, sig: sigs[cur] === dir || !!(how && sigs[how.sigIdx] === dir), how: how ? "突破單" : "市價", e0: price, R0: Math.abs(price - stop), mfeR: 0, realized: 0, adds: [], f: { ...feat(cur, dir, stop), bias: ["15", "60", "240"].filter(tf => bias[tf]).map(tf => IV_NAME[tf] + biasTxt(bias[tf][cur])).join(" "), trend: TR[cur] ?? 0, trendH: TREND_H[$("tf").value].filter(tf => TRH[tf]).map(tf => IV_NAME[tf] + trendName(TRH[tf][cur])).join(" "), withTrend: vd.dir === dir ? 1 : vd.dir === -dir ? -1 : 0, strat: stratTag(cur, dir) }, moves: [] };
   const liqWarn = liq && (dir > 0 ? liq >= stop : liq <= stop) ? "｜⚠️ 錢不夠撐到停損，會先爆倉！" : "";
   msg(`${dir > 0 ? "做多" : "做空"} ${price}｜停損 ${stop.toFixed(2)}｜數量 ${qty.toFixed(4)}｜合約價值 ${(qty * price).toFixed(2)} U（帳戶的 ${lev.toFixed(1)} 倍）｜打到停損賠 ${riskU.toFixed(2)} U${liq ? "｜到 " + liq.toFixed(2) + " 帳戶賠光" : ""}${liqWarn}`);
   draw(false);
@@ -1050,6 +1078,12 @@ function setAcct(un) {
   renderPreview();
 }
 
+// 進場時（這根或前 1 根）有哪個策略訊號，同方向才算
+function stratTag(i, dir) {
+  for (const j of [i, i - 1]) { if (j >= 0 && S4[j] === dir) return "④大戶"; }
+  for (const j of [i, i - 1]) { if (j >= 0 && S2[j] === dir) return S2G[j] === "A" ? "②A級" : "②B級"; }
+  return "";
+}
 // ── 成績 ──
 function renderTfStats() {
   const rows = ["15", "60", "240", "D"].map(tf => {
@@ -1058,7 +1092,16 @@ function renderTfStats() {
     const w = T.filter(t => t.pnl > 0).length, R = T.reduce((a, t) => a + t.R, 0), P = T.reduce((a, t) => a + t.pnl, 0);
     return `<tr><td>${IV_NAME[tf]}</td><td>${n} 筆</td><td>${Math.round(w / n * 100)}%</td><td class="${R >= 0 ? "pos" : "neg"}">${(R / n).toFixed(2)}R</td><td class="${P >= 0 ? "pos" : "neg"}">${P.toFixed(0)}</td></tr>`;
   }).join("");
-  $("tfStats").innerHTML = `<table><thead><tr><th>週期</th><th>筆數</th><th>勝率</th><th>平均每筆</th><th>損益U</th></tr></thead><tbody>${rows}</tbody></table>`;
+  const row = (name, T) => {
+    const n = T.length; if (!n) return `<tr><td>${name}</td><td colspan="4" style="color:#9aa0ab;text-align:left">還沒有紀錄</td></tr>`;
+    const w = T.filter(t => t.pnl > 0).length, R = T.reduce((a, t) => a + t.R, 0), P = T.reduce((a, t) => a + t.pnl, 0);
+    return `<tr><td>${name}</td><td>${n} 筆</td><td>${Math.round(w / n * 100)}%</td><td class="${R >= 0 ? "pos" : "neg"}">${(R / n).toFixed(2)}R</td><td class="${P >= 0 ? "pos" : "neg"}">${P.toFixed(0)}</td></tr>`;
+  };
+  const tag = t => (t.f && t.f.strat) || "";
+  const rows2 = [["② 盤整 A級（帶量）", "②A級"], ["② 盤整 B級", "②B級"], ["④ 跟著大戶", "④大戶"]].map(([nm, k]) => row(nm, trades.filter(t => tag(t) === k))).join("") + row("其他（沒有②④訊號）", trades.filter(t => !tag(t)));
+  $("tfStats").innerHTML = `<table><thead><tr><th>週期</th><th>筆數</th><th>勝率</th><th>平均每筆</th><th>損益U</th></tr></thead><tbody>${rows}</tbody></table>`
+    + `<table style="margin-top:6px"><thead><tr><th>依策略訊號</th><th>筆數</th><th>勝率</th><th>平均每筆</th><th>損益U</th></tr></thead><tbody>${rows2}</tbody></table>`
+    + `<div class="keys">只算新版之後進場的單（舊紀錄沒有記策略，會算在「其他」）</div>`;
 }
 function renderStats() {
   renderTfStats();
@@ -1117,7 +1160,7 @@ $("propType").onchange = () => { if ($("propMode").checked) { trades = []; propS
 $("btnReset").onclick = () => { if ($("propMode").checked) { trades = []; skipped = []; propStart(1); return; } pos = null; stopTouched = false; trades = []; skipped = []; equity = +$("cap").value || 10000; peak = equity; maxDD = 0; save(); renderStats(); draw(false); msg("紀錄清除了，本金 " + equity); };
 $("cap").onchange = () => { if (!trades.length && !pos) { equity = +$("cap").value; peak = equity; renderStats(); } };
 ["stop", "lev", "margin", "qty", "risk", "mode"].forEach(id => $(id).addEventListener("input", () => bars.length && renderPreview()));
-function sigWhichTxt() { const m = $("sigMode").value; $("sigWhich").textContent = m === "auto" ? "自動：15分＝①｜1小時＝①②｜4小時＝①③｜日線＝①④（現在顯示：" + ([1, 2, 3, 4].filter(k => sigShow(k)).map(k => "①②③④"[k - 1]).join("") || "無") + "）" : m === "all" ? "四個全部顯示（在不適合的週期上，結果會跟回測不一樣）" : "都不顯示（自己判斷）"; }
+function sigWhichTxt() { const m = $("sigMode").value; $("sigWhich").textContent = m === "auto" ? "自動：15分＝①④｜1小時＝①②④｜4小時＝①③④｜日線＝①④（④ 一律用日線算，標在隔天第一根K）（現在顯示：" + ([1, 2, 3, 4].filter(k => sigShow(k)).map(k => "①②③④"[k - 1]).join("") || "無") + "）" : m === "all" ? "四個全部顯示（在不適合的週期上，結果會跟回測不一樣）" : "都不顯示（自己判斷）"; }
 ["sigMode", "on1", "on2", "on3", "on4", "tf"].forEach(id => $(id).addEventListener("change", () => { sigWhichTxt(); bars.length && (mkKey = "", draw(false)); }));
 sigWhichTxt();
 $("hideDate").onchange = () => { applyDateMode(); };
