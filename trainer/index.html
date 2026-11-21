@@ -59,6 +59,7 @@
   <h1>K線練習場</h1>
   <select id="sym"><option>ETHUSDT</option><option>BTCUSDT</option><option>SOLUSDT</option><option>XRPUSDT</option><option>DOGEUSDT</option><option>BNBUSDT</option><option>ADAUSDT</option><option>AVAXUSDT</option><option>LINKUSDT</option><option>LTCUSDT</option><option>DOTUSDT</option><option>BCHUSDT</option><option>NEARUSDT</option><option>ZECUSDT</option><option>AAVEUSDT</option><option>UNIUSDT</option><option>XMRUSDT</option><option>ICPUSDT</option><option>XLMUSDT</option><option>HBARUSDT</option><option>CRVUSDT</option><option>FILUSDT</option><option>TRXUSDT</option><option>ATOMUSDT</option><option>ETCUSDT</option></select>
   <select id="tf"><option value="15">15 分</option><option value="60" selected>1 小時</option><option value="240">4 小時</option><option value="D">日線</option></select>
+  <select id="viewTf" title="練習中切換看別的週期：只看得到「到目前為止」的K，不會偷看未來；下單、下一根還是用練習的週期"><option value="">看圖：同練習週期</option><option value="15">看 15 分</option><option value="60">看 1 小時</option><option value="240">看 4 小時</option><option value="D">看 日線</option></select>
   <input type="date" id="date" title="從哪一天開始（留空＝隨機）">
   <button class="main" id="btnLoad">開始練習</button>
   <button id="btnRand">隨機日期</button>
@@ -175,6 +176,7 @@ const IV_NAME = { "15": "15分", "60": "1小時", "240": "4小時", "D": "日線
 let S2 = [], S2G = [], S3 = [], S4 = [], S4S = [], dir4 = [], btcD = [];
 let mtf = [], bias = {}, sessEnd = 0, sessId = 0; // bias[tf][第幾根] = {b, s, n} // 每根K上要顯示的訊號 [{dir, tf}]
 const TW = 8 * 3600; // 顯示台灣時間
+let VIEW = null, VIS = []; // 練習中看別的週期
 let bars = [], cur = 0, startIdx = 0, sigs = [], timer = null, ATR = [], E20 = [], E50 = [], skipped = [];
 let TR = [], TRH = {}, e50s = null; // 趨勢：TR[第幾根] = 1 多頭 / -1 空頭 / 0 盤整；TRH[大週期] = 同樣對到小週期的每一根
 let pos = null; // {dir, entry, stop, tp, qty, risk, time, note, fee}
@@ -200,11 +202,12 @@ function makeChart() {
   applyDateMode();
   chart.subscribeClick(onChartClick);
   chart.subscribeCrosshairMove(p => {
-    hoverPt = (p.point && p.logical != null) ? { l: p.logical, p: cs.coordinateToPrice(p.point.y) } : null; drawDirty = true;
+    hoverPt = (p.point && p.logical != null) ? { l: v2b(p.logical), p: cs.coordinateToPrice(p.point.y) } : null; drawDirty = true;
+    if (viewOn()) { const i = p.logical != null ? Math.round(p.logical) : VIS.length - 1; legendView(i >= 0 && i < VIS.length ? i : VIS.length - 1); return; }
     const i = p.logical != null ? Math.round(p.logical) : cur;
     legend(i >= 0 && i <= cur ? i : cur);
   });
-  chart.timeScale().subscribeVisibleLogicalRangeChange(r => { drawDirty = true; $("goLast").style.display = r && bars.length && r.to < cur - 3 ? "block" : "none"; });
+  chart.timeScale().subscribeVisibleLogicalRangeChange(r => { drawDirty = true; $("goLast").style.display = r && bars.length && r.to < (viewOn() ? VIS.length - 1 : cur) - 3 ? "block" : "none"; });
   $("goLast").onclick = () => chart.timeScale().scrollToRealTime();
   requestAnimationFrame(drawLoop);
   initInteract();
@@ -257,7 +260,7 @@ async function load() {
   } catch (e) { msg("抓資料失敗：" + e.message + "（請確認有連網）"); return; }
   if (bars.length < 320) { msg("這段資料太少，換一個日期"); return; }
   startIdx = bars.findIndex(b => b.t >= t0); if (startIdx < 50) startIdx = 300;
-  cur = startIdx; drawings = []; pending = null;
+  cur = startIdx; drawings = []; pending = null; VIEW = null; $("viewTf").value = "";
   calcSignals();
   msg("載入大週期訊號和多空看板…");
   await Promise.all([loadMTF(sym, iv), loadBias(sym, iv), loadStrats(sym, iv), loadTrend(sym, iv)]);
@@ -608,7 +611,7 @@ function setTool(t) {
 }
 function onChartClick(p) {
   if (!tool || !p.point || p.logical == null) return;
-  const pt = { l: p.logical, p: cs.coordinateToPrice(p.point.y) };
+  const pt = { l: v2b(p.logical), p: cs.coordinateToPrice(p.point.y) };
   if (pt.p == null) return;
   if (tool === "hline") { drawings.push({ type: "hline", a: pt }); setTool(null); return; }
   if (!pending) { pending = pt; msg("再點第二個點"); return; }
@@ -628,7 +631,7 @@ function renderDraw() {
   const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
   if (!chart || !bars.length) return;
   const ts = chart.timeScale(), paneW = ts.width();
-  const X = l => ts.logicalToCoordinate(l), Y = p => cs.priceToCoordinate(p);
+  const X = l => ts.logicalToCoordinate(b2v(l)), Y = p => cs.priceToCoordinate(p);
   g.save(); g.beginPath(); g.rect(0, 0, paneW, h); g.clip();
   // 還沒進場時：預計停損線（可以拖）
   const all = drawings.map((d, k) => ({ ...d, sel: k === sel }));
@@ -661,7 +664,7 @@ function relXY(e) { const r = $("chart").getBoundingClientRect(); return { x: e.
 function distSeg(px, py, x1, y1, x2, y2) { const dx = x2 - x1, dy = y2 - y1, L = dx * dx + dy * dy || 1e-9; let t = ((px - x1) * dx + (py - y1) * dy) / L; t = Math.max(0, Math.min(1, t)); return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy)); }
 function hitTest(x, y) {
   if (!chart || !bars.length) return null;
-  const ts = chart.timeScale(), X = l => ts.logicalToCoordinate(l), Y = p => cs.priceToCoordinate(p), W = ts.width(), R = 7;
+  const ts = chart.timeScale(), X = l => ts.logicalToCoordinate(b2v(l)), Y = p => cs.priceToCoordinate(p), W = ts.width(), R = 7;
   if (pos) { const ys = Y(pos.stop); if (ys != null && Math.abs(y - ys) < R) return { kind: "stop" }; }
   for (let k = drawings.length - 1; k >= 0; k--) {
     const d = drawings[k];
@@ -689,14 +692,14 @@ function initInteract() {
     const { x, y } = relXY(e), h = hitTest(x, y);
     if (!h) { sel = -1; return; }
     if (h.k != null) sel = h.k;
-    const L = chart.timeScale().coordinateToLogical(x), P = cs.coordinateToPrice(y);
+    const L = v2b(chart.timeScale().coordinateToLogical(x)), P = cs.coordinateToPrice(y);
     drag = { ...h, L0: L, P0: P, orig: h.k != null ? JSON.parse(JSON.stringify(drawings[h.k])) : null, stop0: pos ? pos.stop : null };
     setChartLock(true); el.setPointerCapture(e.pointerId); e.preventDefault(); e.stopPropagation();
   }, true);
   el.addEventListener("pointermove", e => {
     const { x, y } = relXY(e);
     if (!drag) { if (!tool) { const h = hitTest(x, y); el.style.cursor = !h ? "" : (h.kind === "stop" || h.kind === "plan") ? "ns-resize" : h.kind === "move" ? "move" : "pointer"; } return; }
-    const L = chart.timeScale().coordinateToLogical(x), P = cs.coordinateToPrice(y); if (L == null || P == null) return;
+    const L0 = chart.timeScale().coordinateToLogical(x), P = cs.coordinateToPrice(y); if (L0 == null || P == null) return; const L = v2b(L0);
     if (drag.kind === "plan") { $("stop").value = P.toFixed(2); stopTouched = true; return; }
     if (drag.kind === "stop") {
       const okSide = pos.dir > 0 ? P < bars[cur].c : P > bars[cur].c;
@@ -725,6 +728,70 @@ function initInteract() {
   el.addEventListener("pointerup", end, true); el.addEventListener("pointercancel", end, true);
 }
 
+// ── 練習中看別的週期 ──
+// 只顯示「練習週期這根K收盤時」已經收完的K；看大週期時，還沒收完的那根用練習週期的K拼出來（跟真的看盤一樣）
+function viewOn() { const v = $("viewTf").value; return !!(v && bars.length && v !== $("tf").value && VIEW && VIEW.tf === v && VIEW.bars.length); }
+function b2v(l) { if (l == null || !viewOn()) return l; const bm = IV_MS[$("tf").value]; return (bars[0].t + l * bm - VIEW.bars[0].t) / IV_MS[VIEW.tf]; }
+function v2b(l) { if (l == null || !viewOn()) return l; const bm = IV_MS[$("tf").value]; return (VIEW.bars[0].t + l * IV_MS[VIEW.tf] - bars[0].t) / bm; }
+async function setView() {
+  const v = $("viewTf").value, base = $("tf").value;
+  if (!bars.length) { msg("先按「開始練習」，再切換看別的週期"); $("viewTf").value = ""; return; }
+  if (!v || v === base) { $("viewTf").value = ""; VIEW = null; drawnCur = -1; mkKey = ""; draw(true); msg(`回到練習週期 ${IV_NAME[base]}`); return; }
+  stopPlay();
+  const sym = $("sym").value, vms = IV_MS[v], bms = IV_MS[base], key = sym + "|" + v + "|" + bars[0].t;
+  if (!VIEW || VIEW.key !== key) {
+    msg(`載入 ${IV_NAME[v]} 的K…`);
+    let end = bars[Math.min(sessEnd, bars.length - 1)].t + bms, start = Math.max(bars[0].t, bars[startIdx].t - 400 * vms) - 60 * vms;
+    if ((end - start) / vms > 25000) start = end - 25000 * vms;
+    try {
+      const vb = await klineRange(sym, v, start, end);
+      const A = atrOf(vb), E = emaArr(vb.map(x => x.c), 50);
+      VIEW = { key, tf: v, bars: vb, E, TR: trendOf(vb, E, A), sig: sigOf(vb, A) };
+    } catch (e) { msg("抓 " + IV_NAME[v] + " 資料失敗：" + e.message); $("viewTf").value = ""; return; }
+  }
+  if ($("viewTf").value !== v) return;
+  draw(true);
+  msg(`現在看的是 ${IV_NAME[v]}（只看得到到目前為止的K）｜按「下一根」、下單還是用 ${IV_NAME[base]}｜畫的線會跟著換過去`);
+}
+function viewSlice() {
+  const V = VIEW.bars, vms = IV_MS[VIEW.tf], bms = IV_MS[$("tf").value], nowT = bars[cur].t + bms;
+  let lo = 0, hi = V.length; while (lo < hi) { const m = (lo + hi) >> 1; if (V[m].t + vms <= nowT) lo = m + 1; else hi = m; }
+  const out = V.slice(0, lo).map(b => ({ ...b }));
+  if (vms > bms) { // 還沒收完的大週期K
+    const bs = Math.floor((nowT - 1) / vms) * vms;
+    if (bs + vms > nowT) {
+      let f = null; for (let j = cur; j >= 0 && bars[j].t >= bs; j--) { const b = bars[j]; f = f ? { t: bs, o: b.o, h: Math.max(f.h, b.h), l: Math.min(f.l, b.l), c: f.c, v: f.v + b.v, forming: true } : { t: bs, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v, forming: true }; }
+      if (f && (!out.length || out[out.length - 1].t < bs)) out.push(f);
+    }
+  }
+  return out;
+}
+function drawView(fit) {
+  VIS = viewSlice();
+  const V = VIEW, vms = IV_MS[V.tf], n = VIS.length, from = Math.max(0, n - 3000);
+  cs.setData(VIS.map(cBar)); vs.setData(VIS.map(vBar));
+  e50s.setData($("showTrend").checked ? VIS.map((b, i) => b.forming || i < 50 ? null : { time: b.t / 1000 + TW, value: V.E[i], color: V.TR[i] === 1 ? "#e04848" : V.TR[i] === -1 ? "#26a69a" : "#9ca3af" }).filter(Boolean) : []);
+  const mk = [], idxOf = t => Math.floor((t - V.bars[0].t) / vms), tOf = k => (V.bars[0].t + k * vms) / 1000 + TW;
+  if (sigShow(1)) for (let i = from; i < n; i++) { if (VIS[i].forming || !V.sig[i]) continue; const T = VIS[i].t / 1000 + TW; mk.push(V.sig[i] > 0 ? { time: T, position: "belowBar", color: "#3b82f6", shape: "arrowUp", text: "K反轉 買" } : { time: T, position: "aboveBar", color: "#f59e0b", shape: "arrowDown", text: "K反轉 賣" }); }
+  const nowT = bars[cur].t;
+  for (const t of trades) {
+    if (t.sym !== $("sym").value || t.sess !== sessId) continue;
+    const a = idxOf(t.inT), b = idxOf(t.outT);
+    if (t.inT <= nowT && a >= 0 && a < n) mk.push({ time: tOf(a), position: t.dir > 0 ? "belowBar" : "aboveBar", color: "#ffffff", shape: t.dir > 0 ? "arrowUp" : "arrowDown", text: t.dir > 0 ? "多" : "空" });
+    if (t.outT <= nowT && b >= 0 && b < n) mk.push({ time: tOf(b), position: t.dir > 0 ? "aboveBar" : "belowBar", color: t.pnl >= 0 ? "#e04848" : "#9aa0ab", shape: "circle", text: (t.R >= 0 ? "+" : "") + t.R.toFixed(1) + "R" });
+  }
+  if (pos) { const a = idxOf(pos.inT); if (a >= 0 && a < n) mk.push({ time: tOf(a), position: pos.dir > 0 ? "belowBar" : "aboveBar", color: "#ffffff", shape: pos.dir > 0 ? "arrowUp" : "arrowDown", text: pos.dir > 0 ? "多" : "空" }); }
+  mk.sort((a, b) => a.time - b.time); cs.setMarkers(mk); mkKey = "";
+  if (fit) chart.timeScale().setVisibleLogicalRange({ from: n - 120, to: n + 10 });
+  legendView(n - 1);
+}
+function legendView(i) {
+  const b = VIS[i]; if (!b) return; const p = VIS[i - 1], ch = p ? (b.c - p.c) / p.c * 100 : 0, col = b.c >= b.o ? "var(--red)" : "var(--green)";
+  const v = b.v >= 1e6 ? (b.v / 1e6).toFixed(2) + "M" : b.v >= 1e3 ? (b.v / 1e3).toFixed(2) + "K" : b.v.toFixed(0);
+  $("legend").innerHTML = `<span class="sym">${$("sym").value} · 看 ${IV_NAME[VIEW.tf]}${b.forming ? "（這根還沒收完）" : ""}｜練習 ${IV_NAME[$("tf").value]}</span><span style="color:${col}"><b>開</b>${b.o}<b>高</b>${b.h}<b>低</b>${b.l}<b>收</b>${b.c}　${ch >= 0 ? "+" : ""}${ch.toFixed(2)}%</span><b>量</b>${v}`;
+}
+$("viewTf").addEventListener("change", setView);
+
 // ── 畫圖 ──
 let drawnCur = -1, mkKey = "";
 const cBar = b => ({ time: b.t / 1000 + TW, open: b.o, high: b.h, low: b.l, close: b.c });
@@ -732,6 +799,11 @@ const eBar = i => i < 50 || !E50[i] ? null : { time: bars[i].t / 1000 + TW, valu
 const vBar = b => ({ time: b.t / 1000 + TW, value: b.v, color: b.c >= b.o ? "rgba(224,72,72,.45)" : "rgba(38,166,154,.45)" });
 function draw(fit) {
   if (!bars.length) { renderStats(); return; }
+  if (viewOn()) {
+    drawView(fit); drawDirty = true; drawLines(); renderBoard(); renderProg();
+    if (pos) { if (document.activeElement !== $("stop")) $("stop").value = pos.stop.toFixed(2); } else if (!stopTouched) $("stop").value = "";
+    updatePosInfo(); return;
+  }
   if (fit || drawnCur < 0 || cur < drawnCur || cur - drawnCur > 20) {
     const vis = bars.slice(0, cur + 1);
     cs.setData(vis.map(cBar)); vs.setData(vis.map(vBar)); mkKey = "";
