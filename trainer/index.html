@@ -747,7 +747,7 @@ function draw(fit) {
       if (buy.length) mk.push({ time: T, position: "belowBar", color: "#3b82f6", shape: "arrowUp", text: "K反轉 買 " + buy.join("+") });
       if (sell.length) mk.push({ time: T, position: "aboveBar", color: "#f59e0b", shape: "arrowDown", text: "K反轉 賣 " + sell.join("+") });
     }
-    if (sh2 && S2[i]) mk.push({ time: T, position: S2[i] > 0 ? "belowBar" : "aboveBar", color: S2[i] > 0 ? "#14b8a6" : "#be123c", shape: S2[i] > 0 ? "arrowUp" : "arrowDown", text: (S2[i] > 0 ? "盤整 買 " : "盤整 賣 ") + (S2G[i] === "A" ? "A級(帶量)" : "B級") });
+    if (sh2 && S2[i]) { const A = S2G[i] === "A"; mk.push({ time: T, position: S2[i] > 0 ? "belowBar" : "aboveBar", color: A ? "#facc15" : S2[i] > 0 ? "#14b8a6" : "#f43f5e", shape: S2[i] > 0 ? "arrowUp" : "arrowDown", size: A ? 2 : 1, text: (A ? "★A級 帶量 " : "B級 ") + (S2[i] > 0 ? "盤整買" : "盤整賣") }); }
     if (sh3 && S3[i]) mk.push({ time: T, position: S3[i] > 0 ? "belowBar" : "aboveBar", color: "#d946ef", shape: S3[i] > 0 ? "arrowUp" : "arrowDown", text: S3[i] > 0 ? "突破單 多" : "跌破單 空" });
     if (sh4 && S4[i]) mk.push({ time: T, position: S4[i] > 0 ? "belowBar" : "aboveBar", color: S4[i] > 0 ? "#22c55e" : "#ef4444", shape: S4[i] > 0 ? "arrowUp" : "arrowDown", text: (S4[i] > 0 ? "🟢 跟著大戶進場 損" : "🔴 跟著大戶放空 損") + (+S4S[i]).toFixed(2) });
   }
