@@ -249,12 +249,13 @@ async function kline(sym, iv, start, end) {
   }
   throw lastErr;
 }
-async function load() {
+async function load(atT) { // atT：從這個時間點接著練（切換週期用）；沒給就用日期欄或隨機
   stopPlay();
   if (pos) closePos(bars[cur].c, "換行情平倉");
   const sym = $("sym").value, iv = $("tf").value, ms = IV_MS[iv];
   let t0;
-  if ($("date").value) t0 = Date.parse($("date").value + "T00:00:00+08:00");
+  if (typeof atT === "number") t0 = atT;
+  else if ($("date").value) t0 = Date.parse($("date").value + "T00:00:00+08:00");
   else {
     const lo = Date.UTC(2021, 0, 1), hi = Date.now() - 1000 * ms;
     t0 = lo + Math.random() * (hi - lo);
@@ -276,7 +277,7 @@ async function load() {
   await Promise.all([loadMTF(sym, iv), loadBias(sym, iv), loadStrats(sym, iv), loadTrend(sym, iv)]);
   const L = +$("sessLen").value;
   sessEnd = L ? Math.min(startIdx + L, bars.length - 1) : bars.length - 1;
-  sessId = Date.now(); $("summary").style.display = "none";
+  sessId = Date.now(); sessTf = iv; $("summary").style.display = "none";
   drawnCur = -1; mkKey = ""; pend = null;
   draw(true);
   msg(`${sym} ${$("tf").selectedOptions[0].text}　按 → 一根一根看，覺得可以進場就按 買／賣`);
@@ -1224,7 +1225,20 @@ function copyLog() {
 }
 
 // ── 事件 ──
-$("btnLoad").onclick = load;
+$("btnLoad").onclick = () => load();
+// 練習中換「週期」：以前只會把指標弄掉、圖還是原本的週期。現在會真的換成新週期的圖
+let sessTf = null;
+$("tf").addEventListener("change", async () => {
+  const nv = $("tf").value;
+  if (!bars.length || !sessTf || nv === sessTf) return;
+  if (pos) { // 有單在手上：不重載（會被迫平倉），改用「看圖」模式看新週期，單照樣跑
+    $("tf").value = sessTf; $("viewTf").value = nv; await setView();
+    msg(`你手上有單，所以先「看」${IV_NAME[nv]}的圖（只看得到到現在為止的K），下一根、下單還是用 ${IV_NAME[sessTf]}；平倉後再換週期就會整個換過去`);
+    return;
+  }
+  const nowT = bars[cur].t + IV_MS[sessTf]; // 從現在這個時間點，用新週期接著練（不會看到未來）
+  load(Math.floor(nowT / IV_MS[nv]) * IV_MS[nv]);
+});
 function modeUI() { const m = $("mode").value; $("rowLev").classList.toggle("hide", m === "risk"); $("rowMargin").classList.toggle("hide", m !== "margin"); $("rowQty").classList.toggle("hide", m !== "qty"); $("risk").closest(".row").classList.toggle("hide", m !== "risk"); }
 $("mode").onchange = modeUI; modeUI();
 document.querySelectorAll(".tools [data-tool]").forEach(b => b.onclick = () => setTool(b.dataset.tool));
