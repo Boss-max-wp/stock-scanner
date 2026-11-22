@@ -233,11 +233,21 @@ function legend(i) {
 function msg(t) { $("msg").textContent = t; }
 
 // ── 抓資料 ──
+// 抓失敗（被 Bybit 擋、網路斷、回傳錯誤）就自動重試 3 次，分別等 3、6、9 秒
 async function kline(sym, iv, start, end) {
   const url = `https://api.bybit.com/v5/market/kline?category=linear&symbol=${sym}&interval=${iv}&start=${start}&end=${end}&limit=1000`;
-  const j = await fetch(url).then(r => r.json());
-  if (j.retCode !== 0) throw new Error(j.retMsg);
-  return j.result.list.map(x => ({ t: +x[0], o: +x[1], h: +x[2], l: +x[3], c: +x[4], v: +x[5] }));
+  let lastErr;
+  for (let k = 0; k <= 3; k++) {
+    if (k) await new Promise(r => setTimeout(r, 3000 * k));
+    try {
+      const r = await fetch(url, { cache: "no-store" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const j = await r.json();
+      if (j.retCode !== 0) throw new Error(j.retMsg);
+      return j.result.list.map(x => ({ t: +x[0], o: +x[1], h: +x[2], l: +x[3], c: +x[4], v: +x[5] }));
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr;
 }
 async function load() {
   stopPlay();
