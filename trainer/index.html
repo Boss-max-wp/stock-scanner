@@ -1067,6 +1067,7 @@ function checkExit() {
     msg(byClose
       ? `停損：這根K收盤 ${b.c} ${d > 0 ? "跌破" : "漲破"} 停損 ${st.toFixed(2)}`
       : `停損：這根K${d > 0 ? "最低 " + b.l : "最高 " + b.h} 碰到停損 ${st.toFixed(2)}（影線碰到就算，跟交易所一樣）` + (nMv ? `｜停損原本在 ${st0.toFixed(2)}，被移動過 ${nMv} 次` : ""));
+    { const t = trades[trades.length - 1]; if (t.feeR) msg($("msg").textContent + `｜${t.R.toFixed(2)}R ${rSplit(t)}`); }
   }
   else if (hitTp) closePos(pos.dir > 0 ? Math.max(b.o, pos.tp) : Math.min(b.o, pos.tp), "停利");
 }
@@ -1109,6 +1110,12 @@ function propCheck() {
   }
   propShow();
 }
+// 把 R 拆成「價格」和「手續費」兩部分，例如：＝ 價格 −1.00R ＋ 手續費 −0.45R
+function rSplit(t) {
+  if (!t || !t.feeR) return "";
+  const pr = t.R + t.feeR, sg = v => (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(2) + "R";
+  return `＝ 價格 ${sg(pr)} ＋ 手續費 ${sg(-t.feeR)}`;
+}
 function closePos(px, why, liquidated) {
   if (!pos) return;
   const fee = (+$("fee").value) / 100 * (pos.entry + px) * pos.qty;
@@ -1119,8 +1126,8 @@ function closePos(px, why, liquidated) {
   const R = pnl / pos.riskU; peak = Math.max(peak, equity); maxDD = Math.min(maxDD, equity / peak - 1);
   const mfe = (() => { let m = 0; for (let j = pos.inIdx + 1; j <= cur; j++) m = Math.max(m, (pos.dir > 0 ? bars[j].h - pos.entry : pos.entry - bars[j].l) / Math.abs(pos.entry - pos.stop0)); return +m.toFixed(2); })();
   if (pos.f) pos.f.stopBy = $("stopClose").checked ? "收盤" : "影線";
-  trades.push({ dir: pos.dir, entry: pos.entry, stop0: pos.stop0, exit: px, R, pnl, inT: pos.inT, outT: bars[cur].t, inIdx: pos.inIdx, bars: cur - pos.inIdx, why, note: pos.note, sig: pos.sig, sym: $("sym").value, tf: $("tf").value, f: pos.f, moves: pos.moves, mfe, lev: +pos.lev.toFixed(1), margin: +pos.margin.toFixed(2), sess: sessId, adds: pos.adds || [], how: pos.how, mfeR: +(pos.mfeR || 0).toFixed(2) });
-  msg(`${why}：${pnl >= 0 ? "賺" : "賠"} ${Math.abs(pnl).toFixed(2)} U（${R >= 0 ? "+" : ""}${R.toFixed(2)}R）`);
+  trades.push({ dir: pos.dir, entry: pos.entry, stop0: pos.stop0, exit: px, R, pnl, inT: pos.inT, outT: bars[cur].t, inIdx: pos.inIdx, bars: cur - pos.inIdx, why, note: pos.note, sig: pos.sig, sym: $("sym").value, tf: $("tf").value, f: pos.f, moves: pos.moves, mfe, lev: +pos.lev.toFixed(1), margin: +pos.margin.toFixed(2), sess: sessId, adds: pos.adds || [], how: pos.how, mfeR: +(pos.mfeR || 0).toFixed(2), feeR: liquidated ? 0 : fee / pos.riskU });
+  msg(`${why}：${pnl >= 0 ? "賺" : "賠"} ${Math.abs(pnl).toFixed(2)} U（${R >= 0 ? "+" : ""}${R.toFixed(2)}R${rSplit(trades[trades.length - 1])}）`);
   pos = null; stopTouched = false; $("note").value = ""; $("tp").value = "";
   save(); renderStats(); draw(false);
 }
@@ -1142,7 +1149,7 @@ function trailToSwing() {
 function updatePosInfo() {
   if (!pos) {
     const t = trades[trades.length - 1];
-    $("posInfo").innerHTML = "<b>目前沒有持倉</b>" + (t ? `<br>上一筆：${t.dir > 0 ? "做多" : "做空"} ${t.entry} → <span style="color:${t.why === "爆倉" ? "#ef4444" : "inherit"}">${t.why} ${t.exit.toFixed(2)}</span>（${t.R >= 0 ? "+" : ""}${t.R.toFixed(2)}R）` : "");
+    $("posInfo").innerHTML = "<b>目前沒有持倉</b>" + (t ? `<br>上一筆：${t.dir > 0 ? "做多" : "做空"} ${t.entry} → <span style="color:${t.why === "爆倉" ? "#ef4444" : "inherit"}">${t.why} ${t.exit.toFixed(2)}</span>（${t.R >= 0 ? "+" : ""}${t.R.toFixed(2)}R）${t.feeR ? `<br><span style="color:#9aa0ab">${rSplit(t)}</span>` : ""}` : "");
     setAcct(0); return;
   }
   const px = bars[cur].c, un = (px - pos.entry) * pos.dir * pos.qty;
