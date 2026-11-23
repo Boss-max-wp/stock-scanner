@@ -544,7 +544,7 @@ async function loadLiq(sym, iv) {
     }
     prev = o;
   }
-  const sorted = LQ.map(c => c.a).sort((x, y) => x - y); LQmax = sorted[Math.floor(sorted.length * 0.97)] || 1;
+  const sorted = LQ.map(c => c.a).sort((x, y) => x - y); LQmax = sorted[Math.floor(sorted.length * 0.995)] || 1;
 }
 // 現在（第 i 根收盤後）還活著的爆倉區，依價格分格加總
 function liqProfile(i) {
@@ -747,13 +747,13 @@ function renderDraw() {
   if ($("showLiq").checked && LQ.length) {
     // 熱力圖：每群爆倉單從出現的那根畫到被掃掉（或現在），越多越亮
     const r = ts.getVisibleLogicalRange(), lo = r ? Math.floor(v2b(r.from)) - 1 : 0, xr = X(cur);
-    const th = Math.max(1.5, Math.abs((Y(bars[cur].c * 1.001) ?? 0) - (Y(bars[cur].c) ?? 0)) * 2);
+    const th = Math.max(1, Math.min(3, Math.abs((Y(bars[cur].c * 1.001) ?? 0) - (Y(bars[cur].c) ?? 0)) * 1.5));
     for (const c of LQ) {
       if (c.b > cur || c.d <= lo || c.b > cur) continue;
       const end = Math.min(c.d, cur), x1 = X(c.b), x2 = end === cur ? (xr ?? paneW) : X(end), y = Y(c.p);
       if (x1 == null || x2 == null || y == null || y < -5 || y > h + 5) continue;
-      const v = Math.min(1, c.a / LQmax); if (v < 0.04) continue;
-      g.fillStyle = `rgba(250,204,21,${(0.08 + 0.55 * Math.sqrt(v)).toFixed(3)})`;
+      const v = Math.min(1, c.a / LQmax); if (v < 0.3) continue;
+      g.fillStyle = `rgba(250,204,21,${(0.05 + 0.3 * v * v).toFixed(3)})`;
       g.fillRect(x1, y - th / 2, Math.max(1, x2 - x1), th);
     }
     // 右邊：現在還活著的爆倉量（橫條越長越多）
