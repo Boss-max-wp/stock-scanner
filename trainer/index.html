@@ -186,7 +186,7 @@ const $ = id => document.getElementById(id);
 const IV_MS = { "15": 9e5, "60": 36e5, "240": 144e5, "D": 864e5 };
 const IV_NAME = { "15": "15分", "60": "1小時", "240": "4小時", "D": "日線" };
 let S2 = [], S2G = [], S3 = [], S4 = [], S4S = [], dir4 = [], btcD = [];
-let mtf = [], bias = {}, sessEnd = 0, sessId = 0; // bias[tf][第幾根] = {b, s, n} // 每根K上要顯示的訊號 [{dir, tf}]
+let mtf = [], bias = {}, sessEnd = 0, sessId = 0, sessStartT = 0, sessEndT = Infinity, sessUnit = "60", switching = false; // bias[tf][第幾根] = {b, s, n} // 每根K上要顯示的訊號 [{dir, tf}]
 const TW = 8 * 3600; // 顯示台灣時間
 let VIEW = null, VIS = []; // 練習中看別的週期
 let bars = [], cur = 0, startIdx = 0, sigs = [], timer = null, ATR = [], E20 = [], E50 = [], skipped = [];
@@ -261,9 +261,12 @@ async function kline(sym, iv, start, end) {
   }
   throw lastErr;
 }
-async function load(atT) { // atT：從這個時間點接著練（切換週期用）；沒給就用日期欄或隨機
+async function load(atT, cont) { // atT：從這個時間點接著練（切換週期用，＝已經看到的時間）；沒給就用日期欄或隨機
+  // cont：同一次練習換週期 → 單子、畫的線、練習進度都保留
   stopPlay();
-  if (pos) closePos(bars[cur].c, "換行情平倉");
+  const oldTf = sessTf, oldT0 = bars.length ? bars[0].t : 0, oldDraw = drawings;
+  const keep = cont && pos ? pos : null;
+  if (pos && !keep) closePos(bars[cur].c, "換行情平倉");
   const sym = $("sym").value, iv = $("tf").value, ms = IV_MS[iv];
   let t0;
   if (typeof atT === "number") t0 = atT;
@@ -282,18 +285,33 @@ async function load(atT) { // atT：從這個時間點接著練（切換週期�
     bars = [...m.values()].sort((a, b) => a.t - b.t).filter(b => b.t + ms <= Date.now());
   } catch (e) { msg("抓資料失敗：" + e.message + "（請確認有連網）"); return; }
   if (bars.length < 320) { msg("這段資料太少，換一個日期"); return; }
-  startIdx = bars.findIndex(b => b.t >= t0); if (startIdx < 50) startIdx = 300;
+  if (typeof atT === "number") { startIdx = -1; for (let i = 0; i < bars.length; i++) if (bars[i].t + ms <= atT) startIdx = i; }
+  else startIdx = bars.findIndex(b => b.t >= t0);
+  if (startIdx < 50) startIdx = 300;
   cur = startIdx; drawings = []; pending = null; VIEW = null; $("viewTf").value = "";
+  if (cont && oldTf) {
+    const om = IV_MS[oldTf], mapL = l => (oldT0 + (l + 0.5) * om - bars[0].t) / ms - 0.5;
+    drawings = oldDraw.map(d => ({ ...d, a: d.a && { ...d.a, l: mapL(d.a.l) }, b: d.b && { ...d.b, l: mapL(d.b.l) } }));
+    if (keep) {
+      const end = keep.inT + om, r = om / ms; let ni = 0;
+      for (let i = 0; i < bars.length; i++) if (bars[i].t + ms <= end) ni = i;
+      keep.inIdx = ni; (keep.adds || []).forEach(a => a.k = Math.round(a.k * r)); (keep.moves || []).forEach(m => m.k = Math.round(m.k * r));
+      pos = keep;
+    }
+  }
   calcVolX(); volPend = []; volAskHide();
   calcSignals();
   msg("載入大週期訊號和多空看板…");
   await Promise.all([loadMTF(sym, iv), loadBias(sym, iv), loadStrats(sym, iv), loadTrend(sym, iv)]);
   const L = +$("sessLen").value;
-  sessEnd = L ? Math.min(startIdx + L, bars.length - 1) : bars.length - 1;
-  sessId = Date.now(); sessTf = iv; $("summary").style.display = "none";
+  if (!cont) { sessStartT = bars[startIdx].t + ms; sessUnit = iv; sessEndT = L ? sessStartT + L * ms : Infinity; sessId = Date.now(); }
+  sessEnd = bars.length - 1;
+  if (sessEndT !== Infinity) { for (let i = bars.length - 1; i >= 0; i--) if (bars[i].t + ms <= sessEndT) { sessEnd = i; break; } }
+  if (sessEnd <= cur) sessEnd = Math.min(cur + 1, bars.length - 1);
+  sessTf = iv; $("summary").style.display = "none";
   drawnCur = -1; mkKey = ""; pend = null;
   draw(true);
-  msg(`${sym} ${$("tf").selectedOptions[0].text}　按 → 一根一根看，覺得可以進場就按 買／賣`);
+  msg(cont ? `已換成 ${IV_NAME[iv]} 接著練${keep ? "（手上的單照樣跑）" : ""}｜練習進度照時間算` : `${sym} ${$("tf").selectedOptions[0].text}　按 → 一根一根看，覺得可以進場就按 買／賣`);
 }
 
 // ── 四策略（跟 TradingView「四策略整合」指標、電腦通知同一套）──
@@ -550,9 +568,11 @@ function renderBoard() {
 // 練習進度
 function renderProg() {
   if (!bars.length) { $("prog").textContent = ""; return; }
-  const done = cur - startIdx, total = sessEnd - startIdx, left = sessEnd - cur;
-  const hrs = left * IV_MS[$("tf").value] / 36e5;
-  $("prog").textContent = `第 ${done} / ${total} 根｜剩 ${left} 根（行情時間約 ${hrs >= 24 ? (hrs / 24).toFixed(1) + " 天" : hrs.toFixed(0) + " 小時"}）`;
+  const ms = IV_MS[$("tf").value], um = IV_MS[sessUnit], nowE = bars[cur].t + ms, endE = Math.min(sessEndT, bars[sessEnd].t + ms);
+  const nf = x => Math.abs(x - Math.round(x)) < 1e-6 ? String(Math.round(x)) : x.toFixed(2);
+  const done = (nowE - sessStartT) / um, total = (endE - sessStartT) / um, hrs = (endE - nowE) / 36e5;
+  const note = $("tf").value !== sessUnit ? `（現在用 ${IV_NAME[$("tf").value]}，一根＝${nf(ms / um)} 根${IV_NAME[sessUnit]}）` : "";
+  $("prog").textContent = `第 ${nf(done)} / ${nf(total)} 根${IV_NAME[sessUnit]}${note}｜剩下行情時間約 ${hrs >= 24 ? (hrs / 24).toFixed(1) + " 天" : nf(hrs) + " 小時"}`;
 }
 function endSession() {
   stopPlay();
@@ -568,7 +588,7 @@ function endSession() {
   const trTxt = n ? `<div style="margin:6px 0;padding:6px;background:#262a35;border-radius:6px">順勢／逆勢檢查：<br>✅ 順勢 <b>${grpT(1)}</b>｜⚪ 盤整或打架時做 <b>${grpT(0)}</b>｜⛔ 逆勢 <b>${grpT(-1)}</b></div>` : "";
   const distTxt = n ? `<div style="margin:6px 0;padding:6px;background:#262a35;border-radius:6px">小虧小賺大賺檢查：<br>💥 大虧（超過 1R）<b>${bk.大虧}</b>｜➖ 虧 1R <b>${bk.一R虧}</b>｜🔸 小虧 <b>${bk.小虧}</b><br>🔹 小賺 <b>${bk.小賺}</b>｜🚀 大賺（2R 以上）<b>${bk.大賺}</b>｜😢 賣太早（曾賺 3R、出場不到 1R）<b>${early}</b><br><span class="keys">目標：大虧 0、大賺佔 1 成左右、虧的單大部分是小虧</span></div>` : "";
   $("sumCard").innerHTML = `<h2>🏁 這次模擬結束了</h2>
-    ${$("sym").value}｜${IV_NAME[$("tf").value]}｜練了 ${cur - startIdx} 根K<br>
+    ${$("sym").value}｜${IV_NAME[$("tf").value]}｜練了 ${((bars[cur].t + IV_MS[$("tf").value] - sessStartT) / IV_MS[sessUnit]).toFixed(2).replace(/\.00$/, "")} 根${IV_NAME[sessUnit]}的時間<br>
     下了 <b>${n}</b> 筆${n ? `，勝率 <b>${Math.round(w / n * 100)}%</b>` : ""}<br>
     總共 <b class="${R >= 0 ? "pos" : "neg"}">${R >= 0 ? "+" : ""}${R.toFixed(2)}R</b>（<span class="${P >= 0 ? "pos" : "neg"}">${P >= 0 ? "+" : ""}${P.toFixed(2)} U</span>）<br>
     ${n ? `最好一筆 ${best.R >= 0 ? "+" : ""}${best.R.toFixed(2)}R｜最差一筆 ${worst.R.toFixed(2)}R<br>跟著指標訊號進場的有 ${sigN} 筆<br>` : "這次沒有下單，也是一種練習：等不到好位置就不做 👍<br>"}
@@ -891,7 +911,14 @@ function drawLines() {
 
 // ── 播放 ──
 function next() {
-  if (!bars.length) return;
+  if (!bars.length || switching) return;
+  // 在「偷看」比較小的週期時按下一根 → 直接換成那個週期接著練，一次只走一根小K
+  if (viewOn() && IV_MS[VIEW.tf] < IV_MS[$("tf").value]) {
+    const nv = VIEW.tf, nowT = bars[cur].t + IV_MS[$("tf").value];
+    stopPlay(); switching = true; $("tf").value = nv;
+    load(nowT, true).then(() => { switching = false; if (sessTf !== nv) { $("tf").value = sessTf; return; } next(); }, () => { switching = false; $("tf").value = sessTf; });
+    return;
+  }
   if (cur >= sessEnd) { endSession(); return; }
   if (sigs[cur] && sigShow(1) && !(pos && pos.inIdx === cur) && !trades.some(t => t.inIdx === cur && t.sym === $("sym").value)) {
     skipped.push({ dir: sigs[cur], ...feat(cur, sigs[cur], null), hadPos: pos ? 1 : 0 });
@@ -1250,13 +1277,8 @@ let sessTf = null;
 $("tf").addEventListener("change", async () => {
   const nv = $("tf").value;
   if (!bars.length || !sessTf || nv === sessTf) return;
-  if (pos) { // 有單在手上：不重載（會被迫平倉），改用「看圖」模式看新週期，單照樣跑
-    $("tf").value = sessTf; $("viewTf").value = nv; await setView();
-    msg(`你手上有單，所以先「看」${IV_NAME[nv]}的圖（只看得到到現在為止的K），下一根、下單還是用 ${IV_NAME[sessTf]}；平倉後再換週期就會整個換過去`);
-    return;
-  }
-  const nowT = bars[cur].t + IV_MS[sessTf]; // 從現在這個時間點，用新週期接著練（不會看到未來）
-  load(Math.floor(nowT / IV_MS[nv]) * IV_MS[nv]);
+  const nowT = bars[cur].t + IV_MS[sessTf]; // 從現在這個時間點，用新週期接著練（不會看到未來；單子、線、進度都保留）
+  load(nowT, true);
 });
 function modeUI() { const m = $("mode").value; $("rowLev").classList.toggle("hide", m === "risk"); $("rowMargin").classList.toggle("hide", m !== "margin"); $("rowQty").classList.toggle("hide", m !== "qty"); $("risk").closest(".row").classList.toggle("hide", m !== "risk"); }
 $("mode").onchange = modeUI; modeUI();
