@@ -50,6 +50,8 @@
   .keys { color:var(--dim); font-size:12px; line-height:1.6; }
   .hide { display:none !important; }
   .tools button.on { background:var(--orange); border-color:var(--orange); color:#000; }
+  #volAsk { position:absolute; left:12px; bottom:56px; z-index:7; display:none; background:rgba(30,34,45,.96); border:1px solid #facc15; border-radius:8px; padding:8px 10px; font-size:13px; line-height:1.6; max-width:340px; }
+  #volAsk button { margin:4px 4px 0 0; padding:5px 10px; }
   #draw { position:absolute; left:0; top:0; pointer-events:none; z-index:4; }
   @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; height:auto; } #chart { height:60vh; } }
 </style>
@@ -81,7 +83,7 @@
 </header>
 
 <div class="wrap">
-  <div id="chart"><canvas id="draw"></canvas><div id="legend"></div><div id="board"></div><button id="goLast" title="回到最新一根（快捷鍵 Alt+R）">≫ 最新</button><div id="msg">選好幣和週期，按「開始練習」</div></div>
+  <div id="chart"><canvas id="draw"></canvas><div id="legend"></div><div id="board"></div><button id="goLast" title="回到最新一根（快捷鍵 Alt+R）">≫ 最新</button><div id="msg">選好幣和週期，按「開始練習」</div><div id="volAsk"></div></div>
   <aside>
     <div class="box">
       <h3>帳戶</h3>
@@ -134,6 +136,8 @@
       <div class="row"><label style="min-width:0"><input type="checkbox" id="on3" checked> ③ 未帶量突破跌破進場點</label><label style="min-width:0"><input type="checkbox" id="on4" checked> ④ 跟著大戶進場</label></div>
       <div id="sigWhich" class="keys">自動：15分＝①④｜1小時＝①②④｜4小時＝①③④｜日線＝①④</div>
       <div class="row"><label><input type="checkbox" id="hideDate" checked> 隱藏日期（避免記得行情）</label></div>
+      <div class="row"><label><input type="checkbox" id="showBigVol" checked> 標出大量（量 ≥ 前 100 根平均的 2 倍）</label></div>
+      <div class="row"><label><input type="checkbox" id="askVol" checked> 出現大量時問我怎麼解讀（24 根後自動對答案）</label></div>
     </div>
 
     <div class="box">
@@ -155,6 +159,12 @@
     </div>
 
     <div class="box">
+      <h3>大量解讀成績</h3>
+      <div id="volStats" class="keys">還沒有紀錄。練習時出現大量，左下角會問你「接下來 24 根會漲還是會跌」。</div>
+      <div class="row" style="margin-top:6px"><button id="btnVolReset">清除大量紀錄</button></div>
+    </div>
+
+    <div class="box">
       <h3>交易紀錄</h3>
       <table><thead><tr><th>#</th><th>方向</th><th>進場</th><th>出場</th><th>R</th><th>損益</th><th></th></tr></thead><tbody id="log"></tbody></table>
     </div>
@@ -162,6 +172,7 @@
     <div class="box keys">
       快捷鍵：→ 下一根、B 買、S 賣、C 平倉、空白鍵 播放／暫停、Esc 取消畫線、Ctrl+Z 復原<br>
       畫線：上面選「趨勢線／水平線／框」，在圖上點。畫好之後：點一下線＝選取（變藍色），拖圓點＝延長或改角度，拖線身＝整條移動，按 Delete＝刪除。<br>
+      大量解讀：出現大量時按 1＝會漲、2＝會跌、3＝看不出來（也可以直接按下一根跳過）。<br>
       停損：圖上紫色虛線＝預計停損，可以直接上下拖；進場後的紫色實線也可以拖。<br>
       R＝這筆賺賠是停損金額的幾倍。紅漲綠跌（跟你的圖一樣）。<br>
       資料來源：Bybit 永續合約真實行情。
@@ -272,6 +283,7 @@ async function load(atT) { // atT：從這個時間點接著練（切換週期�
   if (bars.length < 320) { msg("這段資料太少，換一個日期"); return; }
   startIdx = bars.findIndex(b => b.t >= t0); if (startIdx < 50) startIdx = 300;
   cur = startIdx; drawings = []; pending = null; VIEW = null; $("viewTf").value = "";
+  calcVolX(); volPend = []; volAskHide();
   calcSignals();
   msg("載入大週期訊號和多空看板…");
   await Promise.all([loadMTF(sym, iv), loadBias(sym, iv), loadStrats(sym, iv), loadTrend(sym, iv)]);
@@ -531,6 +543,7 @@ function renderBoard() {
     tr = `<tr><td colspan="4" style="color:#9aa0ab">趨勢（EMA50）</td></tr>` + one(IV_NAME[iv], TR[cur]) + TREND_H[iv].filter(tf => TRH[tf]).map(tf => one(IV_NAME[tf], TRH[tf][cur])).join("")
       + `<tr><td colspan="4"><span class="tag" style="background:${vd.dir > 0 ? "#e04848" : vd.dir < 0 ? "#26a69a" : "#4b5563"}">👉 ${vd.txt}</span></td></tr>`;
   }
+  if (bigOn()) { const c = volCount(cur); tr += `<tr><td colspan="4" style="color:#9aa0ab">近 ${VOL_W} 根大量：<span style="color:#ff5a5a">紅 ${c.u}</span>｜<span style="color:#2fe0c8">黑 ${c.d}</span></td></tr>`; }
   $("board").innerHTML = (rows || tr) ? `<table>${tr}${rows ? `<tr><td colspan="4" style="color:#9aa0ab">多空看板（這段盤整的訊號數）</td></tr>${rows}` : ""}</table>` : "";
 }
 // 練習進度
@@ -543,6 +556,7 @@ function renderProg() {
 function endSession() {
   stopPlay();
   if (pos) closePos(bars[cur].c, "練習結束平倉");
+  volAskHide(); volResolve(true);
   const T = trades.filter(t => t.sess === sessId), n = T.length, w = T.filter(t => t.pnl > 0).length;
   const R = T.reduce((a, t) => a + t.R, 0), P = T.reduce((a, t) => a + t.pnl, 0);
   const best = n ? T.reduce((a, t) => t.R > a.R ? t : a) : null, worst = n ? T.reduce((a, t) => t.R < a.R ? t : a) : null;
@@ -807,7 +821,7 @@ $("viewTf").addEventListener("change", setView);
 let drawnCur = -1, mkKey = "";
 const cBar = b => ({ time: b.t / 1000 + TW, open: b.o, high: b.h, low: b.l, close: b.c });
 const eBar = i => i < 50 || !E50[i] ? null : { time: bars[i].t / 1000 + TW, value: E50[i], color: TR[i] === 1 ? "#e04848" : TR[i] === -1 ? "#26a69a" : "#9ca3af" };
-const vBar = b => ({ time: b.t / 1000 + TW, value: b.v, color: b.c >= b.o ? "rgba(224,72,72,.45)" : "rgba(38,166,154,.45)" });
+const vBar = b => ({ time: b.t / 1000 + TW, value: b.v, color: bigOn() && b.vx >= VOL_X ? (b.c >= b.o ? "#ff5a5a" : "#2fe0c8") : b.c >= b.o ? "rgba(224,72,72,.45)" : "rgba(38,166,154,.45)" });
 function draw(fit) {
   if (!bars.length) { renderStats(); return; }
   if (viewOn()) {
@@ -831,6 +845,7 @@ function draw(fit) {
       if (sell.length) mk.push({ time: T, position: "aboveBar", color: "#f59e0b", shape: "arrowDown", text: "K反轉 賣 " + sell.join("+") });
     }
     if (sh2 && S2[i]) { const A = S2G[i] === "A"; mk.push({ time: T, position: S2[i] > 0 ? "belowBar" : "aboveBar", color: A ? "#facc15" : S2[i] > 0 ? "#14b8a6" : "#f43f5e", shape: S2[i] > 0 ? "arrowUp" : "arrowDown", size: A ? 2 : 1, text: (A ? "★A級 帶量 " : "B級 ") + (S2[i] > 0 ? "盤整買" : "盤整賣") }); }
+    if (bigOn() && bars[i].vx >= VOL_X) mk.push({ time: T, position: bars[i].c >= bars[i].o ? "aboveBar" : "belowBar", color: "#facc15", shape: "circle", text: "量" + bars[i].vx.toFixed(1) + "x" });
     if (sh3 && S3[i]) mk.push({ time: T, position: S3[i] > 0 ? "belowBar" : "aboveBar", color: "#d946ef", shape: S3[i] > 0 ? "arrowUp" : "arrowDown", text: S3[i] > 0 ? "突破單 多" : "跌破單 空" });
     if (sh4 && S4[i]) mk.push({ time: T, position: S4[i] > 0 ? "belowBar" : "aboveBar", color: S4[i] > 0 ? "#22c55e" : "#ef4444", shape: S4[i] > 0 ? "arrowUp" : "arrowDown", text: (S4[i] > 0 ? "🟢 跟著大戶進場 損" : "🔴 跟著大戶放空 損") + (+S4S[i]).toFixed(2) });
   }
@@ -885,7 +900,9 @@ function next() {
   checkPend();
   manage();
   propCheck();
+  volResolve(false);
   if (cur >= sessEnd) { draw(false); endSession(); return; }
+  volAskMaybe();
   const hint = stratAt(cur); if (hint.length) msg("這根K出現：" + hint.join("｜"));
   draw(false);
 }
@@ -1220,7 +1237,8 @@ function copyLog() {
   const head = "幣,週期,進場時間,方向,進場價,停損,出場價,出場原因,持有幾根,R,最多曾賺R,損益U,槓桿,保證金,是不是指標訊號,進場原因,盤面,停損移動,加減倉";
   const rows = trades.map(t => [t.sym, tfName[t.tf], fmt(t.inT), t.dir > 0 ? "多" : "空", t.entry, t.stop0.toFixed(2), t.exit.toFixed(2), t.why, t.bars, t.R.toFixed(2), t.mfe ?? "", t.pnl.toFixed(2), t.lev ?? "", t.margin ?? "", t.sig ? "是" : "否", (t.note || "").replace(/,/g, "，"), JSON.stringify(t.f || {}).replace(/,/g, ";"), JSON.stringify(t.moves || []).replace(/,/g, ";"), JSON.stringify(t.adds || []).replace(/,/g, ";")].join(","));
   const sk = skipped.length ? "\n\n# 有出現指標訊號但沒進場的: " + skipped.length + " 次\n" + skipped.slice(-200).map(x => JSON.stringify(x).replace(/,/g, ";")).join("\n") : "";
-  const text = [head, ...rows].join("\n") + sk;
+  const vk = volRecs.length ? "\n\n# 大量解讀: " + volRecs.length + " 次\n幣,週期,時間,大量K方向,量倍數,近48根大量紅,近48根大量黑,EMA50趨勢,區間位置,我的判斷,12根後(ATR),24根後(ATR),結果\n" + volRecs.map(r => [r.sym, tfName[r.tf], fmt(r.t), r.dir > 0 ? "紅" : "黑", r.vx, r.nU, r.nD, trendName(r.tr), r.pos48, r.guess > 0 ? "漲" : r.guess < 0 ? "跌" : "看不出來", r.m12, r.m24, r.guess ? (Math.sign(r.m24) === r.guess ? "對" : "錯") : "-"].join(",")).join("\n") : "";
+  const text = [head, ...rows].join("\n") + sk + vk;
   navigator.clipboard.writeText(text).then(() => $("copyMsg").textContent = "已複製 " + trades.length + " 筆，貼給 Claude 就可以了", () => $("copyMsg").textContent = "複製失敗，請再按一次");
 }
 
@@ -1285,8 +1303,87 @@ document.addEventListener("keydown", e => {
   else if (e.key === " ") { e.preventDefault(); togglePlay(); }
 });
 
+// ── 大量標記＋解讀練習 ──
+// 大量＝量 ≥ 前 100 根平均的 2 倍（跟 2026-11-23 回測同一個定義）
+// 出現大量時問「接下來 24 根會漲還是會跌」，24 根後自動對答案，看你讀量的功力有沒有比「丟銅板」好
+const VOL_X = 2, VOL_W = 48, VOL_H = 24;
+let volRecs = [], volPend = [], volAsking = null;
+function bigOn() { return $("showBigVol").checked; }
+function calcVolX() {
+  let s = 0;
+  for (let i = 0; i < bars.length; i++) {
+    const n = Math.min(i, 100);
+    bars[i].vx = n >= 20 ? +(bars[i].v / (s / n)).toFixed(2) : 0;
+    s += bars[i].v; if (i >= 100) s -= bars[i - 100].v;
+  }
+}
+function volCount(i) { let u = 0, d = 0; for (let j = Math.max(0, i - VOL_W + 1); j <= i; j++) if (bars[j].vx >= VOL_X) { if (bars[j].c > bars[j].o) u++; else if (bars[j].c < bars[j].o) d++; } return { u, d }; }
+function volAskHide() { volAsking = null; $("volAsk").style.display = "none"; }
+function volAskMaybe() {
+  volAskHide();
+  if (!$("askVol").checked || !bars[cur] || !(bars[cur].vx >= VOL_X) || viewOn()) return;
+  const b = bars[cur], c = volCount(cur), up = b.c >= b.o;
+  volAsking = cur;
+  $("volAsk").innerHTML = `📊 <b>大量${up ? "紅" : "黑"}K</b>（量是平常的 <b>${b.vx.toFixed(1)}</b> 倍）<br>近 ${VOL_W} 根大量：紅 ${c.u}｜黑 ${c.d}｜趨勢 ${trendName(TR[cur])}<br>你覺得接下來 ${VOL_H} 根會？<br>
+    <button class="buy" data-g="1">1 會漲</button><button class="sell" data-g="-1">2 會跌</button><button data-g="0">3 看不出來</button>`;
+  $("volAsk").querySelectorAll("button").forEach(x => x.onclick = () => volAnswer(+x.dataset.g));
+  $("volAsk").style.display = "block";
+}
+function volAnswer(g) {
+  if (volAsking == null) return;
+  const i = volAsking, b = bars[i], c = volCount(i);
+  let hi = -Infinity, lo = Infinity; for (let j = Math.max(0, i - VOL_W + 1); j <= i; j++) { hi = Math.max(hi, bars[j].h); lo = Math.min(lo, bars[j].l); }
+  const r = { sym: $("sym").value, tf: $("tf").value, t: b.t, dir: b.c >= b.o ? 1 : -1, vx: b.vx, nU: c.u, nD: c.d, tr: TR[i] ?? null, pos48: +((b.c - lo) / Math.max(hi - lo, 1e-9)).toFixed(2), guess: g, m12: null, m24: null, sess: sessId, idx: i, atr: ATR[i] || (b.h - b.l) || 1 };
+  volPend.push(r); volAskHide();
+  msg(g ? `記下來了：你猜接下來 ${VOL_H} 根會${g > 0 ? "漲" : "跌"}，${VOL_H} 根後自動對答案` : "記下來了：看不出來（不算對錯，但會記錄這種情況之後怎麼走）");
+}
+function volResolve(final) {
+  const left = [];
+  for (const r of volPend) {
+    if (r.sess !== sessId) continue;
+    const j12 = r.idx + 12, j24 = r.idx + VOL_H, c0 = bars[r.idx].c;
+    const lim = final ? bars.length - 1 : cur;
+    if (j24 <= lim) {
+      r.m12 = +((bars[j12].c - c0) / r.atr).toFixed(2); r.m24 = +((bars[j24].c - c0) / r.atr).toFixed(2);
+      delete r.sess; delete r.idx; delete r.atr; volRecs.push(r);
+      if (!final && r.guess) msg(`📊 大量解讀對答案：你猜${r.guess > 0 ? "漲" : "跌"}，${VOL_H} 根後${r.m24 >= 0 ? "漲" : "跌"}了 ${Math.abs(r.m24)} 個 ATR → ${Math.sign(r.m24) === r.guess ? "✅ 對" : "❌ 錯"}`);
+    } else if (!final) left.push(r);
+  }
+  volPend = left; volSave(); renderVolStats();
+}
+function renderVolStats() {
+  const A = volRecs.filter(r => r.guess), n = A.length;
+  if (!volRecs.length) { $("volStats").textContent = "還沒有紀錄。練習時出現大量，左下角會問你「接下來 24 根會漲還是會跌」。"; return; }
+  const pct = (a, f) => a.length ? Math.round(a.filter(f).length / a.length * 100) + "%" : "-";
+  const right = r => Math.sign(r.m24) === r.guess;
+  const edge = n ? (A.reduce((a, r) => a + r.guess * r.m24, 0) / n).toFixed(2) : "-";
+  const follow = A.filter(r => r.guess === r.dir), fade = A.filter(r => r.guess === -r.dir);
+  const all = volRecs;
+  $("volStats").innerHTML = `<table><tbody>
+    <tr><td>有猜漲跌的</td><td><b>${n}</b> 次</td></tr>
+    <tr><td>你猜對</td><td><b>${pct(A, right)}</b></td></tr>
+    <tr><td>平均每次（猜的方向，ATR）</td><td><b class="${+edge >= 0 ? "pos" : "neg"}">${edge}</b></td></tr>
+    <tr><td>你猜「順著大量K」</td><td>${follow.length} 次，對 ${pct(follow, right)}</td></tr>
+    <tr><td>你猜「反著大量K」</td><td>${fade.length} 次，對 ${pct(fade, right)}</td></tr>
+    <tr><td>對照：程式一律順著大量K</td><td>${pct(all.filter(r => r.m24), r => Math.sign(r.m24) === r.dir)}（${all.length} 次）</td></tr>
+    <tr><td>看不出來</td><td>${all.length - n} 次</td></tr>
+    <tr><td>還在等答案</td><td>${volPend.length} 次</td></tr>
+  </tbody></table>
+  <div class="keys" style="margin-top:4px">回測參考：1 小時「好幾次大量」之後 24 根上漲機率約 50%（等於丟銅板）。你的猜對率要明顯超過 55%、而且累積 30～50 次以上，才算真的讀得懂量。</div>`;
+}
+function volSave() { try { localStorage.setItem("kTrainerVol", JSON.stringify(volRecs)); } catch (e) {} }
+try { volRecs = JSON.parse(localStorage.getItem("kTrainerVol") || "[]"); } catch (e) { volRecs = []; }
+$("btnVolReset").onclick = () => { volRecs = []; volPend = []; volSave(); renderVolStats(); msg("大量紀錄清除了"); };
+$("showBigVol").onchange = () => { drawnCur = -1; mkKey = ""; bars.length && draw(false); };
+$("askVol").onchange = () => { if (!$("askVol").checked) volAskHide(); };
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT" || volAsking == null) return;
+  if (e.key === "1") volAnswer(1); else if (e.key === "2") volAnswer(-1); else if (e.key === "3") volAnswer(0);
+});
+
 makeChart();
 restore();
+renderVolStats();
 </script>
 <div id="summary"><div class="card" id="sumCard"></div></div>
 </body>
