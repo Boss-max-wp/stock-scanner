@@ -193,7 +193,7 @@ let mtf = [], bias = {}, sessEnd = 0, sessId = 0, sessStartT = 0, sessEndT = Inf
 const TW = 8 * 3600; // 顯示台灣時間
 let VIEW = null, VIS = []; // 練習中看別的週期
 let bars = [], cur = 0, startIdx = 0, sigs = [], timer = null, ATR = [], E20 = [], E50 = [], skipped = [];
-let LQ = [], LQmax = 1; // 爆倉熱力圖：每一群估計的爆倉單 {p 價格, a 金額USD, s 1=空單爆倉(在上面) -1=多單爆倉(在下面), b 出現在第幾根, d 被掃掉的那一根}
+let LQ = [], LQmax = 1, LQK = []; // LQK[i] = 到第 i 根為止，未平倉量減少造成的縮小倍數（累乘） // 爆倉熱力圖：每一群估計的爆倉單 {p 價格, a 金額USD, s 1=空單爆倉(在上面) -1=多單爆倉(在下面), b 出現在第幾根, d 被掃掉的那一根}
 let TR = [], TRH = {}, e50s = null; // 趨勢：TR[第幾根] = 1 多頭 / -1 空頭 / 0 盤整；TRH[大週期] = 同樣對到小週期的每一根
 let pos = null; // {dir, entry, stop, tp, qty, risk, time, note, fee}
 let trades = [], equity = 10000, peak = 10000, maxDD = 0;
@@ -517,7 +517,7 @@ function trendVerdict(i) {
 const LEV = [[10, 0.30], [25, 0.30], [50, 0.25], [100, 0.15]], MMR = 0.005;
 const OI_IV = { "15": "15min", "60": "1h", "240": "4h", "D": "1d" };
 async function loadLiq(sym, iv) {
-  LQ = []; LQmax = 1;
+  LQ = []; LQmax = 1; LQK = [];
   const ms = IV_MS[iv], t0 = bars[0].t, t1 = bars[bars.length - 1].t, jobs = [];
   for (let a = t0; a <= t1; a += 200 * ms) jobs.push(fetch(`https://api.bybit.com/v5/market/open-interest?category=linear&symbol=${sym}&intervalTime=${OI_IV[iv]}&startTime=${a}&endTime=${Math.min(a + 199 * ms, t1)}&limit=200`).then(r => r.json()).catch(() => null));
   const m = new Map();
@@ -525,12 +525,12 @@ async function loadLiq(sym, iv) {
   if (m.size < 50) return; // 抓不到就不顯示
   const oi = bars.map(b => m.has(b.t) ? m.get(b.t) : null);
   const n = bars.length, live = [], step = 0.002; // 價格每 0.2% 併成一格
-  let prev = null;
+  let prev = null, K = 1;
   for (let i = 0; i < n; i++) {
     const b = bars[i];
     // 先掃掉這根K碰到的
     for (let k = live.length - 1; k >= 0; k--) { const c = live[k]; if ((c.s < 0 && b.l <= c.p) || (c.s > 0 && b.h >= c.p)) { c.d = i; live.splice(k, 1); } }
-    const o = oi[i]; if (o == null) continue;
+    const o = oi[i]; if (o == null) { LQK[i] = K; continue; }
     if (prev != null) {
       const d = o - prev;
       if (d > 0) {
@@ -538,18 +538,20 @@ async function loadLiq(sym, iv) {
         for (const [L, w] of LEV) for (const s of [-1, 1]) {
           let p = s < 0 ? px * (1 - 1 / L + MMR) : px * (1 + 1 / L - MMR);
           p = Math.round(p / (px * step)) * px * step;
-          const c = { p, a: usd * w, s, b: i, d: Infinity }; LQ.push(c); live.push(c);
+          const c = { p, a: usd * w, s, b: i, d: Infinity }; LQ.push(c); live.push(c); // a ＝ 剛開倉時的金額
         }
-      } else if (d < 0 && prev > 0) { const f = o / prev; for (const c of live) c.a *= f; }
+      } else if (d < 0 && prev > 0) K *= o / prev; // 有人平倉：之後還活著的每一群按比例變小（不能直接改 a，不然會用到未來的資料）
     }
-    prev = o;
+    prev = o; LQK[i] = K;
   }
   const sorted = LQ.map(c => c.a).sort((x, y) => x - y); LQmax = sorted[Math.floor(sorted.length * 0.995)] || 1;
 }
+// 第 i 根收盤時，這群還剩多少（只用到第 i 根以前的資料）
+const liqAmt = (c, i) => c.a * (LQK[i] ?? 1) / (LQK[c.b] ?? 1);
 // 現在（第 i 根收盤後）還活著的爆倉區，依價格分格加總
 function liqProfile(i) {
   const map = new Map();
-  for (const c of LQ) { if (c.b > i || c.d <= i) continue; const key = c.s + ":" + c.p.toFixed(6); const o = map.get(key); if (o) o.a += c.a; else map.set(key, { p: c.p, s: c.s, a: c.a }); }
+  for (const c of LQ) { if (c.b > i || c.d <= i) continue; const key = c.s + ":" + c.p.toFixed(6); const v = liqAmt(c, i), o = map.get(key); if (o) o.a += v; else map.set(key, { p: c.p, s: c.s, a: v }); }
   return [...map.values()];
 }
 // 上方最近的「大」空單爆倉區、下方最近的「大」多單爆倉區（大 ＝ 至少是 ±10 ATR 內最大那格的一半）
@@ -752,7 +754,7 @@ function renderDraw() {
       if (c.b > cur || c.d <= lo || c.b > cur) continue;
       const end = Math.min(c.d, cur), x1 = X(c.b), x2 = end === cur ? (xr ?? paneW) : X(end), y = Y(c.p);
       if (x1 == null || x2 == null || y == null || y < -5 || y > h + 5) continue;
-      const v = Math.min(1, c.a / LQmax); if (v < 0.3) continue;
+      const v = Math.min(1, liqAmt(c, end) / LQmax); if (v < 0.3) continue;
       g.fillStyle = `rgba(250,204,21,${(0.05 + 0.3 * v * v).toFixed(3)})`;
       g.fillRect(x1, y - th / 2, Math.max(1, x2 - x1), th);
     }
