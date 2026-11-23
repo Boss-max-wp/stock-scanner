@@ -127,6 +127,7 @@
 
     <div class="box">
       <h3>顯示</h3>
+      <div class="row"><label><input type="checkbox" id="showLiq" checked> 顯示爆倉熱力圖（估計，黃色越亮＝越多人會在那裡爆倉）</label></div>
       <div class="row"><label><input type="checkbox" id="showTrend" checked> 顯示趨勢（EMA50 線＋右上角判斷）</label></div>
       <div class="row"><label><input type="checkbox" id="trendGuard" checked> 逆勢下單要按兩次確認</label></div>
       <div class="row"><label><input type="checkbox" id="ruleHint" checked> 新規則提示（保本／時間停損／移停損／加碼）</label></div>
@@ -177,6 +178,7 @@
       大量解讀：出現大量時按 1＝會漲、2＝會跌、3＝看不出來（也可以直接按下一根跳過）。<br>
       停損：圖上紫色虛線＝預計停損，可以直接上下拖；進場後的紫色實線也可以拖。<br>
       R＝這筆賺賠是停損金額的幾倍。紅漲綠跌（跟你的圖一樣）。<br>
+      爆倉熱力圖是「估計」：用 Bybit 未平倉量的增加，假設新倉位有 10／25／50／100 倍，算出爆倉價；價格碰到就消失。不是真的爆倉單。<br>
       資料來源：Bybit 永續合約真實行情。
     </div>
   </aside>
@@ -191,6 +193,7 @@ let mtf = [], bias = {}, sessEnd = 0, sessId = 0, sessStartT = 0, sessEndT = Inf
 const TW = 8 * 3600; // 顯示台灣時間
 let VIEW = null, VIS = []; // 練習中看別的週期
 let bars = [], cur = 0, startIdx = 0, sigs = [], timer = null, ATR = [], E20 = [], E50 = [], skipped = [];
+let LQ = [], LQmax = 1; // 爆倉熱力圖：每一群估計的爆倉單 {p 價格, a 金額USD, s 1=空單爆倉(在上面) -1=多單爆倉(在下面), b 出現在第幾根, d 被掃掉的那一根}
 let TR = [], TRH = {}, e50s = null; // 趨勢：TR[第幾根] = 1 多頭 / -1 空頭 / 0 盤整；TRH[大週期] = 同樣對到小週期的每一根
 let pos = null; // {dir, entry, stop, tp, qty, risk, time, note, fee}
 let trades = [], equity = 10000, peak = 10000, maxDD = 0;
@@ -303,7 +306,7 @@ async function load(atT, cont) { // atT：從這個時間點接著練（切換�
   calcVolX(); volPend = []; volAskHide();
   calcSignals();
   msg("載入大週期訊號和多空看板…");
-  await Promise.all([loadMTF(sym, iv), loadBias(sym, iv), loadStrats(sym, iv), loadTrend(sym, iv)]);
+  await Promise.all([loadMTF(sym, iv), loadBias(sym, iv), loadStrats(sym, iv), loadTrend(sym, iv), loadLiq(sym, iv)]);
   const L = +$("sessLen").value;
   if (!cont) { sessStartT = bars[startIdx].t + ms; sessUnit = iv; sessEndT = L ? sessStartT + L * ms : Infinity; sessId = Date.now(); }
   sessEnd = bars.length - 1;
@@ -508,6 +511,58 @@ function trendVerdict(i) {
   const all = hs.length && hs.every(v => v === base);
   return { dir: base, txt: (all ? "大小週期同方向：" : "") + (base > 0 ? "只做多，回檔找買點" : "只做空，反彈找賣點") };
 }
+// ── 爆倉熱力圖（估計）──
+// 未平倉量（OI）增加 ＝ 有新的多單和空單開倉。假設新倉位的槓桿分布，算出爆倉價。
+// 之後價格碰到那個價位 ＝ 那群人被掃掉（爆倉），熱力圖上那條線就結束。OI 減少時，還活著的每一群按比例變小（有人平倉）。
+const LEV = [[10, 0.30], [25, 0.30], [50, 0.25], [100, 0.15]], MMR = 0.005;
+const OI_IV = { "15": "15min", "60": "1h", "240": "4h", "D": "1d" };
+async function loadLiq(sym, iv) {
+  LQ = []; LQmax = 1;
+  const ms = IV_MS[iv], t0 = bars[0].t, t1 = bars[bars.length - 1].t, jobs = [];
+  for (let a = t0; a <= t1; a += 200 * ms) jobs.push(fetch(`https://api.bybit.com/v5/market/open-interest?category=linear&symbol=${sym}&intervalTime=${OI_IV[iv]}&startTime=${a}&endTime=${Math.min(a + 199 * ms, t1)}&limit=200`).then(r => r.json()).catch(() => null));
+  const m = new Map();
+  for (const j of await Promise.all(jobs)) for (const x of (j && j.result && j.result.list) || []) m.set(+x.timestamp, +x.openInterest);
+  if (m.size < 50) return; // 抓不到就不顯示
+  const oi = bars.map(b => m.has(b.t) ? m.get(b.t) : null);
+  const n = bars.length, live = [], step = 0.002; // 價格每 0.2% 併成一格
+  let prev = null;
+  for (let i = 0; i < n; i++) {
+    const b = bars[i];
+    // 先掃掉這根K碰到的
+    for (let k = live.length - 1; k >= 0; k--) { const c = live[k]; if ((c.s < 0 && b.l <= c.p) || (c.s > 0 && b.h >= c.p)) { c.d = i; live.splice(k, 1); } }
+    const o = oi[i]; if (o == null) continue;
+    if (prev != null) {
+      const d = o - prev;
+      if (d > 0) {
+        const px = (b.h + b.l + b.c) / 3, usd = d * px;
+        for (const [L, w] of LEV) for (const s of [-1, 1]) {
+          let p = s < 0 ? px * (1 - 1 / L + MMR) : px * (1 + 1 / L - MMR);
+          p = Math.round(p / (px * step)) * px * step;
+          const c = { p, a: usd * w, s, b: i, d: Infinity }; LQ.push(c); live.push(c);
+        }
+      } else if (d < 0 && prev > 0) { const f = o / prev; for (const c of live) c.a *= f; }
+    }
+    prev = o;
+  }
+  const sorted = LQ.map(c => c.a).sort((x, y) => x - y); LQmax = sorted[Math.floor(sorted.length * 0.97)] || 1;
+}
+// 現在（第 i 根收盤後）還活著的爆倉區，依價格分格加總
+function liqProfile(i) {
+  const map = new Map();
+  for (const c of LQ) { if (c.b > i || c.d <= i) continue; const key = c.s + ":" + c.p.toFixed(6); const o = map.get(key); if (o) o.a += c.a; else map.set(key, { p: c.p, s: c.s, a: c.a }); }
+  return [...map.values()];
+}
+// 上方最近的「大」空單爆倉區、下方最近的「大」多單爆倉區（大 ＝ 至少是 ±10 ATR 內最大那格的一半）
+function liqNear(i) {
+  if (!LQ.length) return null;
+  const px = bars[i].c, a = ATR[i] || 1, P = liqProfile(i).filter(x => Math.abs(x.p - px) <= 10 * a);
+  if (!P.length) return null;
+  const mx = Math.max(...P.map(x => x.a)), big = P.filter(x => x.a >= mx * 0.5);
+  const up = big.filter(x => x.p > px).sort((x, y) => x.p - y.p)[0], dn = big.filter(x => x.p < px).sort((x, y) => y.p - x.p)[0];
+  const tot = s => P.filter(x => x.s === s).reduce((t, x) => t + x.a, 0);
+  return { up, dn, a, px, upTot: tot(1), dnTot: tot(-1) };
+}
+const usdTxt = v => v >= 1e9 ? (v / 1e9).toFixed(1) + "B" : v >= 1e6 ? (v / 1e6).toFixed(1) + "M" : v >= 1e3 ? (v / 1e3).toFixed(0) + "K" : v.toFixed(0);
 function biasOf(a, sg) {
   const out = []; let bc = 0, sc = 0, since = 0, lo = null, loBar = 0, hi = null, hiBar = 0;
   for (let i = 0; i < a.length; i++) {
@@ -563,6 +618,14 @@ function renderBoard() {
     tr = `<tr><td colspan="4" style="color:#9aa0ab">趨勢（EMA50）</td></tr>` + one(IV_NAME[iv], TR[cur]) + TREND_H[iv].filter(tf => TRH[tf]).map(tf => one(IV_NAME[tf], TRH[tf][cur])).join("")
       + `<tr><td colspan="4"><span class="tag" style="background:${vd.dir > 0 ? "#e04848" : vd.dir < 0 ? "#26a69a" : "#4b5563"}">👉 ${vd.txt}</span></td></tr>`;
   }
+  if ($("showLiq").checked && LQ.length) {
+    const q = liqNear(cur);
+    if (q) {
+      const f = x => x ? `${x.p.toFixed(2)}（${x.s > 0 ? "+" : "−"}${(Math.abs(x.p - q.px) / q.a).toFixed(1)} ATR，約 $${usdTxt(x.a)}）` : "附近沒有";
+      tr += `<tr><td colspan="4" style="color:#9aa0ab">爆倉區（估計）</td></tr><tr><td>上方</td><td colspan="3"><span style="color:#ff5a5a">空單爆倉</span> ${f(q.up)}</td></tr><tr><td>下方</td><td colspan="3"><span style="color:#2fe0c8">多單爆倉</span> ${f(q.dn)}</td></tr>`
+        + `<tr><td colspan="4" style="color:#9aa0ab">±10 ATR 內：上方空單 $${usdTxt(q.upTot)}｜下方多單 $${usdTxt(q.dnTot)}</td></tr>`;
+    }
+  } else if ($("showLiq").checked && bars.length) tr += `<tr><td colspan="4" style="color:#9aa0ab">爆倉熱力圖：這段抓不到未平倉量資料</td></tr>`;
   if (bigOn()) { const c = volCount(cur); tr += `<tr><td colspan="4" style="color:#9aa0ab">近 ${VOL_W} 根大量：<span style="color:#ff5a5a">紅 ${c.u}</span>｜<span style="color:#2fe0c8">黑 ${c.d}</span></td></tr>`; }
   $("board").innerHTML = (rows || tr) ? `<table>${tr}${rows ? `<tr><td colspan="4" style="color:#9aa0ab">多空看板（這段盤整的訊號數）</td></tr>${rows}` : ""}</table>` : "";
 }
@@ -635,6 +698,7 @@ function feat(i, dir, stop) {
     pos20: +((b.c - lo20) / Math.max(hi20 - lo20, 1e-9)).toFixed(2),
     move5: +(((b.c - bars[i - 5].c) * dir) / a).toFixed(2),
   };
+  if (LQ.length) { const q = liqNear(i); if (q) { f.liqUp = q.up ? +((q.up.p - b.c) / a).toFixed(2) : null; f.liqDn = q.dn ? +((b.c - q.dn.p) / a).toFixed(2) : null; f.liqBal = +(q.upTot / Math.max(q.upTot + q.dnTot, 1)).toFixed(2); } }
   if (drawings.length) {
     let best = Infinity;
     for (const d of drawings) for (const p of lineAt(d, i)) best = Math.min(best, Math.abs(b.c - p) / a, Math.abs((dir > 0 ? b.l : b.h) - p) / a);
@@ -680,6 +744,24 @@ function renderDraw() {
   const ts = chart.timeScale(), paneW = ts.width();
   const X = l => ts.logicalToCoordinate(b2v(l)), Y = p => cs.priceToCoordinate(p);
   g.save(); g.beginPath(); g.rect(0, 0, paneW, h); g.clip();
+  if ($("showLiq").checked && LQ.length) {
+    // 熱力圖：每群爆倉單從出現的那根畫到被掃掉（或現在），越多越亮
+    const r = ts.getVisibleLogicalRange(), lo = r ? Math.floor(v2b(r.from)) - 1 : 0, xr = X(cur);
+    const th = Math.max(1.5, Math.abs((Y(bars[cur].c * 1.001) ?? 0) - (Y(bars[cur].c) ?? 0)) * 2);
+    for (const c of LQ) {
+      if (c.b > cur || c.d <= lo || c.b > cur) continue;
+      const end = Math.min(c.d, cur), x1 = X(c.b), x2 = end === cur ? (xr ?? paneW) : X(end), y = Y(c.p);
+      if (x1 == null || x2 == null || y == null || y < -5 || y > h + 5) continue;
+      const v = Math.min(1, c.a / LQmax); if (v < 0.04) continue;
+      g.fillStyle = `rgba(250,204,21,${(0.08 + 0.55 * Math.sqrt(v)).toFixed(3)})`;
+      g.fillRect(x1, y - th / 2, Math.max(1, x2 - x1), th);
+    }
+    // 右邊：現在還活著的爆倉量（橫條越長越多）
+    const P = liqProfile(cur); if (P.length) {
+      const mx = Math.max(...P.map(x => x.a)), base = (xr ?? paneW - 80) + 12, W2 = Math.max(30, Math.min(120, paneW - base - 4));
+      for (const x of P) { const y = Y(x.p); if (y == null || y < 0 || y > h) continue; g.fillStyle = x.s > 0 ? "rgba(255,90,90,.75)" : "rgba(47,224,200,.75)"; g.fillRect(base, y - 1.5, Math.max(2, W2 * x.a / mx), 3); }
+    }
+  }
   // 還沒進場時：預計停損線（可以拖）
   const all = drawings.map((d, k) => ({ ...d, sel: k === sel }));
   if (pending && hoverPt) all.push({ type: tool, a: pending, b: hoverPt, ghost: true });
@@ -1303,6 +1385,7 @@ $("btnPendSell").onclick = () => placePend(-1);
 $("btnPendCancel").onclick = () => { pend = null; msg("掛單取消了"); draw(false); };
 $("btnCopy").onclick = copyLog;
 $("showTrend").onchange = () => { drawnCur = -1; draw(false); };
+$("showLiq").onchange = () => { drawDirty = true; renderBoard(); };
 $("propMode").onchange = () => { if ($("propMode").checked) { if (pos) closePos(bars[cur].c, "開始考試平倉"); trades = []; skipped = []; propStart(1); } else { prop = null; propShow(); msg("已關閉考試模式"); } };
 $("propType").onchange = () => { if ($("propMode").checked) { trades = []; propStart(1); } };
 $("btnReset").onclick = () => { if ($("propMode").checked) { trades = []; skipped = []; propStart(1); return; } pos = null; stopTouched = false; trades = []; skipped = []; equity = +$("cap").value || 10000; peak = equity; maxDD = 0; save(); renderStats(); draw(false); msg("紀錄清除了，本金 " + equity); };
