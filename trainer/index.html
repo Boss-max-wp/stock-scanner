@@ -12,6 +12,7 @@
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--txt); font-family: "Microsoft JhengHei", "PingFang TC", system-ui, sans-serif; font-size:14px; }
   header { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:8px 12px; background:var(--panel); border-bottom:1px solid var(--line); }
+  header .hl { color:var(--dim); font-size:12px; margin-right:-4px; }
   header h1 { font-size:16px; margin:0 12px 0 0; }
   select, input, button { background:#262a35; color:var(--txt); border:1px solid var(--line); border-radius:6px; padding:6px 8px; font-size:14px; font-family:inherit; }
   input[type=number] { width:90px; }
@@ -59,10 +60,10 @@
 <body>
 <header>
   <h1>K線練習場</h1>
-  <select id="sym"><option>ETHUSDT</option><option>BTCUSDT</option><option>SOLUSDT</option><option>XRPUSDT</option><option>DOGEUSDT</option><option>BNBUSDT</option><option>ADAUSDT</option><option>AVAXUSDT</option><option>LINKUSDT</option><option>LTCUSDT</option><option>DOTUSDT</option><option>BCHUSDT</option><option>NEARUSDT</option><option>ZECUSDT</option><option>AAVEUSDT</option><option>UNIUSDT</option><option>XMRUSDT</option><option>ICPUSDT</option><option>XLMUSDT</option><option>HBARUSDT</option><option>CRVUSDT</option><option>FILUSDT</option><option>TRXUSDT</option><option>ATOMUSDT</option><option>ETCUSDT</option></select>
-  <select id="tf"><option value="15">15 分</option><option value="60" selected>1 小時</option><option value="240">4 小時</option><option value="D">日線</option></select>
-  <select id="viewTf" title="練習中切換看別的週期：只看得到「到目前為止」的K，不會偷看未來；下單、下一根還是用練習的週期"><option value="">看圖：同練習週期</option><option value="15">看 15 分</option><option value="60">看 1 小時</option><option value="240">看 4 小時</option><option value="D">看 日線</option></select>
-  <input type="date" id="date" title="從哪一天開始（留空＝隨機）">
+  <span class="hl">幣</span><select id="sym"><option>ETHUSDT</option><option>BTCUSDT</option><option>SOLUSDT</option><option>XRPUSDT</option><option>DOGEUSDT</option><option>BNBUSDT</option><option>ADAUSDT</option><option>AVAXUSDT</option><option>LINKUSDT</option><option>LTCUSDT</option><option>DOTUSDT</option><option>BCHUSDT</option><option>NEARUSDT</option><option>ZECUSDT</option><option>AAVEUSDT</option><option>UNIUSDT</option><option>XMRUSDT</option><option>ICPUSDT</option><option>XLMUSDT</option><option>HBARUSDT</option><option>CRVUSDT</option><option>FILUSDT</option><option>TRXUSDT</option><option>ATOMUSDT</option><option>ETCUSDT</option></select>
+  <span class="hl">練習週期</span><select id="tf"><option value="15">15 分</option><option value="60" selected>1 小時</option><option value="240">4 小時</option><option value="D">日線</option></select>
+  <span class="hl">偷看別的週期</span><select id="viewTf" title="練習中切換看別的週期：只看得到「到目前為止」的K，不會偷看未來；下單、下一根還是用練習的週期"><option value="">不用（看練習週期）</option><option value="15">偷看 15 分</option><option value="60">偷看 1 小時</option><option value="240">偷看 4 小時</option><option value="D">偷看 日線</option></select>
+  <span class="hl">開始日期（空白＝隨機）</span><input type="date" id="date" title="從哪一天開始（留空＝隨機）">
   <button class="main" id="btnLoad">開始練習</button>
   <button id="btnRand">隨機日期</button>
   <select id="sessLen" title="這次練習要練幾根K">
