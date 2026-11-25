@@ -220,6 +220,8 @@ function makeChart() {
   vs = chart.addHistogramSeries({ priceScaleId: "", priceFormat: { type: "volume" } });
   vs.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
   e50s = chart.addLineSeries({ color: "#f59e0b", lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, title: "EMA50" });
+  // 價格刻度用滾輪縮放時，用固定的價格範圍（fixedRange）；沒有就照原本自動算
+  for (const se of [cs, e50s]) se.applyOptions({ autoscaleInfoProvider: orig => fixedRange ? { priceRange: { minValue: fixedRange.min, maxValue: fixedRange.max } } : orig() });
   applyDateMode();
   chart.subscribeClick(onChartClick);
   chart.subscribeCrosshairMove(p => {
@@ -298,7 +300,7 @@ async function load(atT, cont) { // atT：從這個時間點接著練（切換�
   if (typeof atT === "number") { startIdx = -1; for (let i = 0; i < bars.length; i++) if (bars[i].t + ms <= atT) startIdx = i; }
   else startIdx = bars.findIndex(b => b.t >= t0);
   if (startIdx < 50) startIdx = 300;
-  cur = startIdx; drawings = []; pending = null; pathPts = []; VIEW = null; $("viewTf").value = "";
+  cur = startIdx; drawings = []; pending = null; pathPts = []; fixedRange = null; cs.priceScale().applyOptions({ autoScale: true }); VIEW = null; $("viewTf").value = "";
   if (cont && oldTf) {
     const om = IV_MS[oldTf], mapL = l => (oldT0 + (l + 0.5) * om - bars[0].t) / ms - 0.5;
     drawings = oldDraw.map(d => ({ ...d, a: d.a && { ...d.a, l: mapL(d.a.l) }, b: d.b && { ...d.b, l: mapL(d.b.l) } }));
@@ -902,15 +904,15 @@ function hitTest(x, y) {
 }
 function setChartLock(lock) { chart.applyOptions({ handleScroll: !lock, handleScale: lock ? false : { axisPressedMouseMove: { time: true, price: true }, mouseWheel: true, pinch: true } }); }
 // ── 自由拖動：像 TradingView 一樣可以上下左右拖，上下拖就關掉自動縮放 ──
-let freeDrag = null;
-function isAuto() { return cs.priceScale().options().autoScale; }
-function setAutoScale(on) { cs.priceScale().applyOptions({ autoScale: on }); $("autoBtn").style.display = on ? "none" : "block"; drawDirty = true; if (on) msg("已恢復自動縮放"); }
+let freeDrag = null, fixedRange = null;
+function isAuto() { return cs.priceScale().options().autoScale && !fixedRange; }
+function setAutoScale(on) { if (on) fixedRange = null; cs.priceScale().applyOptions({ autoScale: on }); $("autoBtn").style.display = on ? "none" : "block"; drawDirty = true; if (on) msg("已恢復自動縮放"); }
 function initInteract() {
   const el = $("chart");
   el.addEventListener("pointerdown", e => {
     if (tool) return; // 畫線中交給點擊處理
     const { x, y } = relXY(e), h = hitTest(x, y);
-    if (!h) { sel = -1; freeDrag = { y: e.clientY, wasAuto: isAuto() }; if (freeDrag.wasAuto) cs.priceScale().applyOptions({ autoScale: false }); return; }
+    if (!h) { sel = -1; freeDrag = { y: e.clientY, wasAuto: isAuto() }; if (cs.priceScale().options().autoScale) cs.priceScale().applyOptions({ autoScale: false }); fixedRange = null; return; }
     if (h.k != null) sel = h.k;
     const L = v2b(chart.timeScale().coordinateToLogical(x)), P = cs.coordinateToPrice(y);
     drag = { ...h, L0: L, P0: P, orig: h.k != null ? JSON.parse(JSON.stringify(drawings[h.k])) : null, stop0: pos ? pos.stop : null };
@@ -960,6 +962,21 @@ function initInteract() {
     drag = null; setChartLock(false);
   };
   el.addEventListener("dblclick", () => { if (tool === "path") finishPath(); });
+  // 滑鼠在右邊價格刻度上滾滾輪 → 上下放大縮小（跟 TradingView 一樣）
+  el.addEventListener("wheel", e => {
+    if (!chart || !bars.length) return;
+    const { x, y } = relXY(e), paneW = chart.timeScale().width(), paneH = el.clientHeight - chart.timeScale().height();
+    if (x <= paneW || y < 0 || y > paneH) return; // 不在價格刻度上 → 照原本（左右縮放）
+    e.preventDefault(); e.stopPropagation();
+    const top = cs.coordinateToPrice(0), bot = cs.coordinateToPrice(paneH), mid = cs.coordinateToPrice(y);
+    if (top == null || bot == null || mid == null || top <= bot) return;
+    const k = Math.pow(1.0015, e.deltaY); // 往下滾＝縮小（看比較多），往上滾＝放大
+    const T = mid + (top - mid) * k, B = mid - (mid - bot) * k;
+    const m = cs.priceScale().options().scaleMargins || { top: 0.2, bottom: 0.1 }, span = T - B;
+    fixedRange = { min: B + span * m.bottom, max: T - span * m.top };
+    cs.priceScale().applyOptions({ autoScale: true });
+    $("autoBtn").style.display = "block"; drawDirty = true;
+  }, { capture: true, passive: false });
   el.addEventListener("pointerup", end, true); el.addEventListener("pointercancel", end, true);
 }
 
