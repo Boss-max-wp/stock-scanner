@@ -41,7 +41,12 @@
   #legend b { font-weight:normal; color:var(--dim); margin:0 2px 0 8px; }
   #autoBtn { position:absolute; right:80px; bottom:72px; z-index:6; display:none; padding:4px 10px; border-radius:14px; background:#2a2e39; }
   #goLast { position:absolute; right:80px; bottom:40px; z-index:6; display:none; padding:4px 10px; border-radius:14px; background:#2a2e39; }
-  #board { position:absolute; right:70px; top:8px; z-index:5; background:rgba(30,34,45,.92); border:1px solid #3a3f4b; border-radius:6px; font-size:12px; pointer-events:none; }
+  #boardBox { position:absolute; right:70px; top:8px; z-index:5; pointer-events:none; }
+  #boardBar { pointer-events:auto; display:flex; gap:4px; align-items:center; justify-content:flex-end; margin-bottom:2px; opacity:.5; font-size:11px; color:#9aa0ab; }
+  #boardBar:hover { opacity:1; }
+  #boardBar button { padding:0 7px; font-size:12px; line-height:18px; border-radius:4px; }
+  #boardBar .grip { cursor:move; padding:1px 6px; user-select:none; background:#262a35; border:1px solid var(--line); border-radius:4px; }
+  #board { background:rgba(30,34,45,.92); border:1px solid #3a3f4b; border-radius:6px; font-size:12px; pointer-events:none; }
   #board table { width:auto; } #board td { border:none; padding:3px 6px; text-align:left; white-space:nowrap; }
   #board .tag { color:#fff; border-radius:4px; padding:1px 6px; }
   #prog { color:var(--dim); font-size:13px; }
@@ -88,7 +93,7 @@
 </header>
 
 <div class="wrap">
-  <div id="chart"><canvas id="draw"></canvas><div id="legend"></div><div id="board"></div><button id="autoBtn" title="恢復自動縮放：價格範圍自動貼著K棒（快捷鍵 Alt+A，或在右邊價格軸點兩下）">⤢ 自動縮放</button><button id="goLast" title="回到最新一根（快捷鍵 Alt+R）">≫ 最新</button><div id="msg">選好幣和週期，按「開始練習」</div><div id="volAsk"></div></div>
+  <div id="chart"><canvas id="draw"></canvas><div id="legend"></div><div id="boardBox"><div id="boardBar"><span class="grip" id="bzGrip" title="按住拖到別的位置；點兩下回到原本的位置和大小">⠿ 看板</span><button data-bz="-1" title="縮小">−</button><span id="bzPct">100%</span><button data-bz="1" title="放大">＋</button><button id="bzFold">收起</button></div><div id="board"></div></div><button id="autoBtn" title="恢復自動縮放：價格範圍自動貼著K棒（快捷鍵 Alt+A，或在右邊價格軸點兩下）">⤢ 自動縮放</button><button id="goLast" title="回到最新一根（快捷鍵 Alt+R）">≫ 最新</button><div id="msg">選好幣和週期，按「開始練習」</div><div id="volAsk"></div></div>
   <aside>
     <div class="box">
       <h3>帳戶</h3>
@@ -910,6 +915,7 @@ function setAutoScale(on) { if (on) fixedRange = null; cs.priceScale().applyOpti
 function initInteract() {
   const el = $("chart");
   el.addEventListener("pointerdown", e => {
+    if (e.target.closest && e.target.closest("#boardBar, #autoBtn, #goLast")) return; // 按鈕自己處理
     if (tool) return; // 畫線中交給點擊處理
     const { x, y } = relXY(e), h = hitTest(x, y);
     if (!h) { sel = -1; freeDrag = { y: e.clientY, wasAuto: isAuto() }; if (cs.priceScale().options().autoScale) cs.priceScale().applyOptions({ autoScale: false }); fixedRange = null; return; }
@@ -1619,6 +1625,25 @@ document.addEventListener("keydown", e => {
   if (e.key === "1") volAnswer(1); else if (e.key === "2") volAnswer(-1); else if (e.key === "3") volAnswer(0);
 });
 
+// ── 右上角看板：自己調大小、收起、拖到別的位置（會記住）──
+const BZ = (() => { try { return JSON.parse(localStorage.getItem("kBoard") || "{}"); } catch (e) { return {}; } })();
+function boardApply() {
+  const z = BZ.z || 1, bx = $("boardBox");
+  $("board").style.zoom = z; $("board").style.display = BZ.fold ? "none" : "";
+  $("bzFold").textContent = BZ.fold ? "展開" : "收起"; $("bzPct").textContent = Math.round(z * 100) + "%";
+  if (BZ.x != null) { bx.style.left = BZ.x + "px"; bx.style.top = BZ.y + "px"; bx.style.right = "auto"; } else { bx.style.left = ""; bx.style.top = ""; bx.style.right = ""; }
+  try { localStorage.setItem("kBoard", JSON.stringify(BZ)); } catch (e) {}
+}
+document.querySelectorAll("#boardBar [data-bz]").forEach(b => b.onclick = () => { BZ.z = Math.max(0.5, Math.min(2, Math.round(((BZ.z || 1) + 0.1 * b.dataset.bz) * 10) / 10)); boardApply(); });
+$("bzFold").onclick = () => { BZ.fold = !BZ.fold; boardApply(); };
+(() => {
+  const g = $("bzGrip"); let st = null;
+  g.addEventListener("pointerdown", e => { const r = $("boardBox").getBoundingClientRect(), c = $("chart").getBoundingClientRect(); st = { dx: e.clientX - r.left, dy: e.clientY - r.top, c }; g.setPointerCapture(e.pointerId); e.preventDefault(); });
+  g.addEventListener("pointermove", e => { if (!st) return; BZ.x = Math.max(0, Math.min(st.c.width - 60, e.clientX - st.c.left - st.dx)); BZ.y = Math.max(0, Math.min(st.c.height - 30, e.clientY - st.c.top - st.dy)); boardApply(); });
+  const up = () => { st = null; }; g.addEventListener("pointerup", up); g.addEventListener("pointercancel", up);
+  g.addEventListener("dblclick", e => { e.stopPropagation(); delete BZ.x; delete BZ.y; BZ.z = 1; BZ.fold = false; boardApply(); });
+})();
+boardApply();
 makeChart();
 restore();
 renderVolStats();
