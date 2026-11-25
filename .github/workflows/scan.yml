@@ -52,5 +52,7 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: public
+      - name: 等上傳登記好再發布（避免找不到檔案）
+        run: sleep 15
       - id: deploy
         uses: actions/deploy-pages@v4
