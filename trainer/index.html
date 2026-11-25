@@ -39,6 +39,7 @@
   #legend { position:absolute; left:12px; top:8px; z-index:5; font-size:13px; pointer-events:none; white-space:nowrap; text-shadow:0 0 3px #000; }
   #legend .sym { color:#fff; font-weight:bold; margin-right:8px; }
   #legend b { font-weight:normal; color:var(--dim); margin:0 2px 0 8px; }
+  #autoBtn { position:absolute; right:80px; bottom:72px; z-index:6; display:none; padding:4px 10px; border-radius:14px; background:#2a2e39; }
   #goLast { position:absolute; right:80px; bottom:40px; z-index:6; display:none; padding:4px 10px; border-radius:14px; background:#2a2e39; }
   #board { position:absolute; right:70px; top:8px; z-index:5; background:rgba(30,34,45,.92); border:1px solid #3a3f4b; border-radius:6px; font-size:12px; pointer-events:none; }
   #board table { width:auto; } #board td { border:none; padding:3px 6px; text-align:left; white-space:nowrap; }
@@ -87,7 +88,7 @@
 </header>
 
 <div class="wrap">
-  <div id="chart"><canvas id="draw"></canvas><div id="legend"></div><div id="board"></div><button id="goLast" title="回到最新一根（快捷鍵 Alt+R）">≫ 最新</button><div id="msg">選好幣和週期，按「開始練習」</div><div id="volAsk"></div></div>
+  <div id="chart"><canvas id="draw"></canvas><div id="legend"></div><div id="board"></div><button id="autoBtn" title="恢復自動縮放：價格範圍自動貼著K棒（快捷鍵 Alt+A，或在右邊價格軸點兩下）">⤢ 自動縮放</button><button id="goLast" title="回到最新一根（快捷鍵 Alt+R）">≫ 最新</button><div id="msg">選好幣和週期，按「開始練習」</div><div id="volAsk"></div></div>
   <aside>
     <div class="box">
       <h3>帳戶</h3>
@@ -229,6 +230,7 @@ function makeChart() {
   });
   chart.timeScale().subscribeVisibleLogicalRangeChange(r => { drawDirty = true; $("goLast").style.display = r && bars.length && r.to < (viewOn() ? VIS.length - 1 : cur) - 3 ? "block" : "none"; });
   $("goLast").onclick = () => chart.timeScale().scrollToRealTime();
+  $("autoBtn").onclick = () => setAutoScale(true);
   requestAnimationFrame(drawLoop);
   initInteract();
 }
@@ -848,6 +850,7 @@ function renderDraw() {
 }
 let drawDirty = true, lastPriceKey = "";
 function drawLoop() {
+  if (chart && !freeDrag) { const b = $("autoBtn"), want = isAuto() ? "none" : "block"; if (b.style.display !== want) b.style.display = want; } // 拖價格軸、雙擊價格軸也會跟著更新按鈕
   // 只有畫面有變（拖動、縮放、新K、畫線）才重畫，比較順
   if (chart && bars.length) { const y = cs.priceToCoordinate(bars[cur].c), k = y + ":" + $("chart").clientWidth + ":" + $("chart").clientHeight; if (k !== lastPriceKey) { lastPriceKey = k; drawDirty = true; } }
   if (drawDirty || drag) { drawDirty = false; renderDraw(); }
@@ -897,13 +900,17 @@ function hitTest(x, y) {
   }
   return null;
 }
-function setChartLock(lock) { chart.applyOptions({ handleScroll: !lock, handleScale: !lock }); }
+function setChartLock(lock) { chart.applyOptions({ handleScroll: !lock, handleScale: lock ? false : { axisPressedMouseMove: { time: true, price: true }, mouseWheel: true, pinch: true } }); }
+// ── 自由拖動：像 TradingView 一樣可以上下左右拖，上下拖就關掉自動縮放 ──
+let freeDrag = null;
+function isAuto() { return cs.priceScale().options().autoScale; }
+function setAutoScale(on) { cs.priceScale().applyOptions({ autoScale: on }); $("autoBtn").style.display = on ? "none" : "block"; drawDirty = true; if (on) msg("已恢復自動縮放"); }
 function initInteract() {
   const el = $("chart");
   el.addEventListener("pointerdown", e => {
     if (tool) return; // 畫線中交給點擊處理
     const { x, y } = relXY(e), h = hitTest(x, y);
-    if (!h) { sel = -1; return; }
+    if (!h) { sel = -1; freeDrag = { y: e.clientY, wasAuto: isAuto() }; if (freeDrag.wasAuto) cs.priceScale().applyOptions({ autoScale: false }); return; }
     if (h.k != null) sel = h.k;
     const L = v2b(chart.timeScale().coordinateToLogical(x)), P = cs.coordinateToPrice(y);
     drag = { ...h, L0: L, P0: P, orig: h.k != null ? JSON.parse(JSON.stringify(drawings[h.k])) : null, stop0: pos ? pos.stop : null };
@@ -911,6 +918,7 @@ function initInteract() {
   }, true);
   el.addEventListener("pointermove", e => {
     const { x, y } = relXY(e);
+    if (freeDrag) drawDirty = true;
     if (!drag) { if (!tool) { const h = hitTest(x, y); el.style.cursor = !h ? "" : (h.kind === "stop" || h.kind === "plan" || h.kind === "sl" || h.kind === "tp") ? "ns-resize" : h.kind === "w" ? "ew-resize" : h.kind === "move" ? "move" : "pointer"; } return; }
     const L0 = chart.timeScale().coordinateToLogical(x), P = cs.coordinateToPrice(y); if (L0 == null || P == null) return; const L = v2b(L0);
     if (drag.kind === "plan") { $("stop").value = P.toFixed(2); stopTouched = true; return; }
@@ -943,6 +951,10 @@ function initInteract() {
     else { if (o.a) d.a = { l: o.a.l + dL, p: o.a.p + dP }; if (o.b) d.b = { l: o.b.l + dL, p: o.b.p + dP }; if (o.t != null) d.t = o.t + dP; if (o.pts) d.pts = o.pts.map(q => ({ l: q.l + dL, p: q.p + dP })); }
   }, true);
   const end = e => {
+    if (freeDrag) { // 幾乎沒有上下拖 → 保持自動縮放；有上下拖 → 關掉自動縮放，顯示「自動縮放」按鈕
+      if (freeDrag.wasAuto) setAutoScale(Math.abs(e.clientY - freeDrag.y) < 6);
+      freeDrag = null;
+    }
     if (!drag) return;
     if (drag.kind === "stop" && pos && pos.stop !== drag.stop0) { pos.moves.push({ k: cur - pos.inIdx, how: "拖曳", to: +pos.stop.toFixed(2), atr: +((pos.stop - drag.stop0) * pos.dir / (ATR[cur] || 1)).toFixed(2) }); msg("停損移到 " + pos.stop.toFixed(2)); draw(false); }
     drag = null; setChartLock(false);
@@ -1502,7 +1514,8 @@ document.addEventListener("keydown", e => {
   if (e.altKey && (e.key === "t" || e.key === "T")) { e.preventDefault(); setTool("trend"); return; }
   if (e.altKey && (e.key === "h" || e.key === "H")) { e.preventDefault(); setTool("hline"); return; }
   if (e.altKey && (e.key === "b" || e.key === "B")) { e.preventDefault(); setTool("box"); return; }
-  if (e.altKey && (e.key === "r" || e.key === "R")) { e.preventDefault(); chart.timeScale().setVisibleLogicalRange({ from: cur - 120, to: cur + 10 }); return; }
+  if (e.altKey && (e.key === "r" || e.key === "R")) { e.preventDefault(); setAutoScale(true); chart.timeScale().setVisibleLogicalRange({ from: cur - 120, to: cur + 10 }); return; }
+  if (e.altKey && (e.key === "a" || e.key === "A")) { e.preventDefault(); setAutoScale(true); return; }
   if (e.key === "ArrowRight" && e.shiftKey) { e.preventDefault(); for (let k = 0; k < 10; k++) next(); }
   else if (e.key === "ArrowRight") { e.preventDefault(); next(); }
   else if (e.key === "b" || e.key === "B") open(1);
