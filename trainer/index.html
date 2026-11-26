@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
-<!-- 版本 2026-11-26b：倉位工具可以放多個停利點（TP1～TP4，分批出場） -->
+<!-- 版本 2026-11-26c：右上角看板縮小；倉位工具可以放多個停利點（TP1～TP4，分批出場） -->
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -47,9 +47,9 @@
   #boardBar:hover { opacity:1; }
   #boardBar button { padding:0 7px; font-size:12px; line-height:18px; border-radius:4px; }
   #boardBar .grip { cursor:move; padding:1px 6px; user-select:none; background:#262a35; border:1px solid var(--line); border-radius:4px; }
-  #board { background:rgba(30,34,45,.92); border:1px solid #3a3f4b; border-radius:6px; font-size:12px; pointer-events:none; }
-  #board table { width:auto; } #board td { border:none; padding:3px 6px; text-align:left; white-space:nowrap; }
-  #board .tag { color:#fff; border-radius:4px; padding:1px 6px; }
+  #board { background:rgba(30,34,45,.92); border:1px solid #3a3f4b; border-radius:6px; font-size:10.5px; line-height:1.25; pointer-events:none; }
+  #board table { width:auto; } #board td { border:none; padding:1px 4px; text-align:left; white-space:nowrap; }
+  #board .tag { color:#fff; border-radius:3px; padding:0 4px; }
   #prog { color:var(--dim); font-size:13px; }
   #summary { position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:50; display:none; align-items:center; justify-content:center; }
   #summary .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px 22px; min-width:320px; line-height:1.9; }
@@ -1679,7 +1679,7 @@ function boardApply() {
   if (BZ.x != null) { bx.style.left = BZ.x + "px"; bx.style.top = BZ.y + "px"; bx.style.right = "auto"; } else { bx.style.left = ""; bx.style.top = ""; bx.style.right = ""; }
   try { localStorage.setItem("kBoard", JSON.stringify(BZ)); } catch (e) {}
 }
-document.querySelectorAll("#boardBar [data-bz]").forEach(b => b.onclick = () => { BZ.z = Math.max(0.5, Math.min(2, Math.round(((BZ.z || 1) + 0.1 * b.dataset.bz) * 10) / 10)); boardApply(); });
+document.querySelectorAll("#boardBar [data-bz]").forEach(b => b.onclick = () => { BZ.z = Math.max(0.4, Math.min(2, Math.round(((BZ.z || 1) + 0.1 * b.dataset.bz) * 10) / 10)); boardApply(); });
 $("bzFold").onclick = () => { BZ.fold = !BZ.fold; boardApply(); };
 (() => {
   const g = $("bzGrip"); let st = null;
