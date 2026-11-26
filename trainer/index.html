@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
-<!-- 版本 2026-11-26c：右上角看板縮小；倉位工具可以放多個停利點（TP1～TP4，分批出場） -->
+<!-- 版本 2026-11-26d：限價掛單（跌到低點買、漲到高點空）；停損填負數／0 會自動改正；右上角看板縮小；倉位工具可以放多個停利點（TP1～TP4，分批出場） -->
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -133,6 +133,8 @@
       </div>
       <div class="row"><button id="btnTrail">停損移到上一波低點</button></div>
       <div class="row"><button id="btnPendBuy" title="在這根K的最高點上方掛突破買單，3根內突破才成交">掛突破買單</button><button id="btnPendSell" title="在這根K的最低點下方掛突破賣單，3根內跌破才成交">掛突破賣單</button><button id="btnPendCancel">取消掛單</button></div>
+      <div class="row"><label>限價</label><input type="number" id="limPx" step="0.01" style="width:100px" placeholder="空白＝前低/前高"> <button id="btnLimBuy" title="價格跌到限價就買進（做多），用來接跌破低點、掃停損那一下">掛限價買單</button><button id="btnLimSell" title="價格漲到限價就賣出（做空），用來接漲破高點、掃停損那一下">掛限價賣單</button></div>
+      <div class="row"><label>有效</label><input type="number" id="limBars" value="12" min="1" style="width:60px"> 根（沒成交就自動取消）</div>
       <div class="row"><label><input type="checkbox" id="pendOpenStop" checked> 突破單的停損放在訊號K開盤價（新版，回測較好）</label></div>
       <div id="pendInfo" class="keys"></div>
       <div id="posInfo" class="keys">目前沒有持倉</div>
@@ -1184,8 +1186,8 @@ function setLine(cur0, want, opts) { // 有就更新、沒有就建立、不要�
   return cs.createPriceLine(opts);
 }
 function drawLines() {
-  window._pendLine = setLine(window._pendLine, !!pend && !pos, pend ? { price: pend.trig, color: "#38bdf8", lineWidth: 1, lineStyle: 2, title: (pend.dir > 0 ? "突破買 " : "突破賣 ") + "（剩 " + Math.max(0, pend.until - cur) + " 根）" } : {});
-  $("pendInfo").textContent = pend && !pos ? `掛單中：${pend.dir > 0 ? "漲過" : "跌破"} ${pend.trig} 成交，停損 ${pend.stop.toFixed(2)}，剩 ${Math.max(0, pend.until - cur)} 根` : "";
+  window._pendLine = setLine(window._pendLine, !!pend && !pos, pend ? { price: pend.trig, color: "#38bdf8", lineWidth: 1, lineStyle: 2, title: (pend.limit ? (pend.dir > 0 ? "限價買 " : "限價賣 ") : (pend.dir > 0 ? "突破買 " : "突破賣 ")) + "（剩 " + Math.max(0, pend.until - cur) + " 根）" } : {});
+  $("pendInfo").textContent = pend && !pos ? `掛單中：${pend.limit ? (pend.dir > 0 ? "跌到" : "漲到") : (pend.dir > 0 ? "漲過" : "跌破")} ${pend.trig} 成交，停損 ${pend.stop.toFixed(2)}，剩 ${Math.max(0, pend.until - cur)} 根` : "";
   if (linePos !== pos && window._oneR) { cs.removePriceLine(window._oneR); window._oneR = null; }
   if (linePos !== pos) { for (const l of [entryLine, stopLine, tpLine, liqLine]) if (l) cs.removePriceLine(l); entryLine = stopLine = tpLine = liqLine = null; linePos = pos; }
   if (!pos) return;
@@ -1239,8 +1241,8 @@ function liqPrice(dir, entry, qty, money) {
 function calcOrder(dir, pxO, stopO) {
   const price = pxO ?? bars[cur].c;
   let stop = stopO ?? parseFloat($("stop").value);
-  if (!stop || (dir > 0 ? stop >= price : stop <= price)) stop = autoStopValue(dir);
-  if (dir > 0 ? stop >= price : stop <= price) return { err: "停損價放錯邊了" };
+  if (!(stop > 0) || (dir > 0 ? stop >= price : stop <= price)) stop = autoStopValue(dir);
+  if (!(stop > 0) || (dir > 0 ? stop >= price : stop <= price)) return { err: "停損價放錯邊了" };
   const mode = $("mode").value;
   let qty, lev, margin;
   if (mode === "risk") {
@@ -1285,12 +1287,12 @@ function open(dir, pxO, stopO, how) {
   }
   window._liqOk = null;
   const vd = trendVerdict(cur);
-  if ($("trendGuard").checked && vd.dir === -dir && window._trOk !== cur + ":" + dir) {
+  if ($("trendGuard").checked && !how && vd.dir === -dir && window._trOk !== cur + ":" + dir) {
     window._trOk = cur + ":" + dir;
     return msg(`⚠️ 逆勢單：現在${IV_NAME[$("tf").value]}是${trendName(TR[cur])}，建議「${vd.txt}」。你上一批練習，逆著 EMA50 的單是 10 筆 -6.7R。確定要做就再按一次。`);
   }
   window._trOk = null;
-  pos = { dir, mode, entry: price, stop, stop0: stop, tp, qty, riskU, lev, margin, liq, inT: bars[cur].t, inIdx: cur, note: $("note").value, sig: sigs[cur] === dir || !!(how && sigs[how.sigIdx] === dir), how: how ? "突破單" : "市價", e0: price, R0: Math.abs(price - stop), mfeR: 0, realized: 0, adds: [], f: { ...feat(cur, dir, stop), bias: ["15", "60", "240"].filter(tf => bias[tf]).map(tf => IV_NAME[tf] + biasTxt(bias[tf][cur])).join(" "), trend: TR[cur] ?? 0, trendH: TREND_H[$("tf").value].filter(tf => TRH[tf]).map(tf => IV_NAME[tf] + trendName(TRH[tf][cur])).join(" "), withTrend: vd.dir === dir ? 1 : vd.dir === -dir ? -1 : 0, strat: stratTag(cur, dir) }, moves: [] };
+  pos = { dir, mode, entry: price, stop, stop0: stop, tp, qty, riskU, lev, margin, liq, inT: bars[cur].t, inIdx: cur, note: $("note").value, sig: sigs[cur] === dir || !!(how && sigs[how.sigIdx] === dir), how: how ? (how.limit ? "限價單" : "突破單") : "市價", e0: price, R0: Math.abs(price - stop), mfeR: 0, realized: 0, adds: [], f: { ...feat(cur, dir, stop), bias: ["15", "60", "240"].filter(tf => bias[tf]).map(tf => IV_NAME[tf] + biasTxt(bias[tf][cur])).join(" "), trend: TR[cur] ?? 0, trendH: TREND_H[$("tf").value].filter(tf => TRH[tf]).map(tf => IV_NAME[tf] + trendName(TRH[tf][cur])).join(" "), withTrend: vd.dir === dir ? 1 : vd.dir === -dir ? -1 : 0, strat: stratTag(cur, dir) }, moves: [] };
   const liqWarn = liq && (dir > 0 ? liq >= stop : liq <= stop) ? "｜⚠️ 錢不夠撐到停損，會先爆倉！" : "";
   msg(`${dir > 0 ? "做多" : "做空"} ${price}｜停損 ${stop.toFixed(2)}｜數量 ${qty.toFixed(4)}｜合約價值 ${(qty * price).toFixed(2)} U（帳戶的 ${lev.toFixed(1)} 倍）｜打到停損賠 ${riskU.toFixed(2)} U${liq ? "｜到 " + liq.toFixed(2) + " 帳戶賠光" : ""}${liqWarn}`);
   draw(false);
@@ -1332,16 +1334,46 @@ function placePend(dir) {
   const b = bars[cur];
   let stop = parseFloat($("stop").value);
   if ($("pendOpenStop").checked && !stopTouched) stop = b.o;
-  if (!stop || (dir > 0 ? stop >= b.h : stop <= b.l)) stop = autoStopValue(dir);
+  if (!(stop > 0) || (dir > 0 ? stop >= b.h : stop <= b.l)) stop = autoStopValue(dir);
   pend = { dir, trig: dir > 0 ? b.h : b.l, stop, until: cur + 3, sigIdx: cur };
   const dist = Math.abs(pend.trig - stop), atr = ATR[cur] || dist;
   if (dist < 0.5 * atr) { msg(`⚠️ 停損離進場只有 ${(dist / atr).toFixed(2)} 個 ATR，太近了：手續費和滑價會吃掉很多（回測這種單建議跳過）。真的要做就再按一次掛單；不然按「取消掛單」`); if (window._tightOk !== cur) { window._tightOk = cur; pend = null; draw(false); return; } }
   msg(`已掛${dir > 0 ? "突破買單：價格漲過 " + b.h : "突破賣單：價格跌破 " + b.l} 才成交｜停損 ${stop.toFixed(2)}｜3 根內沒成交就自動取消`);
   draw(false);
 }
+// ── 限價掛單：跌到限價才買（做多）、漲到限價才空（接掃停損那一下）──
+function placeLimit(dir) {
+  if (!bars.length) return msg("先按「開始練習」");
+  if (pos) return msg("手上有單時不能掛新的限價單");
+  const b = bars[cur], atr = ATR[cur] || (b.h - b.l) || b.c * 0.005;
+  let L = parseFloat($("limPx").value);
+  if (!(L > 0)) { // 空白＝前 20 根的最低點（做空用最高點），掛在它外面一點點，等它被掃
+    let v = dir > 0 ? Infinity : -Infinity;
+    for (let j = Math.max(0, cur - 19); j <= cur; j++) v = dir > 0 ? Math.min(v, bars[j].l) : Math.max(v, bars[j].h);
+    L = +(v - dir * 0.1 * atr).toFixed(2); $("limPx").value = L;
+  }
+  if (dir > 0 ? L >= b.c : L <= b.c) return msg(dir > 0 ? `限價買單要掛在現價 ${b.c} 下面（要追漲請用「掛突破買單」）` : `限價賣單要掛在現價 ${b.c} 上面（要追跌請用「掛突破賣單」）`);
+  let stop = parseFloat($("stop").value);
+  if (!(stop > 0) || (dir > 0 ? stop >= L : stop <= L)) stop = +(L - dir * atr).toFixed(2); // 停損沒填或放錯邊 → 限價外面 1 個 ATR
+  const n = Math.max(1, Math.round(+$("limBars").value || 12));
+  pend = { dir, trig: L, stop, until: cur + n, sigIdx: cur, limit: true };
+  const vd = trendVerdict(cur);
+  msg((vd.dir === -dir ? "⚠️ 這是逆勢單（" + vd.txt + "）｜" : "") + `已掛限價${dir > 0 ? "買單：跌到 " : "賣單：漲到 "}${L} 才成交｜停損 ${stop.toFixed(2)}（1R＝${Math.abs(L - stop).toFixed(2)}）｜${n} 根內沒成交就自動取消`);
+  draw(false);
+}
 function checkPend() {
   if (!pend || pos) return;
   const b = bars[cur], d = pend.dir;
+  if (pend.limit) {
+    if (d > 0 ? b.l <= pend.trig : b.h >= pend.trig) {
+      const px = d > 0 ? Math.min(b.o, pend.trig) : Math.max(b.o, pend.trig), p0 = pend; pend = null; // 開盤就跳過限價 → 用開盤價成交
+      open(d, +px.toFixed(4), p0.stop, p0);
+      if (pos) checkExit(); // 同一根就碰到停損 → 當作先成交再停損（保守算法）
+      return;
+    }
+    if (cur >= pend.until) { msg(`限價單取消：${pend.until - pend.sigIdx} 根內都沒碰到 ${pend.trig}`); pend = null; }
+    return;
+  }
   if (d > 0 ? b.l <= pend.stop : b.h >= pend.stop) { msg("突破單取消：還沒突破就先碰到停損了（這筆不做是對的）"); pend = null; return; }
   if (d > 0 ? b.h > pend.trig : b.l < pend.trig) {
     const px = d > 0 ? Math.max(b.o, pend.trig) : Math.min(b.o, pend.trig), p0 = pend; pend = null;
@@ -1584,6 +1616,10 @@ $("btnAddTp").onclick = addTp; $("btnDelTp").onclick = delTp; $("tpBE").onchange
 $("btnClose").onclick = () => pos && closePos(bars[cur].c, "手動平倉");
 $("btnAutoStop").onclick = () => { if (pos) return; $("stop").value = autoStopValue(1).toFixed(2); stopTouched = true; renderPreview(); };
 $("stop").addEventListener("input", () => { if (!pos) stopTouched = true; });
+$("stop").addEventListener("change", () => { const v = parseFloat($("stop").value); if ($("stop").value !== "" && !(v > 0)) { $("stop").value = ""; stopTouched = false; msg("停損價不能是 0 或負數（可能是滑鼠滾輪或上下鍵改到）→ 已清空，會用自動停損"); renderPreview(); } });
+$("stop").addEventListener("wheel", e => { if (document.activeElement === $("stop")) e.preventDefault(); }, { passive: false });
+$("btnLimBuy").onclick = () => placeLimit(1);
+$("btnLimSell").onclick = () => placeLimit(-1);
 $("btnTrail").onclick = trailToSwing;
 $("btnPendBuy").onclick = () => placePend(1);
 $("btnPendSell").onclick = () => placePend(-1);
