@@ -191,6 +191,7 @@
       多頭／空頭倉位：在進場價點一下，會出現綠色（目標）和紅色（停損）兩塊。拖紅色的邊＝改停損、拖綠色的邊＝改目標、拖右邊的點＝改長度、拖中間＝整個移動。上面會算盈虧比、照「每筆冒本金 %」算的數量和賺賠 U，K棒走過去後會標出先到目標還是先到停損。<br>多個停利點：點選倉位後按「＋停利點」（或 + 鍵），最多 4 個，每個平均出場（2 個各 50%、3 個各 33%）；拖綠色虛線改位置，「－停利點」刪最後一個。勾「TP1後保本」＝TP1 到了，剩下的停損移到進場價。上面會算平均盈虧比和實際拿到幾 R。<br>畫好之後：點一下線＝選取（變藍色），拖圓點＝延長或改角度，拖線身＝整條移動，按 Delete＝刪除。<br>
       大量解讀：出現大量時按 1＝會漲、2＝會跌、3＝看不出來（也可以直接按下一根跳過）。<br>
       停損：圖上紫色虛線＝預計停損，可以直接上下拖；進場後的紫色實線也可以拖。<br>
+      進場後（像 TradingView）：進場線上有「停利」「停損」兩個按鈕，按住往上／往下拖就能設定；之後直接拖綠色停利線、紫色停損線就能改；停利線上的 × ＝取消停利。<br>
       R＝這筆賺賠是停損金額的幾倍。紅漲綠跌（跟你的圖一樣）。<br>
       爆倉熱力圖是「估計」：用 Bybit 未平倉量的增加，假設新倉位有 10／25／50／100 倍，算出爆倉價；價格碰到就消失。不是真的爆倉單。<br>
       資料來源：Bybit 永續合約真實行情。
@@ -892,8 +893,28 @@ function renderDraw() {
     g.beginPath(); g.moveTo(ax, ay); g.lineTo(paneW, ay + k * (paneW - ax)); g.stroke();
     g.fillStyle = d.sel ? "#60a5fa" : "#f59e0b"; for (const [px, py] of [[ax, ay], [bx, by]]) { g.beginPath(); g.arc(px, py, d.sel ? 5 : 3, 0, 7); g.fill(); }
   }
+  drawPosUI(g, Y, paneW);
   g.restore();
 }
+// ── 持倉標籤（像 TradingView）：進場線上有「停利」「停損」兩個按鈕，按住往上／往下拖就能設定 ──
+let posUI = null;
+function drawPosUI(g, Y, paneW) {
+  posUI = null; if (!pos) return;
+  const ye = Y(pos.entry); if (ye == null) return;
+  const px = bars[cur].c, un = pos.qty * (px - pos.entry) * pos.dir, R = pos.R0 ? (px - pos.e0) * pos.dir / pos.R0 : 0;
+  g.font = "12px sans-serif"; g.textBaseline = "middle";
+  const txt = `${pos.dir > 0 ? "多" : "空"} ${+pos.qty.toFixed(4)}｜${un >= 0 ? "+" : ""}${un.toFixed(2)} U（${R >= 0 ? "+" : ""}${R.toFixed(2)}R）`;
+  const tw = g.measureText(txt).width + 12, bw = 38, h = 20, x0 = Math.max(4, paneW - tw - bw * 2 - 70), y0 = ye - h / 2;
+  const box = (x, w, bg, fg, t) => { g.fillStyle = bg; g.fillRect(x, y0, w, h); g.strokeStyle = "rgba(255,255,255,.35)"; g.lineWidth = 1; g.strokeRect(x + 0.5, y0 + 0.5, w - 1, h - 1); g.fillStyle = fg; g.fillText(t, x + 6, ye); };
+  box(x0, tw, pos.dir > 0 ? "#1d4ed8" : "#b45309", "#fff", txt);
+  const xt = x0 + tw, xs = xt + bw;
+  box(xt, bw, "#14532d", "#4ade80", "停利"); box(xs, bw, "#4a044e", "#f0abfc", "停損");
+  posUI = { tp: [xt, y0, bw, h], sl: [xs, y0, bw, h] };
+  if (pos.tp) { // 停利線上的「×」：取消停利
+    const yt = Y(pos.tp); if (yt != null) { const xx = x0 + tw - 20; g.fillStyle = "#14532d"; g.fillRect(xx, yt - 9, 18, 18); g.fillStyle = "#fff"; g.fillText("×", xx + 5, yt); posUI.tpx = [xx, yt - 9, 18, 18]; }
+  }
+}
+const inRect = (x, y, r) => r && x >= r[0] && x <= r[0] + r[2] && y >= r[1] && y <= r[1] + r[3];
 let drawDirty = true, lastPriceKey = "";
 function drawLoop() {
   if (chart && !freeDrag) { const b = $("autoBtn"), want = isAuto() ? "none" : "block"; if (b.style.display !== want) b.style.display = want; } // 拖價格軸、雙擊價格軸也會跟著更新按鈕
@@ -909,7 +930,9 @@ function distSeg(px, py, x1, y1, x2, y2) { const dx = x2 - x1, dy = y2 - y1, L =
 function hitTest(x, y) {
   if (!chart || !bars.length) return null;
   const ts = chart.timeScale(), X = l => ts.logicalToCoordinate(b2v(l)), Y = p => cs.priceToCoordinate(p), W = ts.width(), R = 7;
+  if (pos && posUI) { if (inRect(x, y, posUI.tpx)) return { kind: "tpx" }; if (inRect(x, y, posUI.tp)) return { kind: "ptp" }; if (inRect(x, y, posUI.sl)) return { kind: "stop" }; }
   if (pos) { const ys = Y(pos.stop); if (ys != null && Math.abs(y - ys) < R) return { kind: "stop" }; }
+  if (pos && pos.tp) { const yt = Y(pos.tp); if (yt != null && Math.abs(y - yt) < R) return { kind: "ptp" }; }
   for (let k = drawings.length - 1; k >= 0; k--) {
     const d = drawings[k];
     if (d.type === "long" || d.type === "short") {
@@ -960,17 +983,26 @@ function initInteract() {
     if (tool) return; // 畫線中交給點擊處理
     const { x, y } = relXY(e), h = hitTest(x, y);
     if (!h) { sel = -1; freeDrag = { y: e.clientY, wasAuto: isAuto() }; if (cs.priceScale().options().autoScale) cs.priceScale().applyOptions({ autoScale: false }); fixedRange = null; return; }
+    if (h.kind === "tpx") { pos.tp = null; $("tp").value = ""; msg("已取消停利"); drawLines(); drawDirty = true; e.preventDefault(); e.stopPropagation(); return; }
     if (h.k != null) sel = h.k;
     const L = v2b(chart.timeScale().coordinateToLogical(x)), P = cs.coordinateToPrice(y);
-    drag = { ...h, L0: L, P0: P, orig: h.k != null ? JSON.parse(JSON.stringify(drawings[h.k])) : null, stop0: pos ? pos.stop : null };
+    drag = { ...h, L0: L, P0: P, orig: h.k != null ? JSON.parse(JSON.stringify(drawings[h.k])) : null, stop0: pos ? pos.stop : null, tp0: pos ? pos.tp : null };
     setChartLock(true); el.setPointerCapture(e.pointerId); e.preventDefault(); e.stopPropagation();
   }, true);
   el.addEventListener("pointermove", e => {
     const { x, y } = relXY(e);
     if (freeDrag) drawDirty = true;
-    if (!drag) { if (!tool) { const h = hitTest(x, y); el.style.cursor = !h ? "" : (h.kind === "stop" || h.kind === "plan" || h.kind === "sl" || h.kind === "tp" || h.kind === "mt") ? "ns-resize" : h.kind === "w" ? "ew-resize" : h.kind === "move" ? "move" : "pointer"; } return; }
+    if (!drag) { if (!tool) { const h = hitTest(x, y); el.style.cursor = !h ? "" : (h.kind === "stop" || h.kind === "ptp" || h.kind === "plan" || h.kind === "sl" || h.kind === "tp" || h.kind === "mt") ? "ns-resize" : h.kind === "tpx" ? "pointer" : h.kind === "w" ? "ew-resize" : h.kind === "move" ? "move" : "pointer"; } return; }
     const L0 = chart.timeScale().coordinateToLogical(x), P = cs.coordinateToPrice(y); if (L0 == null || P == null) return; const L = v2b(L0);
     if (drag.kind === "plan") { $("stop").value = P.toFixed(2); stopTouched = true; return; }
+    if (drag.kind === "ptp") {
+      if ((P - bars[cur].c) * pos.dir > 0) {
+        pos.tp = P; $("tp").value = P.toFixed(2); drawLines(); drawDirty = true;
+        const gain = pos.qty * (P - pos.entry) * pos.dir, r = pos.R0 ? (P - pos.e0) * pos.dir / pos.R0 : 0;
+        msg(`拖曳中：停利 ${P.toFixed(2)}｜打到賺 ${gain.toFixed(2)} U（${r.toFixed(2)}R）｜放開就確定`);
+      } else msg(pos.dir > 0 ? "多單的停利要在現在價格上面" : "空單的停利要在現在價格下面");
+      return;
+    }
     if (drag.kind === "stop") {
       const okSide = pos.dir > 0 ? P < bars[cur].c : P > bars[cur].c;
       if (okSide) {
@@ -1006,6 +1038,7 @@ function initInteract() {
       freeDrag = null;
     }
     if (!drag) return;
+    if (drag.kind === "ptp" && pos && pos.tp !== drag.tp0 && pos.tp) msg("停利設在 " + pos.tp.toFixed(2) + "（要取消就按停利線上的 ×）");
     if (drag.kind === "stop" && pos && pos.stop !== drag.stop0) { pos.moves.push({ k: cur - pos.inIdx, how: "拖曳", to: +pos.stop.toFixed(2), atr: +((pos.stop - drag.stop0) * pos.dir / (ATR[cur] || 1)).toFixed(2) }); msg("停損移到 " + pos.stop.toFixed(2)); draw(false); }
     drag = null; setChartLock(false);
   };
@@ -1160,7 +1193,7 @@ function drawLines() {
   stopLine = setLine(stopLine, true, { price: pos.stop, color: "#d946ef", lineWidth: 2, lineStyle: 0, title: "停損 " + pos.stop.toFixed(2) });
   liqLine = setLine(liqLine, !!pos.liq, { price: pos.liq, color: "#ef4444", lineWidth: 1, lineStyle: 1, title: "爆倉" });
   window._oneR = setLine(window._oneR, true, { price: pos.e0 + pos.dir * pos.R0, color: "#64748b", lineWidth: 1, lineStyle: 2, title: "1R（到這裡就保本）" });
-  tpLine = setLine(tpLine, !!pos.tp, { price: pos.tp, color: "#22c55e", lineWidth: 1, lineStyle: 0, title: "停利" });
+  tpLine = setLine(tpLine, !!pos.tp, { price: pos.tp, color: "#22c55e", lineWidth: 2, lineStyle: 0, title: "停利 " + (pos.tp ? pos.tp.toFixed(2) : "") });
 }
 
 // ── 播放 ──
