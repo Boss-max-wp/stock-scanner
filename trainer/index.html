@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
-<!-- 版本 2026-11-26：路徑、多空倉位、自由拖動、刻度滾輪縮放、看板可調大小 -->
+<!-- 版本 2026-11-26b：倉位工具可以放多個停利點（TP1～TP4，分批出場） -->
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -85,6 +85,9 @@
     <button data-tool="path" title="一直點下一個點，點兩下或按 Enter 結束（快捷鍵 Alt+P）">↗ 路徑</button>
     <button data-tool="long" title="在進場價點一下（快捷鍵 Alt+L）">📈 多頭倉位</button>
     <button data-tool="short" title="在進場價點一下（快捷鍵 Alt+S）">📉 空頭倉位</button>
+    <button id="btnAddTp" title="先點選一個多頭／空頭倉位，再按這個（快捷鍵 +）">＋停利點</button>
+    <button id="btnDelTp" title="刪掉最後加的停利點（快捷鍵 -）">－停利點</button>
+    <label title="分批停利時，TP1 到了就把剩下的停損移到進場價" style="font-size:12px;white-space:nowrap"><input type="checkbox" id="tpBE" checked> TP1後保本</label>
     <button id="btnUndo" title="快捷鍵：Ctrl+Z">↶ 復原</button>
     <button id="btnClearDraw">清除線</button>
   </span>
@@ -185,7 +188,7 @@
     <div class="box keys">
       快捷鍵：→ 下一根、B 買、S 賣、C 平倉、空白鍵 播放／暫停、Esc 取消畫線、Ctrl+Z 復原<br>
       畫線：上面選「趨勢線／水平線／框／路徑」，在圖上點。路徑＝一直點下一個點，點兩下或按 Enter 結束，最後會有箭頭。<br>
-      多頭／空頭倉位：在進場價點一下，會出現綠色（目標）和紅色（停損）兩塊。拖紅色的邊＝改停損、拖綠色的邊＝改目標、拖右邊的點＝改長度、拖中間＝整個移動。上面會算盈虧比、照「每筆冒本金 %」算的數量和賺賠 U，K棒走過去後會標出先到目標還是先到停損。<br>畫好之後：點一下線＝選取（變藍色），拖圓點＝延長或改角度，拖線身＝整條移動，按 Delete＝刪除。<br>
+      多頭／空頭倉位：在進場價點一下，會出現綠色（目標）和紅色（停損）兩塊。拖紅色的邊＝改停損、拖綠色的邊＝改目標、拖右邊的點＝改長度、拖中間＝整個移動。上面會算盈虧比、照「每筆冒本金 %」算的數量和賺賠 U，K棒走過去後會標出先到目標還是先到停損。<br>多個停利點：點選倉位後按「＋停利點」（或 + 鍵），最多 4 個，每個平均出場（2 個各 50%、3 個各 33%）；拖綠色虛線改位置，「－停利點」刪最後一個。勾「TP1後保本」＝TP1 到了，剩下的停損移到進場價。上面會算平均盈虧比和實際拿到幾 R。<br>畫好之後：點一下線＝選取（變藍色），拖圓點＝延長或改角度，拖線身＝整條移動，按 Delete＝刪除。<br>
       大量解讀：出現大量時按 1＝會漲、2＝會跌、3＝看不出來（也可以直接按下一根跳過）。<br>
       停損：圖上紫色虛線＝預計停損，可以直接上下拖；進場後的紫色實線也可以拖。<br>
       R＝這筆賺賠是停損金額的幾倍。紅漲綠跌（跟你的圖一樣）。<br>
@@ -757,44 +760,79 @@ function onChartClick(p) {
   if (pt.l === pending.l && tool === "trend") { msg("兩個點要在不同的K棒"); return; }
   drawings.push({ type: tool, a: pending, b: pt }); pending = null; setTool(null);
 }
+function selPos() { const d = drawings[sel]; return d && (d.type === "long" || d.type === "short") ? d : null; }
+function addTp() {
+  const d = selPos(); if (!d) { msg("先點一下要加停利點的多頭／空頭倉位（變藍色），再按「＋停利點」"); return; }
+  const tps = posTps(d); if (tps.length >= 4) { msg("最多 4 個停利點"); return; }
+  const pts = [d.a.p, ...tps]; let gi = 0, gap = 0;
+  for (let i = 0; i < pts.length - 1; i++) { const g = Math.abs(pts[i + 1] - pts[i]); if (g > gap) { gap = g; gi = i; } }
+  (d.mt = d.mt || []).push((pts[gi] + pts[gi + 1]) / 2); drawDirty = true;
+  msg(`現在有 ${tps.length + 1} 個停利點，每個平均出 ${Math.round(100 / (tps.length + 1))}%。拖綠色虛線可以改位置，按「－停利點」刪掉最後一個`);
+}
+function delTp() {
+  const d = selPos(); if (!d) { msg("先點一下要改的多頭／空頭倉位"); return; }
+  if (!d.mt || !d.mt.length) { msg("只剩一個目標了"); return; }
+  d.mt.pop(); drawDirty = true; msg(`剩 ${posTps(d).length} 個停利點`);
+}
 function finishPath() {
   if (pathPts.length >= 2) { drawings.push({ type: "path", pts: pathPts.slice() }); sel = drawings.length - 1; }
   setTool(null); drawDirty = true;
 }
 function fmtP(v) { const a = Math.abs(v); return a >= 1000 ? v.toFixed(2) : a >= 10 ? v.toFixed(3) : a >= 1 ? v.toFixed(4) : v.toFixed(6); }
-function posToolStat(d) { // 多頭／空頭倉位工具的數字
+function posTps(d) { // 全部停利點（近到遠），每個平均分
+  const dir = d.type === "long" ? 1 : -1;
+  return [...(d.mt || []), d.t].filter(v => (v - d.a.p) * dir > 0).sort((x, y) => (x - y) * dir);
+}
+function posToolStat(d) { // 多頭／空頭倉位工具的數字（可以有多個停利點）
   const dir = d.type === "long" ? 1 : -1, e = d.a.p, s = d.b.p, t = d.t, risk = Math.abs(e - s) || 1e-9;
-  const riskU = equity * (+$("risk").value || 1) / 100, qty = riskU / risk, rewU = qty * Math.abs(t - e), rr = Math.abs(t - e) / risk;
-  let res = null; const i1 = Math.min(cur, Math.floor(d.b.l));
+  const tps = posTps(d), n = tps.length || 1, sh = 1 / n, be = n > 1 && $("tpBE").checked;
+  const riskU = equity * (+$("risk").value || 1) / 100, qty = riskU / risk;
+  const each = tps.map(v => ({ p: v, R: Math.abs(v - e) / risk, U: qty * sh * Math.abs(v - e), hit: false }));
+  const rewU = each.reduce((a, x) => a + x.U, 0), rr = each.reduce((a, x) => a + x.R * sh, 0);
+  let res = null, got = 0, left = 1, stopNow = s, k = 0; const i1 = Math.min(cur, Math.floor(d.b.l));
   for (let i = Math.max(0, Math.floor(d.a.l) + 1); i <= i1; i++) {
     const b = bars[i]; if (!b) break;
-    const hitS = dir > 0 ? b.l <= s : b.h >= s, hitT = dir > 0 ? b.h >= t : b.l <= t;
-    if (hitS) { res = -1; break; } if (hitT) { res = 1; break; }
+    if (dir > 0 ? b.l <= stopNow : b.h >= stopNow) { got += left * (stopNow - e) * dir / risk; left = 0; res = k ? 0 : -1; break; } // 同一根先算停損（保守）
+    while (k < each.length && (dir > 0 ? b.h >= each[k].p : b.l <= each[k].p)) { each[k].hit = true; got += sh * each[k].R; left -= sh; k++; if (k === 1 && be) stopNow = e; }
+    if (k === each.length) { res = 1; left = 0; break; }
   }
-  return { dir, e, s, t, riskU, qty, rewU, rr, res, started: cur > d.a.l };
+  return { dir, e, s, t, tps: each, n, be, riskU, qty, rewU, rr, res, k, gotR: got, open: left > 1e-9, started: cur > d.a.l };
 }
 function drawPosTool(g, d, X, Y) {
   const x1 = X(d.a.l), x2 = X(d.b.l), ye = Y(d.a.p), ys = Y(d.b.p), yt = Y(d.t);
   if ([x1, x2, ye, ys, yt].some(v => v == null)) return;
   const st = posToolStat(d), L = Math.min(x1, x2), W = Math.max(Math.abs(x2 - x1), 4);
-  g.fillStyle = "rgba(38,166,154,.24)"; g.fillRect(L, Math.min(ye, yt), W, Math.abs(yt - ye));
+  const far = st.tps.length ? st.tps[st.tps.length - 1].p : d.t, yf = Y(far) ?? yt;
+  g.fillStyle = "rgba(38,166,154,.24)"; g.fillRect(L, Math.min(ye, yf), W, Math.abs(yf - ye));
   g.fillStyle = "rgba(224,72,72,.24)"; g.fillRect(L, Math.min(ye, ys), W, Math.abs(ys - ye));
-  if (d.sel) { g.strokeStyle = "#60a5fa"; g.lineWidth = 1.5; g.strokeRect(L, Math.min(ys, yt), W, Math.abs(yt - ys)); }
+  if (d.sel) { g.strokeStyle = "#60a5fa"; g.lineWidth = 1.5; g.strokeRect(L, Math.min(ys, yf), W, Math.abs(yf - ys)); }
   g.strokeStyle = "#d1d5db"; g.lineWidth = 1.4; g.beginPath(); g.moveTo(L, ye); g.lineTo(L + W, ye); g.stroke();
   g.font = "12px 'Microsoft JhengHei', 'PingFang TC', sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
   const cx = L + W / 2, pct = v => Math.abs((v - st.e) / st.e * 100).toFixed(2);
   const lab = (txt, y, bg) => { const tw = g.measureText(txt).width + 12; g.fillStyle = bg; g.fillRect(cx - tw / 2, y - 9, tw, 18); g.fillStyle = "#fff"; g.fillText(txt, cx, y); };
   const out = y => y + (y < ye ? -12 : 12); // 標籤放在區塊外側
-  lab(`目標 ${fmtP(st.t)}（+${pct(st.t)}%）賺 ${st.rewU.toFixed(1)} U`, out(yt), "#1f8a80");
-  lab(`停損 ${fmtP(st.s)}（-${pct(st.s)}%）賠 ${st.riskU.toFixed(1)} U`, out(ys), "#c03a3a");
-  const resTxt = st.res === 1 ? "｜✅ 先到目標" : st.res === -1 ? "｜❌ 先到停損" : st.started ? "｜還沒碰到" : "";
-  lab(`${st.dir > 0 ? "多" : "空"} ${fmtP(st.e)}｜盈虧比 ${st.rr.toFixed(2)}｜數量 ${st.qty.toFixed(4)}${resTxt}`, ye, "rgba(30,34,45,.92)");
-  if (d.sel) { g.fillStyle = "#60a5fa"; for (const [px, py] of [[x1, ye], [x1, ys], [x1, yt], [x2, ye]]) g.fillRect(px - 4, py - 4, 8, 8); }
+  if (st.n <= 1) lab(`目標 ${fmtP(st.t)}（+${pct(st.t)}%）賺 ${st.rewU.toFixed(1)} U`, out(yt), "#1f8a80");
+  else {
+    const share = Math.round(100 / st.n);
+    st.tps.forEach((x, i) => {
+      const y = Y(x.p); if (y == null) return;
+      g.strokeStyle = x.hit ? "#4ade80" : "#26a69a"; g.lineWidth = 1.2; g.setLineDash(i === st.n - 1 ? [] : [5, 3]);
+      g.beginPath(); g.moveTo(L, y); g.lineTo(L + W, y); g.stroke(); g.setLineDash([]);
+      lab(`TP${i + 1} ${fmtP(x.p)}（+${pct(x.p)}%）${share}%｜${x.R.toFixed(1)}R｜賺 ${x.U.toFixed(1)} U${x.hit ? " ✅" : ""}`, i === st.n - 1 ? out(y) : y, x.hit ? "#15803d" : "#1f8a80");
+    });
+  }
+  lab(`停損 ${fmtP(st.s)}（-${pct(st.s)}%）賠 ${st.riskU.toFixed(1)} U${st.be ? "｜TP1後移到成本" : ""}`, out(ys), "#c03a3a");
+  const gr = (st.gotR >= 0 ? "+" : "") + st.gotR.toFixed(2) + "R";
+  const resTxt = st.n <= 1
+    ? (st.res === 1 ? "｜✅ 先到目標" : st.res === -1 ? "｜❌ 先到停損" : st.started ? "｜還沒碰到" : "")
+    : (st.res === 1 ? `｜✅ 全部停利 ${gr}` : st.res === -1 ? "｜❌ 先到停損 -1R" : st.res === 0 ? `｜到 TP${st.k} 後${st.be ? "保本" : "停損"}出場 ${gr}` : st.k ? `｜已到 TP${st.k}（已入袋 ${gr}），剩下還在跑` : st.started ? "｜還沒碰到" : "");
+  lab(`${st.dir > 0 ? "多" : "空"} ${fmtP(st.e)}｜${st.n > 1 ? "平均盈虧比" : "盈虧比"} ${st.rr.toFixed(2)}｜數量 ${st.qty.toFixed(4)}${resTxt}`, ye, "rgba(30,34,45,.92)");
+  if (d.sel) { g.fillStyle = "#60a5fa"; for (const [px, py] of [[x1, ye], [x1, ys], [x1, yt], [x2, ye], ...(d.mt || []).map(v => [x1, Y(v)])]) if (py != null) g.fillRect(px - 4, py - 4, 8, 8); }
 }
 function lineAt(d, l) { // 這條線在第 l 根K的價格
   if (d.type === "hline") return [d.a.p];
   if (d.type === "box") return (l >= Math.min(d.a.l, d.b.l) && l <= Math.max(d.a.l, d.b.l) + 50) ? [d.a.p, d.b.p] : [];
-  if (d.type === "long" || d.type === "short") return (l >= d.a.l && l <= d.b.l + 50) ? [d.a.p, d.b.p, d.t] : [];
+  if (d.type === "long" || d.type === "short") return (l >= d.a.l && l <= d.b.l + 50) ? [d.a.p, d.b.p, d.t, ...(d.mt || [])] : [];
   if (d.type === "path") { const o = []; for (let k = 0; k < d.pts.length - 1; k++) { const p1 = d.pts[k], p2 = d.pts[k + 1], lo = Math.min(p1.l, p2.l), hi = Math.max(p1.l, p2.l); if (hi > lo && l >= lo && l <= hi) o.push(p1.p + (p2.p - p1.p) * (l - p1.l) / (p2.l - p1.l)); } return o; }
   const sl = (d.b.p - d.a.p) / (d.b.l - d.a.l); const l0 = Math.min(d.a.l, d.b.l);
   return l >= l0 ? [d.a.p + sl * (l - d.a.l)] : [];
@@ -880,10 +918,12 @@ function hitTest(x, y) {
       if (Math.hypot(x - x1, y - ys) < R + 2) return { kind: "sl", k };
       if (Math.hypot(x - x1, y - yt) < R + 2) return { kind: "tp", k };
       if (Math.hypot(x - x2, y - ye) < R + 2) return { kind: "w", k };
+      for (let j = 0; j < (d.mt || []).length; j++) { const yy = Y(d.mt[j]); if (yy != null && x >= Math.min(x1, x2) - R && x <= Math.max(x1, x2) + R && Math.abs(y - yy) < 5) return { kind: "mt", k, j }; }
       const inX = x >= Math.min(x1, x2) - R && x <= Math.max(x1, x2) + R;
       if (inX && Math.abs(y - ys) < 5) return { kind: "sl", k };
       if (inX && Math.abs(y - yt) < 5) return { kind: "tp", k };
-      if (inX && y >= Math.min(ys, yt) - R && y <= Math.max(ys, yt) + R) return { kind: "move", k };
+      const yf = Math.min(yt, ...(d.mt || []).map(Y).filter(v => v != null)), yF = Math.max(yt, ...(d.mt || []).map(Y).filter(v => v != null));
+      if (inX && y >= Math.min(ys, yf) - R && y <= Math.max(ys, yF) + R) return { kind: "move", k };
       continue;
     }
     if (d.type === "path") {
@@ -928,7 +968,7 @@ function initInteract() {
   el.addEventListener("pointermove", e => {
     const { x, y } = relXY(e);
     if (freeDrag) drawDirty = true;
-    if (!drag) { if (!tool) { const h = hitTest(x, y); el.style.cursor = !h ? "" : (h.kind === "stop" || h.kind === "plan" || h.kind === "sl" || h.kind === "tp") ? "ns-resize" : h.kind === "w" ? "ew-resize" : h.kind === "move" ? "move" : "pointer"; } return; }
+    if (!drag) { if (!tool) { const h = hitTest(x, y); el.style.cursor = !h ? "" : (h.kind === "stop" || h.kind === "plan" || h.kind === "sl" || h.kind === "tp" || h.kind === "mt") ? "ns-resize" : h.kind === "w" ? "ew-resize" : h.kind === "move" ? "move" : "pointer"; } return; }
     const L0 = chart.timeScale().coordinateToLogical(x), P = cs.coordinateToPrice(y); if (L0 == null || P == null) return; const L = v2b(L0);
     if (drag.kind === "plan") { $("stop").value = P.toFixed(2); stopTouched = true; return; }
     if (drag.kind === "stop") {
@@ -945,9 +985,10 @@ function initInteract() {
     }
     const d = drawings[drag.k], o = drag.orig, dL = L - drag.L0, dP = P - drag.P0;
     if (drag.kind === "pt") { d.pts[drag.i] = { l: L, p: P }; return; }
+    if (drag.kind === "mt") { if ((P - d.a.p) * (d.type === "long" ? 1 : -1) > 0) d.mt[drag.j] = P; else msg("停利點要在進場價的獲利那一邊"); return; }
     if (drag.kind === "pe" || drag.kind === "sl" || drag.kind === "tp" || drag.kind === "w") {
       const dir = d.type === "long" ? 1 : -1;
-      if (drag.kind === "pe") { if ((P - d.b.p) * dir > 0 && (d.t - P) * dir > 0) d.a = { l: Math.min(L, d.b.l - 1), p: P }; else msg("進場價要在停損和目標中間"); }
+      if (drag.kind === "pe") { if ((P - d.b.p) * dir > 0 && [d.t, ...(d.mt || [])].every(v => (v - P) * dir > 0)) d.a = { l: Math.min(L, d.b.l - 1), p: P }; else msg("進場價要在停損和目標中間"); }
       else if (drag.kind === "sl") { if ((d.a.p - P) * dir > 0) d.b.p = P; else msg(d.type === "long" ? "多單的停損要在進場價下面" : "空單的停損要在進場價上面"); }
       else if (drag.kind === "tp") { if ((P - d.a.p) * dir > 0) d.t = P; else msg(d.type === "long" ? "多單的目標要在進場價上面" : "空單的目標要在進場價下面"); }
       else d.b.l = Math.max(L, d.a.l + 1);
@@ -957,7 +998,7 @@ function initInteract() {
     else if (drag.kind === "b") d.b = { l: L, p: P };
     else if (drag.kind === "c") { d.a = { l: L, p: d.a.p }; d.b = { l: d.b.l, p: P }; }
     else if (drag.kind === "d") { d.b = { l: L, p: d.b.p }; d.a = { l: d.a.l, p: P }; }
-    else { if (o.a) d.a = { l: o.a.l + dL, p: o.a.p + dP }; if (o.b) d.b = { l: o.b.l + dL, p: o.b.p + dP }; if (o.t != null) d.t = o.t + dP; if (o.pts) d.pts = o.pts.map(q => ({ l: q.l + dL, p: q.p + dP })); }
+    else { if (o.a) d.a = { l: o.a.l + dL, p: o.a.p + dP }; if (o.b) d.b = { l: o.b.l + dL, p: o.b.p + dP }; if (o.t != null) d.t = o.t + dP; if (o.mt) d.mt = o.mt.map(v => v + dP); if (o.pts) d.pts = o.pts.map(q => ({ l: q.l + dL, p: q.p + dP })); }
   }, true);
   const end = e => {
     if (freeDrag) { // 幾乎沒有上下拖 → 保持自動縮放；有上下拖 → 關掉自動縮放，顯示「自動縮放」按鈕
@@ -1506,6 +1547,7 @@ $("btnNext").onclick = next;
 $("btnPlay").onclick = togglePlay;
 $("btnBuy").onclick = () => open(1);
 $("btnSell").onclick = () => open(-1);
+$("btnAddTp").onclick = addTp; $("btnDelTp").onclick = delTp; $("tpBE").onchange = () => { drawDirty = true; };
 $("btnClose").onclick = () => pos && closePos(bars[cur].c, "手動平倉");
 $("btnAutoStop").onclick = () => { if (pos) return; $("stop").value = autoStopValue(1).toFixed(2); stopTouched = true; renderPreview(); };
 $("stop").addEventListener("input", () => { if (!pos) stopTouched = true; });
@@ -1533,6 +1575,8 @@ document.addEventListener("keydown", e => {
   if (e.altKey && (e.key === "p" || e.key === "P")) { e.preventDefault(); setTool("path"); return; }
   if (e.altKey && (e.key === "l" || e.key === "L")) { e.preventDefault(); setTool("long"); return; }
   if (e.altKey && (e.key === "s" || e.key === "S")) { e.preventDefault(); setTool("short"); return; }
+  if ((e.key === "+" || e.key === "=") && selPos()) { e.preventDefault(); addTp(); return; }
+  if ((e.key === "-" || e.key === "_") && selPos()) { e.preventDefault(); delTp(); return; }
   if ((e.key === "Delete" || e.key === "Backspace") && sel >= 0) { drawings.splice(sel, 1); sel = -1; return; }
   if ((e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "Z")) { e.preventDefault(); drawings.pop(); return; }
   if (e.altKey && (e.key === "t" || e.key === "T")) { e.preventDefault(); setTool("trend"); return; }
